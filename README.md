@@ -1,2 +1,5 @@
 # depthcharge
-Semi-supervised deep learning for searching spectral libraries
+A deep learning toolkit for proteomics
+
+Currently under rapid development...
+
