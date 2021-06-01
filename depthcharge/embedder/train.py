@@ -7,8 +7,8 @@ from tempfile import TemporaryDirectory
 
 from tqdm import tqdm
 
+from . import splits
 from .. import utils
-from .. import splits
 from .data import SpectrumDataset
 from .model import SpectrumTransformer
 

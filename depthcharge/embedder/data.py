@@ -7,8 +7,8 @@ import numpy as np
 from tqdm import tqdm
 from pyteomics.mzml import MzML
 
+from . import similarity
 from .. import utils
-from .. import similarity
 
 LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
         exclude TMT and iTRAQ reporter ions.
     cache_dir : str or Path, optional
         The directory in which to save the cached spectra.
-    prefix : str or list of str
+    file_root : str or list of str
         The prefix to add to the cached files.
     """
 
@@ -52,7 +52,7 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
         tol=0.01,
         min_mz=140,
         cache_dir=None,
-        prefix=None,
+        file_root=None,
     ):
         """Initialize a SpectrumDataset"""
         super().__init__()
@@ -69,7 +69,7 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
             mzml_files=mzml_files,
             ms_level=self.ms_level,
             npy_dir=self.cache_dir,
-            prefix=prefix,
+            prefix=file_root,
         )
 
         # Setup for evaluation:
