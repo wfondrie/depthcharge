@@ -108,7 +108,7 @@ class SpectrumTransformer(torch.nn.Module):
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # Check divisibility
-        if self.d_model % n_head != 0:
+        if self._d_model % n_head != 0:
             raise ValueError("n_heads must divide evenly into embed_dim")
 
         # BUILD THE MODEL
@@ -143,7 +143,7 @@ class SpectrumTransformer(torch.nn.Module):
         # The MLP layers:
         # Linearly interpolate the FC layer sizes
         fc_sizes = np.linspace(
-            self._d_model, self._embed_dim, self._n_fc_layers + 1
+            self._d_model, self._embed_dim, self._n_mlp_layers + 1
         )
         fc_sizes = np.ceil(fc_sizes).astype(int)
         fc_layers = []
@@ -183,7 +183,7 @@ class SpectrumTransformer(torch.nn.Module):
         self._start = None
 
         # For multi-GPU support:
-        self.mz_encoder = torch.nn.DataParallel(self.mzencoder)
+        self.mz_encoder = torch.nn.DataParallel(self.mz_encoder)
         self.transformer = torch.nn.DataParallel(self.transformer)
         self.head = torch.nn.DataParallel(self.head)
 
@@ -200,6 +200,9 @@ class SpectrumTransformer(torch.nn.Module):
     @output_dir.setter
     def output_dir(self, path):
         """Set the output directory"""
+        if path is None:
+            path = Path.cwd()
+
         self._output_dir = Path(path)
 
     @property
@@ -460,7 +463,6 @@ class MzEncoder(torch.nn.Module):
 
         self.register_buffer("sin_term", sin_term)
         self.register_buffer("cos_term", cos_term)
-        self.linear = torch.nn.Linear(1, d_model)
 
     def forward(self, X):
         """Encode m/z values.
