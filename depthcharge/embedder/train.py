@@ -37,7 +37,7 @@ def tmp_data(spectrum_files, tmp_dir):
         The paths to the spectrum data files.
     """
     out_files = []
-    for in_file in tqdm(spectrum_files, units="files"):
+    for in_file in tqdm(utils.listify(spectrum_files), unit="files"):
         in_file = Path(in_file)
         out_file = Path(tmp_dir, in_file.name)
         out_files.append(out_file)
@@ -45,7 +45,7 @@ def tmp_data(spectrum_files, tmp_dir):
             shutil.copyfile(in_file, out_file)
 
         if out_file.suffix == ".npy":
-            if out_file.suffixes == [".index", ".npy"]:
+            if out_file.suffixes[-2:] == [".index", ".npy"]:
                 sibling_in_file = in_file.with_suffix("").with_suffix(".npy")
             else:
                 sibling_in_file = in_file.with_suffix(".index.npy")
@@ -93,9 +93,14 @@ def train(
         will be much faster if it is local.
     """
     start = time.time()
-    if training_files and validation_files is None:
+    if training_files is None and validation_files is None:
         training_files, validation_files, _ = splits.get_splits()
-    elif training_files is None:
+        if "cache_dir" in dataset_kwargs.keys():
+            cache = dataset_kwargs["cache_dir"]
+            training_files = [Path(cache, f) for f in training_files]
+            validation_files = [Path(cache, f) for f in validation_files]
+
+    elif training_files is None and validation_files is not None:
         raise ValueError(
             "'training_files' must be provided if 'validation_files' are "
             "provided"
