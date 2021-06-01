@@ -110,6 +110,7 @@ def add_files(
         new = pd.concat([pd.read_csv(SPLITS), new])
 
     new = new.drop_duplicates()[["split", "project", "index_file"]]
+    new = new.sort_values(["project", "index_file"])
     new.to_csv(SPLITS, index=False)
 
 
