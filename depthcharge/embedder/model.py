@@ -68,8 +68,8 @@ class SpectrumTransformer(torch.nn.Module):
         n_mlp_layers=3,
         dropout=0.1,
         mz_encoding=True,
-        n_epochs=1000,
-        updates_per_epoch=1000,
+        n_epochs=300,
+        updates_per_epoch=500,
         train_batch_size=1028,
         eval_batch_size=2000,
         num_workers=1,
@@ -103,9 +103,6 @@ class SpectrumTransformer(torch.nn.Module):
         self.use_gpu = bool(use_gpu)
         self.file_root = file_root
         self.output_dir = output_dir
-
-        # Figure out what device to use:
-        self._device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # Check divisibility
         if self._d_model % n_head != 0:
@@ -220,13 +217,28 @@ class SpectrumTransformer(torch.nn.Module):
         else:
             self._file_root = str(root) + "."
 
+    @property
+    def use_gpu(self):
+        """Use one or more GPUs if available."""
+        return self._use_gpu
+
+    @use_gpu.setter
+    def use_gpu(self, val):
+        """Set whether to use a GPU."""
+        self._use_gpu = bool(val)
+        if val and torch.cuda.is_available():
+            self._device = "cuda"
+        else:
+            self._device = "cpu"
+
     def forward(self, X):
         """The forward pass"""
         mask = torch.cat(
             [
                 torch.tensor([[False]] * X.shape[0], device=self._device),
                 ~X.sum(dim=2).bool(),
-            ]
+            ],
+            dim=1,
         )
 
         X = self.mz_encoder(X)
@@ -251,6 +263,7 @@ class SpectrumTransformer(torch.nn.Module):
             The SpectrumDataset containing the validation mass spectra.
 
         """
+        self.to(self._device)
         self._train_dataset = train_dataset
         self._train_loader = self._base_loader(
             train_dataset, batch_size=self.train_batch_size
@@ -260,9 +273,8 @@ class SpectrumTransformer(torch.nn.Module):
             self._base_loader(train_dataset, batch_size=self.eval_batch_size)
         ]
 
-        use_val = val_dataset is not None
         self._val_dataset = val_dataset
-        if use_val:
+        if self._val_dataset is not None:
             self._eval_loader.append(
                 self._base_loader(val_dataset, batch_size=self.eval_batch_size)
             )
@@ -270,23 +282,21 @@ class SpectrumTransformer(torch.nn.Module):
         if self._train_loss is None:
             self._train_loss = []
 
-        if self._val_loss is not None and use_val:
+        if self._val_loss is None and self._val_dataset is not None:
             self._val_loss = []
             self._val_min = np.inf
 
         # Evaluate the untrained model:
         self._start = time.time()
-        self._checkpout()
+        self._checkpoint()
         self.epoch += 1
 
         # The main trianing loop:
         try:
             n_updates = 0
             pbar = tqdm(total=self.updates_per_epoch, leave=False)
-            self.train()
-            self.train_dataset.train()
-            for spx, spy, gsp in self.train_loader:
-                gsp = gsp.to(self.device)
+            for spx, spy, gsp in self._train_loader:
+                gsp = gsp.to(self._device)
                 pred = self.predict(spx, spy)
                 loss = self.mse(pred, gsp)
                 loss.backward()
@@ -305,14 +315,15 @@ class SpectrumTransformer(torch.nn.Module):
                     self._start = time.time()
                     n_updates = 0
                     pbar = tqdm(total=self.updates_per_epoch, leave=False)
-                    self.train()
-                    self.train_dataset.train()
 
-            self.save(self.output_dir / self.file_root + "final.pt")
+            self.save(self.output_dir / (self.file_root + "final.pt"))
 
         except KeyboardInterrupt:
             pbar.close()
-            self.save(self.output_dir / self.file_root + "latest.pt")
+            self.optimizer.zero_grad()
+            del spx, spy, gsp
+            self.to("cpu")
+            self.save(self.output_dir / (self.file_root + "latest.pt"))
 
         return self
 
@@ -321,15 +332,15 @@ class SpectrumTransformer(torch.nn.Module):
         with torch.no_grad():
             self.eval()
             self._train_dataset.eval()
-            self._train_loss.append(self._calc_loss(self._train_eval_loader))
+            self._train_loss.append(self._calc_loss(self._eval_loader[0]))
 
             if self._val_dataset is not None:
                 self._val_dataset.eval()
-                self._val_loss.append(self._calc_loss(self._val_loader))
+                self._val_loss.append(self._calc_loss(self._eval_loader[1]))
                 if self._val_loss[-1] <= self._val_min:
                     self._val_min = self._val_loss[-1]
                     self.save(
-                        self.output_dir / self.file_root + "checkpoint.pt"
+                        self.output_dir / (self.file_root + "checkpoint.pt")
                     )
 
                 LOGGER.info(
@@ -347,7 +358,7 @@ class SpectrumTransformer(torch.nn.Module):
                     (time.time() - self._start) / 60,
                 )
 
-            self.save(self.output_dir / self.file_root + "latest.pt")
+            self.save(self.output_dir / (self.file_root + "latest.pt"))
             self._train_dataset.train()
             self.train()
 
@@ -418,7 +429,7 @@ class SpectrumTransformer(torch.nn.Module):
         """
         emb_X = self(X.to(self._device))
         emb_Y = self(Y.to(self._device))
-        return torch.bmm(emb_X.unsqueeze(1).emb_Y.unsqueeze(2)).squeeze()
+        return torch.bmm(emb_X.unsqueeze(1), emb_Y.unsqueeze(2)).squeeze()
 
 
 class TransformerAdapter(torch.nn.Module):

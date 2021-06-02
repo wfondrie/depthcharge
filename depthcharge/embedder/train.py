@@ -2,8 +2,8 @@
 import time
 import shutil
 import logging
+import tempfile
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from tqdm import tqdm
 
@@ -15,7 +15,7 @@ from .model import SpectrumTransformer
 LOGGER = logging.getLogger(__name__)
 
 
-def tmp_data(spectrum_files, tmp_dir):
+def tmp_data(spectrum_files):
     """Copy data to a temporary directory.
 
     This function exists because we mostly work off of a network drive,
@@ -36,7 +36,9 @@ def tmp_data(spectrum_files, tmp_dir):
     list of Path objects
         The paths to the spectrum data files.
     """
+    tmp_dir = tempfile.gettempdir()
     out_files = []
+    LOGGER.info("Copying files to temporary directory...")
     for in_file in tqdm(utils.listify(spectrum_files), unit="files"):
         in_file = Path(in_file)
         out_file = Path(tmp_dir, in_file.name)
@@ -106,30 +108,30 @@ def train(
             "provided"
         )
 
-    with TemporaryDirectory() as tmp:
-        if use_tmp:
-            training_files = tmp_data(training_files, tmp)
-            validation_files = tmp_data(validation_files, tmp)
+    if use_tmp:
+        training_files = tmp_data(training_files)
+        validation_files = tmp_data(validation_files)
 
-        train_set = SpectrumDataset(training_files, **dataset_kwargs)
-        val_set = SpectrumDataset(validation_files, **dataset_kwargs)
-        model = SpectrumTransformer(embed_dim, **model_kwargs)
+    LOGGER.info("Creating SpectrumDatasets...")
+    train_set = SpectrumDataset(training_files, **dataset_kwargs)
+    val_set = SpectrumDataset(validation_files, **dataset_kwargs)
+    model = SpectrumTransformer(embed_dim, **model_kwargs)
 
-        LOGGER.info("%i training set mass spectra", len(train_set.spectra))
-        LOGGER.info("%i validation set mass spectra", len(val_set.spectra))
-        LOGGER.info("Datasets loaded in %.2f min", (time.time() - start) / 60)
+    LOGGER.info("%i training set mass spectra", train_set.n_spectra)
+    LOGGER.info("%i validation set mass spectra", val_set.n_spectra)
+    LOGGER.info("Datasets loaded in %.2f min", (time.time() - start) / 60)
+    LOGGER.info(
+        "Training SpectrumTransformer with %i parameters...",
+        model.n_parameters,
+    )
 
-        LOGGER.info(
-            "Training SpectrumTransformer with %i parameters...",
-            model.n_parameters,
-        )
+    if model_checkpoint is not None:
+        model.load(model_checkpoint)
 
-        if model_checkpoint is not None:
-            model.load(model_checkpoint)
-
-        LOGGER.info("=== Training ===")
-        start = time.time()
-        model = model.fit(train_set, val_set)
+    LOGGER.info("=== Training ===")
+    start = time.time()
+    model.fit(train_set, val_set)
 
     LOGGER.info("=== Done! ===")
     LOGGER.info("Training completed in %.2f min.", (time.time() - start) / 60)
+    return model
