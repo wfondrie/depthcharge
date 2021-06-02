@@ -134,4 +134,4 @@ def train(
 
     LOGGER.info("=== Done! ===")
     LOGGER.info("Training completed in %.2f min.", (time.time() - start) / 60)
-    return model
+    return model, val_set

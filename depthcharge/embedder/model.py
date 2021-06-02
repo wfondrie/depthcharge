@@ -6,6 +6,7 @@ from functools import partial
 
 import torch
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 
 LOGGER = logging.getLogger(__name__)
@@ -183,6 +184,18 @@ class SpectrumTransformer(torch.nn.Module):
         self.mz_encoder = torch.nn.DataParallel(self.mz_encoder)
         self.transformer = torch.nn.DataParallel(self.transformer)
         self.head = torch.nn.DataParallel(self.head)
+
+    @property
+    def loss(self):
+        """The loss as a :py:class:`pandas.DataFrame`"""
+        n_updates = np.arange(self.epoch) * self.updates_per_epoch
+        loss_df = pd.DataFrame(
+            {"n_updates": n_updates, "train_mse": self._train_loss}
+        )
+        if self._val_loss is not None:
+            loss_df["validation_mse"] = self._val_loss
+
+        return loss_df
 
     @property
     def n_parameters(self):
