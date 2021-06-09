@@ -492,21 +492,19 @@ class MzEncoder(torch.nn.Module):
         The number of features to output.
     """
 
-    def __init__(self, d_model):
+    def __init__(self, d_model, min_wavelength=0.001, max_wavelength=10000):
         """Initialize the MzEncoder"""
         super().__init__()
 
-        d_model -= 1
         n_sin = int(d_model / 2)
         n_cos = d_model - n_sin
+        base = min_wavelength / (2 * np.pi)
+        scale = max_wavelength / min_wavelength
 
-        sin_term = 10000 * torch.exp(
-            2 * torch.arange(0, n_sin).float() * (-np.log(3e7) / d_model)
-        )
-        cos_term = 10000 * torch.exp(
-            2 * torch.arange(0, n_cos).float() * (-np.log(3e7) / d_model)
-        )
+        sin_term = base * scale ** (torch.arange(0, n_sin).float() / (n_sin-1))
+        cos_term = base * scale ** (torch.arange(0, n_cos).float() / (n_cos-1))
 
+        self.linear = torch.nn.Linear(1, d_model, bias=False)
         self.register_buffer("sin_term", sin_term)
         self.register_buffer("cos_term", cos_term)
 
@@ -524,11 +522,11 @@ class MzEncoder(torch.nn.Module):
             The encoded features for the mass spectra.
         """
         mz = X[:, :, [0]]
-        sin_mz = torch.sin(mz * self.sin_term)
-        cos_mz = torch.cos(mz * self.cos_term)
+        sin_mz = torch.sin(mz / self.sin_term)
+        cos_mz = torch.cos(mz / self.cos_term)
         encoded = torch.cat([sin_mz, cos_mz], dim=2)
-        # return encoded + X[:, :, [1]]
-        return torch.cat([encoded, X[:, :, [1]]], dim=2)
+        intensity = self.linear(X[:, :, [1]])
+        return encoded + intensity
 
 
 def prepare_batch(batch):
