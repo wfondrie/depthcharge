@@ -312,12 +312,8 @@ class SpectrumTransformer(torch.nn.Module):
             pbar = tqdm(total=self.updates_per_epoch, leave=False)
             for spx, spy, gsp in self._train_loader:
                 gsp = gsp.to(self._device)
-                emx = self(spx.to(self._device))
-                emy = self(spy.to(self._device))
-                pred = torch.bmm(emx[:, None, :], emy[:, :, None]).squeeze()
-                # pred = self.predict(spx, spy)
-                reg = self.norm_reg * (regloss(emx) + regloss(emy))
-                loss = self.mse(pred, gsp) + reg
+                pred = self.predict(spx, spy)
+                loss = self.mse(pred, gsp)
                 loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
