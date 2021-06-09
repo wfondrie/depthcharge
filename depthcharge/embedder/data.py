@@ -27,6 +27,9 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
         retains all of the peaks.
     n_pairs : int, optional
         The number of randomly paired spectra to use for evaluation.
+    frac_identical : float, optional
+        The fraction of pairs that should consist of the same spectrum during
+        training.
     rng : int or RandomState, optional
         The numpy random number generator.
     ms_level : int, optional
@@ -47,6 +50,7 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
         mzml_files,
         n_peaks=200,
         n_pairs=10000,
+        frac_identical=0.0,
         rng=42,
         ms_level=2,
         tol=0.01,
@@ -60,6 +64,7 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
         self.n_pairs = int(n_pairs)
         self.tol = float(tol)
         self.min_mz = float(min_mz)
+        self.frac_identical = float(frac_identical)
         self.cache_dir = cache_dir
         self.rng = rng
         self._ms_level = int(ms_level)
@@ -101,6 +106,8 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
             x_idx, y_idx = self._eval_pairs[idx, :]
         else:
             x_idx, y_idx = self.rng.integers(self.n_spectra, size=2)
+            if self.rng.binomial(1, p=self.frac_identical):
+                y_idx = x_idx
 
         x_spec = self._get_spectrum(x_idx)
         y_spec = self._get_spectrum(y_idx)

@@ -26,7 +26,7 @@ class SpectrumTransformer(torch.nn.Module):
         The number of attention heads in each layer. `d_model` must be divisble
         by `n_head`.
     d_transformer_fc : int, optional
-        The dimensionality of the feed fully connected layers in the
+        The dimensionality of the fully connected layers in the
         transformer layers of the model.
     n_transformer_layers : int, optional
         The number of transformer layers.
@@ -53,7 +53,7 @@ class SpectrumTransformer(torch.nn.Module):
         Use one or more GPUs if available.
     output_dir : str or Path, optional
         The location to save the training models.
-    file_root : str or Path, optional
+    file_root : str, optional
         A stem to add to the file names for the saved models.
     **kwargs : Dict
         Keyword arguments passed to the Adam optimizer
@@ -67,7 +67,8 @@ class SpectrumTransformer(torch.nn.Module):
         d_transformer_fc=1024,
         n_transformer_layers=1,
         n_mlp_layers=3,
-        dropout=0.1,
+        dropout=0,
+        norm_reg=0,
         mz_encoding=True,
         n_epochs=300,
         updates_per_epoch=500,
@@ -97,6 +98,7 @@ class SpectrumTransformer(torch.nn.Module):
         # Writable:
         self.n_epochs = int(n_epochs)
         self.updates_per_epoch = int(updates_per_epoch)
+        self.norm_reg = float(norm_reg)
         self.train_batch_size = int(train_batch_size)
         self.eval_batch_size = int(eval_batch_size)
         self.num_workers = int(num_workers)
@@ -106,16 +108,13 @@ class SpectrumTransformer(torch.nn.Module):
         self.output_dir = output_dir
 
         # Check divisibility
-        if self._d_model % n_head != 0:
+        if self._d_model % self._n_head != 0:
             raise ValueError("n_heads must divide evenly into embed_dim")
 
         # BUILD THE MODEL
         # First the mz encoding:
         if self._mz_encoding:
-            self.mz_encoder = torch.nn.Sequential(
-                MzEncoder(self._d_model),
-                torch.nn.Linear(self._d_model, self._d_model),
-            )
+            self.mz_encoder = MzEncoder(self._d_model)
         else:
             self.mz_encoder = torch.nn.Linear(2, self._d_model)
 
@@ -257,10 +256,7 @@ class SpectrumTransformer(torch.nn.Module):
         X = self.mz_encoder(X)
         spec = self.spectrum_token.expand(X.shape[0], -1, -1)
         X = torch.cat([spec, X], dim=1)
-        X = self.transformer(X, mask)
-        X = X[:, 0, :]
-        X = self.head(X)
-        return X
+        return self.transformer(X, mask), mask
 
     def fit(self, train_dataset, val_dataset=None):
         """Train the model using a SpectrumDataset
@@ -277,6 +273,12 @@ class SpectrumTransformer(torch.nn.Module):
 
         """
         self.to(self._device)
+
+        # A weird, but necessary way to ensure the optimizer tensors are
+        # on the correct device. See this issue for details:
+        # https://github.com/pytorch/pytorch/issues/8741#issuecomment-496907204
+        self.optimizer.load_state_dict(self.optimizer.state_dict())
+
         self._train_dataset = train_dataset
         self._train_loader = self._base_loader(
             train_dataset, batch_size=self.train_batch_size
@@ -310,8 +312,12 @@ class SpectrumTransformer(torch.nn.Module):
             pbar = tqdm(total=self.updates_per_epoch, leave=False)
             for spx, spy, gsp in self._train_loader:
                 gsp = gsp.to(self._device)
-                pred = self.predict(spx, spy)
-                loss = self.mse(pred, gsp)
+                emx = self(spx.to(self._device))
+                emy = self(spy.to(self._device))
+                pred = torch.bmm(emx[:, None, :], emy[:, :, None]).squeeze()
+                # pred = self.predict(spx, spy)
+                reg = self.norm_reg * (regloss(emx) + regloss(emy))
+                loss = self.mse(pred, gsp) + reg
                 loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
@@ -320,11 +326,11 @@ class SpectrumTransformer(torch.nn.Module):
 
                 if n_updates == self.updates_per_epoch:
                     pbar.close()
+                    self.epoch += 1
                     self._checkpoint()
-                    if self.epoch == self.n_epochs:
+                    if self.epoch >= self.n_epochs:
                         break
 
-                    self.epoch += 1
                     self._start = time.time()
                     n_updates = 0
                     pbar = tqdm(total=self.updates_per_epoch, leave=False)
@@ -333,10 +339,11 @@ class SpectrumTransformer(torch.nn.Module):
 
         except KeyboardInterrupt:
             pbar.close()
-            self.optimizer.zero_grad()
-            del spx, spy, gsp
-            self.to("cpu")
-            self.save(self.output_dir / (self.file_root + "latest.pt"))
+
+        self.optimizer.zero_grad()
+        del spx, spy, gsp
+        self.to("cpu")
+        self.save(self.output_dir / (self.file_root + "latest.pt"))
 
         return self
 
@@ -348,20 +355,23 @@ class SpectrumTransformer(torch.nn.Module):
             self._train_loss.append(self._calc_loss(self._eval_loader[0]))
 
             if self._val_dataset is not None:
+                tail_char = ""
                 self._val_dataset.eval()
                 self._val_loss.append(self._calc_loss(self._eval_loader[1]))
                 if self._val_loss[-1] <= self._val_min:
                     self._val_min = self._val_loss[-1]
+                    tail_char = "*"
                     self.save(
                         self.output_dir / (self.file_root + "checkpoint.pt")
                     )
 
                 LOGGER.info(
-                    "Epoch %i: Train MSE %.3g, Val MSE %.3g [%3g min]",
+                    "Epoch %i: Train MSE %.3g, Val MSE %.3g [%3g min]%s",
                     self.epoch,
                     self._train_loss[-1],
                     self._val_loss[-1],
                     (time.time() - self._start) / 60,
+                    tail_char,
                 )
             else:
                 LOGGER.info(
@@ -400,7 +410,7 @@ class SpectrumTransformer(torch.nn.Module):
         path : str or Path
             The file from which to load the weights and metadata.
         """
-        data = torch.load(path)
+        data = torch.load(path, map_location=self._device)
         self.load_state_dict(data["model_state_dict"])
         self.optimizer.load_state_dict(data["optimizer_state_dict"])
         self.epoch = data["epoch"]
@@ -426,6 +436,16 @@ class SpectrumTransformer(torch.nn.Module):
         gsp = torch.cat(gsp)
         return self.mse(pred, gsp.to(self._device)).item()
 
+    def transform(self, X):
+        """Embed a mass spectrum
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            The mass spectrum to embed.
+        """
+        return self(X.to(self._device))[0][:, 0, :]
+
     def predict(self, X, Y):
         """Embed two batches of spectra and calculate their scalar product.
 
@@ -440,9 +460,11 @@ class SpectrumTransformer(torch.nn.Module):
         torch.Tensor
             The predicted GSP.
         """
-        emb_X = self(X.to(self._device))
-        emb_Y = self(Y.to(self._device))
-        return torch.bmm(emb_X.unsqueeze(1), emb_Y.unsqueeze(2)).squeeze()
+        X = self.transform(X)
+        X = self.head(X)
+        Y = self.transform(Y)
+        Y = self.head(Y)
+        return torch.bmm(X.unsqueeze(1), Y.unsqueeze(2)).squeeze()
 
 
 class TransformerAdapter(torch.nn.Module):
@@ -478,11 +500,11 @@ class MzEncoder(torch.nn.Module):
         n_sin = int(d_model / 2)
         n_cos = d_model - n_sin
 
-        sin_term = 1000 * torch.exp(
-            2 * torch.arange(0, n_sin).float() * (-np.log(2e6) / d_model)
+        sin_term = 10000 * torch.exp(
+            2 * torch.arange(0, n_sin).float() * (-np.log(3e7) / d_model)
         )
-        cos_term = 1000 * torch.exp(
-            2 * torch.arange(0, n_cos).float() * (-np.log(2e6) / d_model)
+        cos_term = 10000 * torch.exp(
+            2 * torch.arange(0, n_cos).float() * (-np.log(3e7) / d_model)
         )
 
         self.register_buffer("sin_term", sin_term)
@@ -505,6 +527,7 @@ class MzEncoder(torch.nn.Module):
         sin_mz = torch.sin(mz * self.sin_term)
         cos_mz = torch.cos(mz * self.cos_term)
         encoded = torch.cat([sin_mz, cos_mz], dim=2)
+        # return encoded + X[:, :, [1]]
         return torch.cat([encoded, X[:, :, [1]]], dim=2)
 
 
@@ -515,3 +538,7 @@ def prepare_batch(batch):
     Y = torch.nn.utils.rnn.pad_sequence(Y, batch_first=True)
     gsp = torch.tensor(gsp)
     return X, Y, gsp
+
+
+def regloss(spec):
+    return ((1 - torch.linalg.norm(spec, axis=1)) ** 2).mean()
