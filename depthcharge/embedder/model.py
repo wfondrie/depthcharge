@@ -304,7 +304,6 @@ class SpectrumTransformer(torch.nn.Module):
         # Evaluate the untrained model:
         self._start = time.time()
         self._checkpoint()
-        self.epoch += 1
 
         # The main trianing loop:
         try:

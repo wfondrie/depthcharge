@@ -44,9 +44,10 @@ class PeptideMass:
         "-17.027": -17.026549,  # NH3 loss
         "+43.006-17.027": (43.006814 - 17.026549),
         # AA mods:
-        "M+15.995": 15.994915,  # Met Oxidation
-        "N+0.984": 0.984016,  # Asn Deamidation
-        "Q+0.984": 0.984016,  # Gln Deamidation
+        "M+15.995": _aa_mass["M"] + 15.994915,  # Met Oxidation
+        "N+0.984": _aa_mass["N"] + 0.984016,  # Asn Deamidation
+        "Q+0.984": _aa_mass["Q"] + 0.984016,  # Gln Deamidation
+        "C+57.021": _aa_mass["C"] + 57.02146,
     }
 
     proton = 1.007276
@@ -56,7 +57,7 @@ class PeptideMass:
         """Initialize the PeptideMass object"""
         self.masses = self._aa_mass
         if extended:
-            self.masses = self.masses.update(self._extended)
+            self.masses.update(self._extended)
 
     def __len__(self):
         """Return the length of the residue dictionary"""

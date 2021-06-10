@@ -72,7 +72,6 @@ class Spec2Pep(torch.nn.Module):
         use_gpu=True,
         output_dir=None,
         file_root=None,
-        residue_dict=None,
         **kwargs,
     ):
         """Initialize a Spec2Pep model"""
@@ -85,11 +84,10 @@ class Spec2Pep(torch.nn.Module):
         self._n_transformer_layers = spectrum_transformer._n_transformer_layers
         self._d_transformer_fc = spectrum_transformer._d_transformer_fc
         self._dropout = spectrum_transformer._dropout
-        self._num_residues = num_residues
         self._peptide_calc = PeptideMass(extended=True)
 
         self._idx2aa = {
-            i: aa for i, aa in enumerate(self.peptide_calc.masses.keys())
+            i: aa for i, aa in enumerate(self._peptide_calc.masses.keys())
         }
         self._idx2aa[len(self._idx2aa)] = "<eop>"
         self._aa2idx = {aa: i for i, aa in self._idx2aa.items()}
@@ -115,8 +113,10 @@ class Spec2Pep(torch.nn.Module):
         self.output_dir = output_dir
 
         # Build the model
+        vocab_size = len(self._peptide_calc) + 1
         self.embedder = torch.nn.Sequential(
-            torch.nn.embedding(len(residue_dict)), PosEncoder(self._d_model)
+            torch.nn.Embedding(vocab_size, self._d_model),
+            PosEncoder(self._d_model)
         )
 
         self.massdiff_embedder = torch.nn.Linear(1, self._d_model)
@@ -134,7 +134,7 @@ class Spec2Pep(torch.nn.Module):
         )
 
         self.decoder = TransformerDecoderAdapter(transformer_decoder)
-        self.final = torch.nn.Linear(self._d_model, len(residue_dict))
+        self.final = torch.nn.Linear(self._d_model, vocab_size)
 
         # The optimizer and loss
         self.celoss = torch.nn.CrossEntropyLoss()
@@ -143,7 +143,7 @@ class Spec2Pep(torch.nn.Module):
         self._base_loader = partial(
             torch.utils.data.DataLoader,
             pin_memory=True,
-            collat_fn=prepare_batch,
+            collate_fn=prepare_batch,
         )
 
         # Attributes that are set during training:
@@ -226,44 +226,248 @@ class Spec2Pep(torch.nn.Module):
         else:
             self._device = "cpu"
 
-    def forward(self, spec, seq):
+    def forward(self, spec, mass, seq):
         """The forward pass"""
         # Encode:
-        spec, mem_mask = self.spectrum_transformer(spec)
+        spec, mem_mask = self.spectrum_transformer(spec.to(self._device))
 
         # Decode:
-        preds = [self._force_feed(*d) for d in zip(spec, seq, mem_mask)]
-        return preds
+        preds = [self._force_feed(*d) for d in zip(spec, seq, mass, mem_mask)]
+        preds, truth = list(zip(*preds))
+        return torch.cat(preds, dim=0), torch.cat(truth, dim=0)
 
-    def _force_feed(self, memory, tgt, mem_mask=None):
+    def _force_feed(self, memory, tgt, mass, mem_mask=None):
         """Force feed the network a peptide sequecnce"""
         # Prepare sequence:
+        tgt = tgt.replace("I", "L")
         seq = list(reversed(re.split(r"(?<=.)(?=[A-Z])", tgt)))
-        mass = self._pep_calc(seq)
         tokens = [self._aa2idx[aa] for aa in seq + ["<eop>"]]
-        tokens = torch.tensor(tokens, device=self._device)
+        tokens = torch.tensor(tokens, device=self._device)[None, :]
 
         # Calculate the remaining mass at each step:
-        tags = [0] + [self._pep_calc(seq[:i]) for i in range(len(seq))]
-        tags = mass - torch.tensor(tags).to(self._device)
+        # Dims should be position (n) x batch (b) x feature (f) for input into
+        # the transformer.
+        tags = [0] + [self._peptide_calc.mass(seq[:i]) for i in range(len(seq))]
+        tags += tags[-1:]
+        tags = mass - torch.tensor(tags).to(self._device)[None, :, None]
         tags = self.massdiff_embedder(tags)
 
         # The input embedding:
-        Y = self.embed(tokens)
-        Y = einops.repeat(Y, "n f -> n b f", b=Y.shape[0])
+        Y = self.embedder(tokens)
+        Y = einops.repeat(Y, "b n f -> n (m b) f", m=tags.shape[1])
         Y = torch.cat([tags, Y], dim=0)
-        X = einops.repeat(memory, "n f -> n b f", b=Y.shape[0])
-        mask = self.decoder.generate_square_subsequent_mask(Y.shape[0])
+        X = einops.repeat(memory, "t f -> t b f", b=Y.shape[1])
+        mem_mask = einops.repeat(mem_mask, "t -> n t", n=Y.shape[0])
+        mask = generate_mask(Y.shape[1])
         preds = self.decoder(
             tgt=Y,
             memory=X,
             tgt_mask=mask,
             memory_key_padding_mask=mem_mask,
         )
-        preds = self.fc(einops.rearrange(preds, "t n e -> n t e"))
-        return torch.diagonal(preds)
+        preds = self.final(einops.rearrange(preds, "n b f -> b n f"))
+        return torch.diagonal(preds).T[:-1, :], tokens.squeeze()
+
+    def predict(self, spec, mass):
+        """Get the best prediction for a spectrum"""
+        spec, mem_mask = self.spectrum_transformer(spec.to(self._device))
+
+        tokens = []
+        seqs = []
+        scores = []
+        for idx in range(spec.shape[0]):
+            token, score, seq = self._greedy_decode(
+                spec[[idx], :, :], mass[idx].item(), mem_mask[[idx], :]
+            )
+            tokens.append(token)
+            scores.append(score)
+            seqs.append(seq)
+
+        return tokens, scores, seqs
+
+    def _greedy_decode(self, spec, mass, mem_mask):
+        """Greedy decode each spectrum"""
+        #spec = einops.rearrange(spec, "n b f -> b n f")
+        Y = torch.tensor([mass], device=self._device)[None, None, :]
+        Y = self.massdiff_embedder(Y)
+        pred = self.decoder(
+            tgt=Y, memory=spec, memory_key_padding_mask=mem_mask
+        )
+        pred = self.final(einops.rearrange(pred, "n b f -> b n f"))
+        tokens = [torch.argmax(pred, dim=2)]
+        scores = [pred[[0], -1, :]]
+
+        # Iterate, keeping only the best scoring sequence.
+        for _ in range(100):
+            seq = [self._idx2aa[i.item()] for i in tokens]
+            if seq[-1] == "<eop>":
+                break
+
+            mdiff = mass - self._peptide_calc.mass(seq)
+            mdiff = torch.tensor([mdiff], device=self._device)[None, None, :]
+            mdiff = self.massdiff_embedder(mdiff)
+
+            Y = self.embedder(torch.cat(tokens, dim=0))
+            Y = torch.cat([mdiff, Y], dim=0)
+            Y = einops.rearrange(Y, "b n f -> n b f")
+            pred = self.decoder(
+                tgt=Y, memory=spec, memory_key_padding_mask=mem_mask
+            )
+            pred = self.final(einops.rearrange(pred, "n b f -> b n f"))
+            tokens.append(torch.argmax(pred, dim=2)[[-1], :])
+            scores.append(pred[[0], -1, :])
+
+        tokens = torch.cat(tokens, dim=0).squeeze()
+        return tokens, torch.cat(scores, dim=0), "".join(seq)
 
 
+    def fit(self, train_dataset, val_dataset=None, encoder_dataset=None):
+        """Train the model using a AnnotatedSpectrumDataset
+
+        If a validation set is provided, early stopping can also be
+        enabled.
+
+        Parameters
+        ----------
+        train_dataset : AnnotatedSpectrumDataset
+            The AnnotatedSpectrumDataset contaiing labeled mass spectra to
+            use for training.
+        val_dataset : AnnotatedSpectrumDataset, optional
+            The AnnoatedSpectrumDAtaset containing labeld mass spectra to
+            use for validation.
+        encoder_dataset : SpectrumDataset, optional
+            The SpectrumDataset to use for training the encoder.
+        """
+        self.to(self._device)
+        self.optimizer.load_state_dict(self.optimizer.state_dict())
+
+        self._train_dataset = train_dataset
+        self._train_loader = self._base_loader(
+            train_dataset, batch_size=self.train_batch_size
+        )
+
+        self._eval_loader = [
+            self._base_loader(train_dataset, batch_size=self.eval_batch_size)
+        ]
+
+        self._val_dataset = val_dataset
+        if self._val_dataset is not None:
+            self._eval_loader.append(
+                self._base_loader(val_dataset, batch_size=self.eval_batch_size)
+            )
+
+        if self._train_loss is None:
+            self._train_loss = []
+
+        if self._val_loss is None and self._val_dataset is not None:
+            self._val_loss = []
+            self._val_min = np.inf
+
+        # Evaluate the untrained model
+        self._start = time.time()
+        self._checkpoint()
+
+        # The main training loop
+        try:
+            self.optimizer.zero_grad()
+            for self.epoch in range(self.epoch, self.n_epochs):
+                self._start = time.time()
+                for specs, seqs, mass in tqdm(self._train_loader, leave=False):
+                    preds, truth = self(specs, seqs, mass)
+                    loss = self.celoss(preds, truth)
+                    loss.backward()
+                    self.optimizer.step()
+                    self.optimizer.zero_grad()
+
+                self._checkpoint()
+
+            self.save(self.output_dir / (self.file_root + "final.pt"))
+
+        except KeyboardInterrupt:
+            pass
+
+        self.optimizer.zero_grad()
+        del specs, seqs
+        self.to("cpu")
+        self.save(self.output_dir / (self.file_root + "latest.pt"))
+
+    def _checkpoint(self):
+        """Evaluate performance and save the best models."""
+        with torch.no_grad():
+            self.eval()
+            self._train_loss.append(self._calc_loss(self._eval_loader[0]))
+
+            if self._val_dataset is not None:
+                tail_char = ""
+                self._val_loss.append(self._calc_loss(self._eval_loader[1]))
+                if self._val_loss[-1] <= self._val_min:
+                    self._val_min = self._val_loss[-1]
+                    tail_char = "*"
+                    self.save(
+                        self.output_dir / (self.file_root + "checkpoint.pt")
+                    )
+
+                LOGGER.info(
+                    "Epoch %i: Train CE %.3g, Val CE %.3g [%3g min]%s",
+                    self.epoch,
+                    self._train_loss[-1],
+                    self._val_loss[-1],
+                    (time.time() - self._start) / 60,
+                    tail_char,
+                )
+            else:
+                LOGGER.info(
+                    "Epoch %i: Train CE %.3g [%g min]",
+                    self.epoch,
+                    self._train_loss[-1],
+                    (time.time() - self._start) / 60,
+                )
+
+            self.save(self.output_dir / (self.file_root + "latest.pt"))
+            self.train()
+
+    def _calc_loss(self, loader):
+        """Calculate the loss of the entire dataset"""
+        res = [self(*s) for s in tqdm(loader, leave=False)]
+        pred, truth = list(zip(*res))
+        pred = torch.cat(pred)
+        truth = torch.cat(truth)
+        return self.celoss(pred, truth).item()
+
+    def save(self, path):
+        """Save the model weights and metadata
+
+        Parameters
+        ----------
+        path : str or Path
+            The file in which to save the weights and metadata.
+        """
+        data = {
+            "epoch": self.epoch,
+            "model_state_dict": self.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "train_loss": self._train_loss,
+            "val_loss": self._val_loss,
+        }
+        torch.save(data, path)
+
+    def load(self, path):
+        """Load the model weights and metadata
+
+        Parameters
+        ----------
+        path : str or Path
+            The file from which to load the weights and metadata.
+        """
+        data = torch.load(path, map_location=self._device)
+        self.load_state_dict(data["model_state_dict"])
+        self.optimizer.load_state_dict(data["optimizer_state_dict"])
+        self.epoch = data["epoch"]
+        self._train_loss = data["train_loss"]
+        self._val_loss = data["val_loss"]
+        self._val_min = min(data["val_loss"])
+
+    
 class TransformerDecoderAdapter(torch.nn.Module):
     """An adapter so that the transformer works with DataParallel"""
 
@@ -280,8 +484,9 @@ class TransformerDecoderAdapter(torch.nn.Module):
         return ret.permute(1, 0, 2)
 
 
+
 class PosEncoder(torch.nn.Module):
-    """The positional encoder for amino acids
+    """The positional encoder for m/z values
 
     Parameters
     ----------
@@ -289,21 +494,16 @@ class PosEncoder(torch.nn.Module):
         The number of features to output.
     """
 
-    def __init__(self, d_model):
+    def __init__(self, d_model, max_wavelength=10000):
         """Initialize the MzEncoder"""
         super().__init__()
 
-        d_model -= 1
         n_sin = int(d_model / 2)
         n_cos = d_model - n_sin
+        scale = max_wavelength / (2 * np.pi)
 
-        sin_term = 10000 * torch.exp(
-            2 * torch.arange(0, n_sin).float() * (-np.log(3e7) / d_model)
-        )
-        cos_term = 10000 * torch.exp(
-            2 * torch.arange(0, n_cos).float() * (-np.log(3e7) / d_model)
-        )
-
+        sin_term = scale ** (torch.arange(0, n_sin).float() / (n_sin-1))
+        cos_term = scale ** (torch.arange(0, n_cos).float() / (n_cos-1))
         self.register_buffer("sin_term", sin_term)
         self.register_buffer("cos_term", cos_term)
 
@@ -320,17 +520,35 @@ class PosEncoder(torch.nn.Module):
         torch.Tensor
             The encoded features for the mass spectra.
         """
-        mz = X[:, :, [0]]
-        sin_mz = torch.sin(mz * self.sin_term)
-        cos_mz = torch.cos(mz * self.cos_term)
-        encoded = torch.cat([sin_mz, cos_mz], dim=2)
-        raise "This is wrong!"
-        # return encoded + X[:, :, [1]]
-        return torch.cat([encoded, X[:, :, [1]]], dim=2)
+        pos = torch.arange(X.shape[0])
+        pos = einops.repeat(pos, "n -> n b", b=X.shape[1])
+        sin_in = einops.repeat(pos, "n b -> n b f", f=len(self.sin_term))
+        cos_in = einops.repeat(pos, "n b -> n b f", f=len(self.cos_term))
+
+        sin_pos = torch.sin(sin_in / self.sin_term)
+        cos_pos = torch.cos(cos_in / self.cos_term)
+        encoded = torch.cat([sin_pos, cos_pos], dim=2)
+        return encoded + X
 
 
 def prepare_batch(batch):
     """This is the collate function"""
-    spec, seq = list(zip(*batch))
+    spec, prec, seq = list(zip(*batch))
+    mz, charge = list(zip(*prec))
+    mass = (torch.tensor(mz) - 1.007276) * torch.tensor(charge)
     spec = torch.nn.utils.rnn.pad_sequence(spec, batch_first=True)
-    return spec, seq
+    return spec, mass, seq
+
+
+def generate_mask(sz):
+        """Generate a square mask for the sequence. The masked positions
+        are filled with float('-inf'). Unmasked positions are filled with
+        float(0.0).
+        """
+        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+        mask = (
+            mask.float()
+            .masked_fill(mask == 0, float('-inf'))
+            .masked_fill(mask == 1, float(0.0))
+        )
+        return mask

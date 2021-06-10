@@ -9,8 +9,8 @@ from tqdm import tqdm
 
 from . import splits
 from .. import utils
-from .data import SpectrumDataset
 from .model import SpectrumTransformer
+from ..data import PairedSpectrumDataset
 
 LOGGER = logging.getLogger(__name__)
 
@@ -113,8 +113,8 @@ def train(
         validation_files = tmp_data(validation_files)
 
     LOGGER.info("Creating SpectrumDatasets...")
-    train_set = SpectrumDataset(training_files, **dataset_kwargs)
-    val_set = SpectrumDataset(validation_files, **dataset_kwargs)
+    train_set = PairedSpectrumDataset(training_files, **dataset_kwargs)
+    val_set = PairedSpectrumDataset(validation_files, **dataset_kwargs)
     model = SpectrumTransformer(embed_dim, **model_kwargs)
 
     LOGGER.info("%i training set mass spectra", train_set.n_spectra)
