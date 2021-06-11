@@ -1,4 +1,4 @@
-"""Train a new SpectrumTransformer"""
+"""Train a new Spec2Pep model"""
 import time
 import shutil
 import logging
@@ -7,10 +7,9 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from . import splits
-from .. import utils
-from .model import SpectrumTransformer
-from ..data import PairedSpectrumDataset
+from .model import Spec2Pep
+from ..embedder.model import SpectrumTransformer
+from ..data import AnnotatedSpectrumDataset
 
 LOGGER = logging.getLogger(__name__)
 
@@ -47,14 +46,16 @@ def tmp_data(spectrum_files):
             shutil.copyfile(in_file, out_file)
 
         if out_file.suffix == ".npy":
-            if out_file.suffixes[-2:] == [".index", ".npy"]:
-                sibling_in_file = in_file.with_suffix("").with_suffix(".npy")
-            else:
-                sibling_in_file = in_file.with_suffix(".index.npy")
+            root = str(out_file).replace(".npy", "")
+            root = root.replace(".precursors", "")
+            root = root.replace(".peptides", "")
 
-            sibling_out_file = Path(tmp_dir, sibling_in_file.name)
-            if not sibling_out_file.exists():
-                shutil.copyfile(sibling_in_file, sibling_out_file)
+            suffixes = [".index", ".precursors", ".peptides", ""]
+            for suffix in suffixes:
+                in_file = Path(root + suffix + ".npy")
+                out_file = Path(tmp_dir, in_file.name)
+                if not out_file.exists():
+                    shutil.copyfile(in_file, out_file)
 
     return out_files
 
@@ -63,8 +64,10 @@ def train(
     embed_dim=32,
     training_files=None,
     validation_files=None,
+    encoder_checkpoint=None,
     model_checkpoint=None,
-    model_kwargs=None,
+    encoder_kwargs=None,
+    decoder_kwargs=None,
     dataset_kwargs=None,
     use_tmp=True,
 ):
@@ -95,33 +98,21 @@ def train(
         will be much faster if it is local.
     """
     start = time.time()
-    if training_files is None and validation_files is None:
-        training_files, validation_files, _ = splits.get_splits()
-        if "cache_dir" in dataset_kwargs.keys():
-            cache = dataset_kwargs["cache_dir"]
-            training_files = [Path(cache, f) for f in training_files]
-            validation_files = [Path(cache, f) for f in validation_files]
-
-    elif training_files is None and validation_files is not None:
-        raise ValueError(
-            "'training_files' must be provided if 'validation_files' are "
-            "provided"
-        )
-
     if use_tmp:
         training_files = tmp_data(training_files)
         validation_files = tmp_data(validation_files)
 
-    LOGGER.info("Creating PairedSpectrumDatasets...")
-    train_set = PairedSpectrumDataset(training_files, **dataset_kwargs)
-    val_set = PairedSpectrumDataset(validation_files, **dataset_kwargs)
-    model = SpectrumTransformer(embed_dim, **model_kwargs)
+    LOGGER.info("Creating AnnotatedSpectrumDatasets...")
+    train_set = AnnotatedSpectrumDataset(training_files, **dataset_kwargs)
+    val_set = AnnotatedSpectrumDataset(validation_files, **dataset_kwargs)
+    encoder = SpectrumTransformer(**encoder_kwargs)
+    model = Spec2Pep(encoder, **decoder_kwargs)
 
     LOGGER.info("%i training set mass spectra", train_set.n_spectra)
     LOGGER.info("%i validation set mass spectra", val_set.n_spectra)
     LOGGER.info("Datasets loaded in %.2f min", (time.time() - start) / 60)
     LOGGER.info(
-        "Training SpectrumTransformer with %i parameters...",
+        "Training Spec2Pep model with %i parameters...",
         model.n_parameters,
     )
 
