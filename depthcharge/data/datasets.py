@@ -78,7 +78,7 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
             peptides=self._peptides,
         )
 
-        self._order = np.arange(len(self))
+        self._order = np.arange(self.n_spectra)
         if self.rng is not None:
             self.rng.shuffle(self._order)
 
@@ -235,12 +235,13 @@ class PairedSpectrumDataset(SpectrumDataset):
             cache_dir=cache_dir,
             file_root=file_root,
         )
+
+        self._eval = False
         self.n_pairs = int(n_pairs)
         self.tol = float(tol)
         self.p_identical = float(p_identical)
 
         # Setup for evaluation
-        self._eval = False
         self._eval_pairs = self.rng.integers(
             self.n_spectra, size=(self.n_pairs, 2)
         )
@@ -269,7 +270,9 @@ class PairedSpectrumDataset(SpectrumDataset):
         else:
             x_idx, y_idx = self.rng.integers(self.n_spectra, size=2)
             if self.rng.binomial(1, p=self.p_identical):
-                y_idx = x_idx
+                new_idx = x_idx + self.rng.integers(-100, 100)
+                if new_idx < self.n_spectra and new_idx >= 0:
+                    y_idx = new_idx
 
         x_spec, _, _ = self._get_spectrum(x_idx)
         y_spec, _, _ = self._get_spectrum(y_idx)
@@ -285,6 +288,14 @@ class PairedSpectrumDataset(SpectrumDataset):
     def rng(self, rng):
         """Set the random number generators"""
         self._rng = np.random.default_rng(rng)
+
+    def train(self):
+        """Set the dataset to training mode"""
+        self._eval = False
+
+    def eval(self):
+        """Set the datset to validation mode"""
+        self._eval = True
 
 
 class AnnotatedSpectrumDataset(SpectrumDataset):

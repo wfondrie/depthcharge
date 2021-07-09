@@ -33,7 +33,7 @@ def spectra(
                 npy_dir=npy_dir,
                 prefix=pre,
                 require_prec=require_prec,
-                peptides=peptides
+                peptides=peptides,
             )
         else:
             npy_file, idx_file, prec_file, pep_file = _parse_npy(
@@ -126,10 +126,10 @@ def _parse_spec_data(
 
     # Parse from the mzML file only if they don't already exist:
     if not all(f.exists() for f in all_files):
-        if ms_file.lower().endswith(".mzml") and not peptides:
+        if str(ms_file).lower().endswith(".mzml") and not peptides:
             opener = MzML
             parse_fun = _parse_mzml_spectrum
-        elif ms_file.lower().endswith(".mgf"):
+        elif str(ms_file).lower().endswith(".mgf"):
             opener = MGF
             parse_fun = _parse_mgf_spectrum
 

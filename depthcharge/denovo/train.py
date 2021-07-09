@@ -7,6 +7,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
+from .. import utils
 from .model import Spec2Pep
 from ..embedder.model import SpectrumTransformer
 from ..data import AnnotatedSpectrumDataset
@@ -46,7 +47,7 @@ def tmp_data(spectrum_files):
             shutil.copyfile(in_file, out_file)
 
         if out_file.suffix == ".npy":
-            root = str(out_file).replace(".npy", "")
+            root = str(in_file).replace(".npy", "")
             root = root.replace(".precursors", "")
             root = root.replace(".peptides", "")
 
@@ -98,6 +99,15 @@ def train(
         will be much faster if it is local.
     """
     start = time.time()
+    if encoder_kwargs is None:
+        encoder_kwargs = {}
+
+    if decoder_kwargs is None:
+        decoder_kwargs = {}
+
+    if dataset_kwargs is None:
+        dataset_kwargs = {}
+
     if use_tmp:
         training_files = tmp_data(training_files)
         validation_files = tmp_data(validation_files)
@@ -105,7 +115,7 @@ def train(
     LOGGER.info("Creating AnnotatedSpectrumDatasets...")
     train_set = AnnotatedSpectrumDataset(training_files, **dataset_kwargs)
     val_set = AnnotatedSpectrumDataset(validation_files, **dataset_kwargs)
-    encoder = SpectrumTransformer(**encoder_kwargs)
+    encoder = SpectrumTransformer(embed_dim, **encoder_kwargs)
     model = Spec2Pep(encoder, **decoder_kwargs)
 
     LOGGER.info("%i training set mass spectra", train_set.n_spectra)

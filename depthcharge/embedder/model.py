@@ -129,6 +129,7 @@ class SpectrumTransformer(torch.nn.Module):
             nhead=self._n_head,
             dim_feedforward=self._d_transformer_fc,
             dropout=self._dropout,
+            activation="gelu",
         )
 
         transformer_encoder = torch.nn.TransformerEncoder(
@@ -138,26 +139,18 @@ class SpectrumTransformer(torch.nn.Module):
         self.transformer = TransformerAdapter(transformer_encoder)
 
         # The MLP layers:
-        # Linearly interpolate the FC layer sizes
-        fc_sizes = np.linspace(
-            self._d_model, self._embed_dim, self._n_mlp_layers + 1
-        )
-        fc_sizes = np.ceil(fc_sizes).astype(int)
-        fc_layers = []
-        for idx in range(len(fc_sizes) - 1):
-            fc_layers.append(torch.nn.Linear(fc_sizes[idx], fc_sizes[idx + 1]))
-            if idx < len(fc_sizes) - 2:
-                fc_layers += [
-                    torch.nn.Dropout(p=self._dropout),
-                    torch.nn.ReLU(),
-                ]
-            else:
-                fc_layers.append(torch.nn.Softplus())
+        # if fc_layers:
+        #    self.head = torch.nn.Sequential(
+        #        MLP(self._d_model, self._embed_dim, self._n_mlp_layers),
+        #        torch.nn.Softplus(),
+        #    )
+        # else:
+        #    self.head = torch.nn.Softplus()
 
-        if fc_layers:
-            self.head = torch.nn.Sequential(*fc_layers)
-        else:
-            self.head = torch.nn.Softplus()
+        self.dot = torch.nn.Sequential(
+            MLP(2 * self._embed_dim, 1, self._n_mlp_layers, self._dropout),
+            torch.nn.Sigmoid(),
+        )
 
         # The optimizer and loss:
         self.mse = torch.nn.MSELoss()
@@ -182,7 +175,8 @@ class SpectrumTransformer(torch.nn.Module):
         # For multi-GPU support:
         self.mz_encoder = torch.nn.DataParallel(self.mz_encoder)
         self.transformer = torch.nn.DataParallel(self.transformer)
-        self.head = torch.nn.DataParallel(self.head)
+        self.dot = torch.nn.DataParallel(self.dot)
+        # self.head = torch.nn.DataParallel(self.head)
 
     @property
     def loss(self):
@@ -304,6 +298,7 @@ class SpectrumTransformer(torch.nn.Module):
         # Evaluate the untrained model:
         self._start = time.time()
         self._checkpoint()
+        self.epoch += 1
 
         # The main trianing loop:
         try:
@@ -311,8 +306,9 @@ class SpectrumTransformer(torch.nn.Module):
             pbar = tqdm(total=self.updates_per_epoch, leave=False)
             for spx, spy, gsp in self._train_loader:
                 gsp = gsp.to(self._device)
-                pred = self.predict(spx, spy)
-                loss = self.mse(pred, gsp)
+                embx, emby, pred = self.predict(spx, spy)
+                reg = regloss(embx) + regloss(emby)
+                loss = self.mse(pred, gsp) + self.norm_reg * reg
                 loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
@@ -321,12 +317,12 @@ class SpectrumTransformer(torch.nn.Module):
 
                 if n_updates == self.updates_per_epoch:
                     pbar.close()
-                    self.epoch += 1
                     self._checkpoint()
                     if self.epoch >= self.n_epochs:
                         break
 
                     self._start = time.time()
+                    self.epoch += 1
                     n_updates = 0
                     pbar = tqdm(total=self.updates_per_epoch, leave=False)
 
@@ -353,7 +349,7 @@ class SpectrumTransformer(torch.nn.Module):
                 tail_char = ""
                 self._val_dataset.eval()
                 self._val_loss.append(self._calc_loss(self._eval_loader[1]))
-                if self._val_loss[-1] <= self._val_min:
+                if self._val_loss[-1] < self._val_min:
                     self._val_min = self._val_loss[-1]
                     tail_char = "*"
                     self.save(
@@ -425,7 +421,7 @@ class SpectrumTransformer(torch.nn.Module):
         gsp = []
         for spx, spy, batch_gsp in tqdm(loader, leave=False):
             gsp.append(batch_gsp)
-            pred.append(self.predict(spx, spy))
+            pred.append(self.predict(spx, spy)[-1])
 
         pred = torch.cat(pred)
         gsp = torch.cat(gsp)
@@ -456,10 +452,32 @@ class SpectrumTransformer(torch.nn.Module):
             The predicted GSP.
         """
         X = self.transform(X)
-        X = self.head(X)
         Y = self.transform(Y)
-        Y = self.head(Y)
-        return torch.bmm(X.unsqueeze(1), Y.unsqueeze(2)).squeeze()
+        res = self.dot(torch.cat([X, Y], axis=1))
+        return X, Y, res.squeeze()
+
+
+class MLP(torch.nn.Module):
+    """A multilayer perceptron model"""
+
+    def __init__(self, in_dim, out_dim, n_layers, dropout=0):
+        """Initialize the MLP"""
+        super().__init__()
+        sizes = np.ceil(np.linspace(in_dim, out_dim, n_layers + 1)).astype(int)
+        layers = []
+        for idx in range(len(sizes) - 1):
+            layers.append(torch.nn.Linear(sizes[idx], sizes[idx + 1]))
+            if idx < len(sizes) - 2:
+                layers += [
+                    torch.nn.Dropout(p=dropout),
+                    torch.nn.GELU(),
+                ]
+
+        self.layers = torch.nn.Sequential(*layers)
+
+    def forward(self, X):
+        """The forward pass"""
+        return self.layers(X)
 
 
 class TransformerAdapter(torch.nn.Module):
@@ -496,8 +514,12 @@ class MzEncoder(torch.nn.Module):
         base = min_wavelength / (2 * np.pi)
         scale = max_wavelength / min_wavelength
 
-        sin_term = base * scale ** (torch.arange(0, n_sin).float() / (n_sin-1))
-        cos_term = base * scale ** (torch.arange(0, n_cos).float() / (n_cos-1))
+        sin_term = base * scale ** (
+            torch.arange(0, n_sin).float() / (n_sin - 1)
+        )
+        cos_term = base * scale ** (
+            torch.arange(0, n_cos).float() / (n_cos - 1)
+        )
 
         self.linear = torch.nn.Linear(1, d_model, bias=False)
         self.register_buffer("sin_term", sin_term)

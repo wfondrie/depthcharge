@@ -60,11 +60,12 @@ class Spec2Pep(torch.nn.Module):
     def __init__(
         self,
         spectrum_transformer,
+        freeze_encoder=False,
         d_transformer_fc=None,
         n_transformer_layers=None,
         dropout=None,
         n_epochs=100,
-        updates_per_epoch=None,
+        updates_per_epoch=500,
         train_batch_size=128,
         eval_batch_size=1000,
         num_workers=1,
@@ -116,7 +117,7 @@ class Spec2Pep(torch.nn.Module):
         vocab_size = len(self._peptide_calc) + 1
         self.embedder = torch.nn.Sequential(
             torch.nn.Embedding(vocab_size, self._d_model),
-            PosEncoder(self._d_model)
+            PosEncoder(self._d_model),
         )
 
         self.massdiff_embedder = torch.nn.Linear(1, self._d_model)
@@ -156,16 +157,20 @@ class Spec2Pep(torch.nn.Module):
         self._val_min = None
         self._start = None
 
+        if freeze_encoder:
+            for param in self.spectrum_transformer.parameters():
+                param.requires_grad = False
+
         # For multi-GPU support:
-        self.embedder = torch.nn.DataParallel(self.embedder)
-        self.massdiff_embedder = torch.nn.DataParallel(self.massdiff_embedder)
-        self.decoder = torch.nn.DataParallel(self.decoder)
-        self.final = torch.nn.DataParallel(self.final)
+        # self.embedder = torch.nn.DataParallel(self.embedder)
+        # self.massdiff_embedder = torch.nn.DataParallel(self.massdiff_embedder)
+        # self.decoder = torch.nn.DataParallel(self.decoder)
+        # self.final = torch.nn.DataParallel(self.final)
 
     @property
     def loss(self):
         """The loss as a :py:class:`pandas.DataFrame`"""
-        n_updates = np.arange(self.epoch) * self.updates_per_epoch
+        n_updates = np.arange(len(self._val_loss)) * self.updates_per_epoch
         loss_df = pd.DataFrame(
             {"n_updates": n_updates, "train_mse": self._train_loss}
         )
@@ -247,7 +252,9 @@ class Spec2Pep(torch.nn.Module):
         # Calculate the remaining mass at each step:
         # Dims should be position (n) x batch (b) x feature (f) for input into
         # the transformer.
-        tags = [0] + [self._peptide_calc.mass(seq[:i]) for i in range(len(seq))]
+        tags = [0] + [
+            self._peptide_calc.mass(seq[:i]) for i in range(len(seq))
+        ]
         tags += tags[-1:]
         tags = mass - torch.tensor(tags).to(self._device)[None, :, None]
         tags = self.massdiff_embedder(tags)
@@ -257,8 +264,10 @@ class Spec2Pep(torch.nn.Module):
         Y = einops.repeat(Y, "b n f -> n (m b) f", m=tags.shape[1])
         Y = torch.cat([tags, Y], dim=0)
         X = einops.repeat(memory, "t f -> t b f", b=Y.shape[1])
+        mem_mask = mem_mask.to(self._device)
         mem_mask = einops.repeat(mem_mask, "t -> n t", n=Y.shape[0])
         mask = generate_mask(Y.shape[1])
+        mask = mask.to(self._device)
         preds = self.decoder(
             tgt=Y,
             memory=X,
@@ -287,7 +296,7 @@ class Spec2Pep(torch.nn.Module):
 
     def _greedy_decode(self, spec, mass, mem_mask):
         """Greedy decode each spectrum"""
-        #spec = einops.rearrange(spec, "n b f -> b n f")
+        # spec = einops.rearrange(spec, "n b f -> b n f")
         Y = torch.tensor([mass], device=self._device)[None, None, :]
         Y = self.massdiff_embedder(Y)
         pred = self.decoder(
@@ -319,7 +328,6 @@ class Spec2Pep(torch.nn.Module):
 
         tokens = torch.cat(tokens, dim=0).squeeze()
         return tokens, torch.cat(scores, dim=0), "".join(seq)
-
 
     def fit(self, train_dataset, val_dataset=None, encoder_dataset=None):
         """Train the model using a AnnotatedSpectrumDataset
@@ -369,16 +377,31 @@ class Spec2Pep(torch.nn.Module):
 
         # The main training loop
         try:
+            n_updates = 0
             self.optimizer.zero_grad()
-            for self.epoch in range(self.epoch, self.n_epochs):
+            for _ in range(self.n_epochs):
                 self._start = time.time()
-                for specs, seqs, mass in tqdm(self._train_loader, leave=False):
+                pbar = tqdm(total=len(self._train_loader), leave=False)
+                for idx, (specs, seqs, mass) in enumerate(self._train_loader):
                     preds, truth = self(specs, seqs, mass)
                     loss = self.celoss(preds, truth)
                     loss.backward()
                     self.optimizer.step()
                     self.optimizer.zero_grad()
+                    n_updates += 1
+                    pbar.update()
+                    if n_updates == self.updates_per_epoch:
+                        pbar.close()
+                        n_updates = 0
+                        self.epoch += 1
+                        self._checkpoint()
+                        pbar = tqdm(
+                            initial=idx,
+                            total=len(self._train_loader),
+                            leave=False,
+                        )
 
+                pbar.close()
                 self._checkpoint()
 
             self.save(self.output_dir / (self.file_root + "final.pt"))
@@ -428,8 +451,14 @@ class Spec2Pep(torch.nn.Module):
 
     def _calc_loss(self, loader):
         """Calculate the loss of the entire dataset"""
-        res = [self(*s) for s in tqdm(loader, leave=False)]
-        pred, truth = list(zip(*res))
+        pred = []
+        truth = []
+        iters = 10000 // self.eval_batch_size
+        for idx, batch in zip(tqdm(range(iters), leave=False), loader):
+            res = self(*batch)
+            pred.append(res[0])
+            truth.append(res[1])
+
         pred = torch.cat(pred)
         truth = torch.cat(truth)
         return self.celoss(pred, truth).item()
@@ -467,7 +496,7 @@ class Spec2Pep(torch.nn.Module):
         self._val_loss = data["val_loss"]
         self._val_min = min(data["val_loss"])
 
-    
+
 class TransformerDecoderAdapter(torch.nn.Module):
     """An adapter so that the transformer works with DataParallel"""
 
@@ -482,7 +511,6 @@ class TransformerDecoderAdapter(torch.nn.Module):
             tgt.permute(1, 0, 2), memory.permute(1, 0, 2), **kwargs
         )
         return ret.permute(1, 0, 2)
-
 
 
 class PosEncoder(torch.nn.Module):
@@ -502,8 +530,8 @@ class PosEncoder(torch.nn.Module):
         n_cos = d_model - n_sin
         scale = max_wavelength / (2 * np.pi)
 
-        sin_term = scale ** (torch.arange(0, n_sin).float() / (n_sin-1))
-        cos_term = scale ** (torch.arange(0, n_cos).float() / (n_cos-1))
+        sin_term = scale ** (torch.arange(0, n_sin).float() / (n_sin - 1))
+        cos_term = scale ** (torch.arange(0, n_cos).float() / (n_cos - 1))
         self.register_buffer("sin_term", sin_term)
         self.register_buffer("cos_term", cos_term)
 
@@ -520,7 +548,7 @@ class PosEncoder(torch.nn.Module):
         torch.Tensor
             The encoded features for the mass spectra.
         """
-        pos = torch.arange(X.shape[0])
+        pos = torch.arange(X.shape[0]).to(X.device)
         pos = einops.repeat(pos, "n -> n b", b=X.shape[1])
         sin_in = einops.repeat(pos, "n b -> n b f", f=len(self.sin_term))
         cos_in = einops.repeat(pos, "n b -> n b f", f=len(self.cos_term))
@@ -541,14 +569,14 @@ def prepare_batch(batch):
 
 
 def generate_mask(sz):
-        """Generate a square mask for the sequence. The masked positions
-        are filled with float('-inf'). Unmasked positions are filled with
-        float(0.0).
-        """
-        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        mask = (
-            mask.float()
-            .masked_fill(mask == 0, float('-inf'))
-            .masked_fill(mask == 1, float(0.0))
-        )
-        return mask
+    """Generate a square mask for the sequence. The masked positions
+    are filled with float('-inf'). Unmasked positions are filled with
+    float(0.0).
+    """
+    mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+    mask = (
+        mask.float()
+        .masked_fill(mask == 0, float("-inf"))
+        .masked_fill(mask == 1, float(0.0))
+    )
+    return mask

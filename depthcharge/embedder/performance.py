@@ -43,7 +43,7 @@ def predicted(model, dataset):
     with torch.no_grad():
         for spx, spy, gsp in tqdm(loader):
             similarity.append(gsp.flatten().to("cpu"))
-            pred.append(model.predict(spx, spy).flatten().to("cpu"))
+            pred.append(model.predict(spx, spy)[-1].flatten().to("cpu"))
 
     pred = torch.cat(pred).detach().numpy()
     similarity = torch.cat(similarity).detach().numpy()
@@ -87,6 +87,9 @@ def _vectorize(spectrum, bin_width, offset):
         column should be the m/z values and the second column should be the
         intensity values.
     """
+    if not spectrum.size:
+        return np.array([0.00001])
+
     mz_bins, indices = np.unique(
         np.floor((spectrum[:, 0] / bin_width) + 1 - offset).astype(int),
         return_index=True,
@@ -96,4 +99,4 @@ def _vectorize(spectrum, bin_width, offset):
     intensities = np.array([spectrum[i, 1].max() for i in indices])
     vec = np.zeros(mz_bins.max() + 1)
     vec[mz_bins] = intensities
-    return vec
+    return np.sqrt(vec)
