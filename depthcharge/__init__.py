@@ -1,12 +1,7 @@
 """Initialize the depthcharge package"""
-from importlib.metadata import version, PackageNotFoundError
-
-try:
-    __version__ = version(__name__)
-except PackageNotFoundError:
-    pass
-
-
+from .version import _get_version
 from . import embedder
 from . import data
 from . import denovo
+
+__version__ = _get_version()
