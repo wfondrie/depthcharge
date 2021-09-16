@@ -13,7 +13,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 def spectra(
-    ms_data_files, ms_level, npy_dir, prefix, require_prec=True, peptides=False
+    ms_data_files,
+    ms_level,
+    npy_dir,
+    prefix,
+    require_prec=True,
+    peptides=False,
+    overwrite=False,
 ):
     """Read the MS2 spectra from a series of mzML files."""
     ms_data_files = utils.listify(ms_data_files)
@@ -26,7 +32,7 @@ def spectra(
     file_map = {}
     all_spectra = []
     for idx, (ms_file, pre) in enumerate(zip(tqdm(ms_data_files), prefix)):
-        if not str(ms_file).lower().endswith(".npy"):
+        if not str(ms_file).lower().endswith(".npy") or overwrite:
             npy_file, idx_file, prec_file, pep_file = _parse_spec_data(
                 ms_file=ms_file,
                 ms_level=ms_level,
@@ -34,6 +40,7 @@ def spectra(
                 prefix=pre,
                 require_prec=require_prec,
                 peptides=peptides,
+                overwrite=overwrite,
             )
         else:
             npy_file, idx_file, prec_file, pep_file = _parse_npy(
@@ -104,7 +111,8 @@ def _parse_npy(npy_file, require_prec=True, peptides=False):
 
 
 def _parse_spec_data(
-    ms_file, ms_level, npy_dir, prefix, require_prec=True, peptides=False
+    ms_file, ms_level, npy_dir, prefix, require_prec=True, peptides=False,
+    overwrite=False,
 ):
     """If we need to actually parse the mzml file"""
     pep_file = None
@@ -125,7 +133,7 @@ def _parse_spec_data(
         all_files.append(pep_file)
 
     # Parse from the mzML file only if they don't already exist:
-    if not all(f.exists() for f in all_files):
+    if not all(f.exists() for f in all_files) or overwrite:
         if str(ms_file).lower().endswith(".mzml") and not peptides:
             opener = MzML
             parse_fun = _parse_mzml_spectrum

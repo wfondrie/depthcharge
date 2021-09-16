@@ -39,6 +39,8 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
         The directory in which to save the cached spectra.
     file_root : str or list of str
         The prefix to add to the cached files.
+    overwrite : bool, optional
+        Overwrite previously cached files.
     """
 
     def __init__(
@@ -50,14 +52,16 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
         rng=None,
         cache_dir=None,
         file_root=None,
+        overwrite=False,
     ):
         """Initialize a SpectrumDataset"""
         super().__init__()
-        self.n_peaks = int(n_peaks)
-        self.min_mz = float(min_mz)
+        self.n_peaks = n_peaks
+        self.min_mz = min_mz
         self.rng = rng
         self.cache_dir = cache_dir
-        self._ms_level = int(ms_level)
+        self.overwrite = overwrite
+        self._ms_level = ms_level
 
         try:
             self._require_prec
@@ -76,6 +80,7 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
             prefix=file_root,
             require_prec=self._require_prec,
             peptides=self._peptides,
+            overwrite=self.overwrite,
         )
 
         self._order = np.arange(self.n_spectra)
@@ -207,8 +212,10 @@ class PairedSpectrumDataset(SpectrumDataset):
         exclude TMT and iTRAQ reporter ions.
     cache_dir : str or Path, optional
         The directory in which to save the cached spectra.
-    file_root : str or list of str
+    file_root : str or list of str, optional
         The prefix to add to the cached files.
+    overwrite : bool, optional
+        Overwrite previously cached files.
     """
 
     def __init__(
@@ -223,6 +230,7 @@ class PairedSpectrumDataset(SpectrumDataset):
         rng=42,
         cache_dir=None,
         file_root=None,
+        overwrite=False,
     ):
         """Initialize a PairedSpectrumDataset"""
         self._require_prec = False
@@ -234,6 +242,7 @@ class PairedSpectrumDataset(SpectrumDataset):
             rng=rng,
             cache_dir=cache_dir,
             file_root=file_root,
+            overwrite=overwrite,
         )
 
         self._eval = False
@@ -321,6 +330,8 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         The directory in which to save the cached spectra.
     file_root : str or list of str
         The prefix to add to the cached files.
+    overwrite : bool, optional
+        Overwrite previously cached files.
     """
 
     def __init__(
@@ -332,6 +343,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         rng=None,
         cache_dir=None,
         file_root=None,
+        overwrite=False,
     ):
         """Initialize a SpectrumDataset"""
         self._peptides = True
@@ -343,4 +355,5 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             rng=rng,
             cache_dir=cache_dir,
             file_root=file_root,
+            overwrite=overwrite,
         )
