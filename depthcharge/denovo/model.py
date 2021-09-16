@@ -213,7 +213,7 @@ class Spec2Pep(torch.nn.Module):
             mask = mask[None, :]
             scores, _ = self.decoder(None, prec, mem, mask)
             tokens = torch.argmax(scores, axis=2)
-            for _ in range(self.max_length-1):
+            for _ in range(self.max_length - 1):
                 if self.decoder._idx2aa[tokens[0, -1].item()] == "$":
                     break
 

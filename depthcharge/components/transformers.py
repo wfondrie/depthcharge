@@ -29,6 +29,7 @@ class SpectrumEncoder(torch.nn.Module):
     mz_encoder : bool, optional
         Use positional encodings m/z values of each peak.
     """
+
     def __init__(
         self,
         dim_model=128,
@@ -57,7 +58,8 @@ class SpectrumEncoder(torch.nn.Module):
         )
 
         self.transformer_encoder = torch.nn.TransformerEncoder(
-            layer, num_layers=n_layers,
+            layer,
+            num_layers=n_layers,
         )
 
     def forward(self, spectra):
@@ -101,7 +103,6 @@ class SpectrumEncoder(torch.nn.Module):
         return next(self.parameters()).device
 
 
-
 class PeptideDecoder(torch.nn.Module):
     """A transformer decoder for peptide sequences.
 
@@ -124,6 +125,7 @@ class PeptideDecoder(torch.nn.Module):
     reverse : bool, optional
         Sequence peptides from c-terminus to n-terminus.
     """
+
     def __init__(
         self,
         dim_model=128,
@@ -141,13 +143,13 @@ class PeptideDecoder(torch.nn.Module):
         # Things we'll need
         self._peptide_mass = PeptideMass(extended=True)
         self._amino_acids = list(self._peptide_mass.masses.keys()) + ["$"]
-        self._idx2aa = {i+1: aa for i, aa in enumerate(self._amino_acids)}
+        self._idx2aa = {i + 1: aa for i, aa in enumerate(self._amino_acids)}
         self._aa2idx = {aa: i for i, aa in self._idx2aa.items()}
 
         # Model components
         self.precursor_encoder = torch.nn.Linear(2, dim_model)
         self.aa_encoder = torch.nn.Embedding(
-            len(self._amino_acids)+1,
+            len(self._amino_acids) + 1,
             dim_model,
             padding_idx=0,
         )
@@ -167,10 +169,11 @@ class PeptideDecoder(torch.nn.Module):
         )
 
         self.transformer_decoder = torch.nn.TransformerDecoder(
-            layer, num_layers=n_layers,
+            layer,
+            num_layers=n_layers,
         )
 
-        self.final = torch.nn.Linear(dim_model, len(self._amino_acids)+1)
+        self.final = torch.nn.Linear(dim_model, len(self._amino_acids) + 1)
 
     def forward(self, sequences, precursors, memory, memory_key_padding_mask):
         """Predict the next amino acid for a collection of sequences.
@@ -242,7 +245,7 @@ class PeptideDecoder(torch.nn.Module):
             The token for each amino acid in the peptide sequence.
         """
         if not isinstance(sequence, str):
-            return sequence # Assume it is already tokenized.
+            return sequence  # Assume it is already tokenized.
 
         sequence = sequence.replace("I", "L")
         sequence = re.split(r"(?<=.)(?=[A-Z])", sequence)

@@ -111,7 +111,12 @@ def _parse_npy(npy_file, require_prec=True, peptides=False):
 
 
 def _parse_spec_data(
-    ms_file, ms_level, npy_dir, prefix, require_prec=True, peptides=False,
+    ms_file,
+    ms_level,
+    npy_dir,
+    prefix,
+    require_prec=True,
+    peptides=False,
     overwrite=False,
 ):
     """If we need to actually parse the mzml file"""
