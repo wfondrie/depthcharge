@@ -58,18 +58,23 @@ class SpectrumIndex:
         self._path = index_path
         self._ms_level = utils.check_positive_int(ms_level, "ms_level")
         self._overwrite = bool(overwrite)
+        self._handle = None
+        self._file_offsets = np.array([0])
+        self._file_map = {}
         ms_data_files = utils.listify(ms_data_files)
 
         # Create the file if it doesn't exist.
         if not self.path.exists() or self.overwrite:
             with h5py.File(self.path, "w") as index:
                 index.attrs["ms_level"] = self.ms_level
+                index.attrs["n_spectra"] = 0
+                index.attrs["n_peaks"] = 0
 
         # Else, verify that the previous index uses the same ms_level.
         else:
-            with h5py.File(self.path, "a") as index:
+            with self:
                 try:
-                    assert index.attrs["ms_level"] == self.ms_level
+                    assert self._handle.attrs["ms_level"] == self.ms_level
                 except (KeyError, AssertionError):
                     ValueError(
                         f"'{self.path}' already exists, but was created with "
@@ -77,10 +82,22 @@ class SpectrumIndex:
                         "overwrite it."
                     )
 
+                self._reindex()
+
         # Now parse spectra.
-        LOGGER.info("Reading %i files...", len(ms_data_files))
-        for ms_file in ms_data_files:
-            self.add_file(ms_file)
+        if ms_data_files is not None:
+            LOGGER.info("Reading %i files...", len(ms_data_files))
+            for ms_file in ms_data_files:
+                self.add_file(ms_file)
+
+    def _reindex(self):
+        """Update the file mappings and offsets"""
+        offsets = []
+        for name, grp in self._handle.items():
+            offsets.append(grp.attrs["n_spectra"])
+            self._file_map[grp.attrs["path"]] = int(name)
+
+        self._file_offsets = np.cumsum([0] + offsets)
 
     def add_file(self, ms_data_file):
         """Add a MS data file to the index"""
@@ -100,7 +117,7 @@ class SpectrumIndex:
             ("offset", np.uint64),
         ]
 
-        metadata = np.zeros(3, dtype=meta_types)
+        metadata = np.empty(parser.n_spectra, dtype=meta_types)
         metadata["precursor_mz"] = parser.precursor_mz
         metadata["precursor_charge"] = parser.precursor_charge
         metadata["offset"] = parser.offset
@@ -110,18 +127,88 @@ class SpectrumIndex:
             ("intensity_array", np.float32),
         ]
 
-        spectra = np.zeros(2, dtype=spectrum_types)
+        spectra = np.zeros(parser.n_peaks, dtype=spectrum_types)
         spectra["mz_array"] = parser.mz_arrays
         spectra["intensity_array"] = parser.intensity_arrays
 
         # Write the tables:
         with h5py.File(self.path, "a") as index:
-            group = index.create_group(str(len(index)))
+            group_index = len(index)
+            group = index.create_group(str(group_index))
             group.attrs["path"] = str(ms_data_file)
             group.attrs["n_spectra"] = parser.n_spectra
             group.attrs["n_peaks"] = parser.n_peaks
-            group.create_dataset("metadata", data=metadata, chunks=True)
-            group.create_dataset("spectra", data=spectra, chunks=True)
+
+            # Update overall stats:
+            index.attrs["n_spectra"] += parser.n_spectra
+            index.attrs["n_peaks"] += parser.n_peaks
+
+            # Add the datasets:
+            group.create_dataset(
+                "metadata",
+                data=metadata,
+                chunks=True,
+                compression="gzip",
+            )
+
+            group.create_dataset(
+                "spectra",
+                data=spectra,
+                chunks=True,
+                compression="gzip",
+            )
+
+            self._file_map[str(ms_data_file)] = group_index
+            end_offset = self._file_offsets[-1] + parser.n_spectra
+            self._file_offsets = np.append(self._file_offsets, [end_offset])
+
+    def get_spectrum(self, file_index, spectrum_index):
+        """Access a spectrum.
+
+        Parameters
+        ----------
+        file_index : int
+            The group index of the MS data file.
+        offset: int
+            The index of the
+        """
+        if self._handle is None:
+            raise RuntimeError("Use the context manager for access.")
+
+        grp = self._handle[str(file_index)]
+        metadata = grp["metadata"]
+        spectra = grp["spectra"]
+
+        offsets = metadata["offset"][spectrum_index : spectrum_index + 2]
+        start_offset = offsets[0]
+        if offsets.shape[0] == 2:
+            stop_offset = offsets[1]
+        else:
+            stop_offset = spectra.shape[0]
+
+        spectrum = spectra[start_offset:stop_offset]
+        return spectrum["mz_array"], spectrum["intensity_array"]
+
+    def __getitem__(self, idx):
+        """Retrieve a spectrum"""
+        file_index = np.searchsorted(self._file_offsets[1:], idx, side="right")
+        spectrum_index = idx - self._file_offsets[file_index]
+
+        if self._handle is None:
+            with self:
+                return self.get_spectrum(file_index, spectrum_index)
+
+        return self.get_spectrum(file_index, spectrum_index)
+
+    def __enter__(self):
+        """Enable context manager."""
+        self._handle = h5py.File(self.path, "r")
+        return self
+
+    def __exit__(self, *args):
+        """Close the HDF5 file."""
+        self._handle.close()
+        self._handle = None
 
     @property
     def path(self):
