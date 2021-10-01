@@ -181,6 +181,8 @@ class Spec2Pep(torch.nn.Module):
         self.eval()
         with torch.no_grad():
             for spectra, precursors, _ in loader:
+                spectra = spectra.to(self.encoder.device)
+                precursor = precursors.to(self.decoder.device)
                 b_scores, b_tokens = self.greedy_decode(spectra, precursors)
                 scores.append(b_scores)
                 sequences += [self.decoder.detokenize(t) for t in b_tokens]
@@ -301,8 +303,7 @@ class Spec2Pep(torch.nn.Module):
 
 def prepare_batch(batch):
     """This is the collate function"""
-    spec, prec, seq = list(zip(*batch))
-    mz, charge = list(zip(*prec))
+    spec, mz, charge, seq = list(zip(*batch))
     charge = torch.tensor(charge)
     mass = (torch.tensor(mz) - 1.007276) * charge
     precursors = torch.vstack([mass, charge]).T.float()

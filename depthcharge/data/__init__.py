@@ -4,3 +4,5 @@ from .datasets import (
     PairedSpectrumDataset,
     AnnotatedSpectrumDataset,
 )
+
+from .hdf5 import SpectrumIndex, AnnotatedSpectrumIndex

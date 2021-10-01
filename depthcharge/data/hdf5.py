@@ -4,9 +4,6 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-from tqdm import tqdm
-from pyteomics.mzml import MzML
-from pyteomics.mgf import MGF
 
 from .. import utils
 from .parsers import MzmlParser, MgfParser
@@ -18,14 +15,13 @@ class SpectrumIndex:
     """Store and access a collection of mass spectra.
 
     This class parses one or more mzML file, converts it to our HDF5 index
-    format. It creates a temporary HDF5 file with external mappings to all of
-    the mzML indices that comprise it, allowing us to quickly access
-    individual spectra.
+    format. This allows us to access spectra from many different files quickly
+    and without loading them all into memory.
 
     Parameters
     ----------
     index_path : str
-        The name and path of the new HDF5 file index. If the path does
+        The name and path of the HDF5 file index. If the path does
         not contain the `.h5` or `.hdf5` extension, `.hdf5` will be added.
     ms_data_files : str or list of str, optional
         The mzML to include in this collection.
@@ -41,6 +37,8 @@ class SpectrumIndex:
     ----------
     path : Path
     """
+
+    annotated = False
 
     def __init__(
         self,
@@ -69,14 +67,16 @@ class SpectrumIndex:
                 index.attrs["ms_level"] = self.ms_level
                 index.attrs["n_spectra"] = 0
                 index.attrs["n_peaks"] = 0
+                index.attrs["annotated"] = False
 
         # Else, verify that the previous index uses the same ms_level.
         else:
             with self:
                 try:
                     assert self._handle.attrs["ms_level"] == self.ms_level
+                    assert self._handle.attrs["annotated"] == self.annotated
                 except (KeyError, AssertionError):
-                    ValueError(
+                    raise ValueError(
                         f"'{self.path}' already exists, but was created with "
                         "incompatible parameters. Use 'overwrite=True' to "
                         "overwrite it."
@@ -99,18 +99,18 @@ class SpectrumIndex:
 
         self._file_offsets = np.cumsum([0] + offsets)
 
-    def add_file(self, ms_data_file):
-        """Add a MS data file to the index"""
-        ms_data_file = Path(ms_data_file)
+    def _get_parser(self, ms_data_file):
+        """Get the parser for the MS data file"""
         if ms_data_file.suffix.lower() == ".mzml":
-            parser = MzmlParser(ms_data_file, ms_level=2)
-        elif ms_data_file.suffix.lower() == ".mgf":
-            parser = MgfParser(ms_data_file, ms_level=2)
+            return MzmlParser(ms_data_file, ms_level=self.ms_level)
 
-        # Read the file:
-        parser.read()
+        if ms_data_file.suffix.lower() == ".mgf":
+            return MgfParser(ms_data_file, ms_level=self.ms_level)
 
-        # Create the tables:
+        raise ValueError(f"'{ms_data_file}' has an invalid file extension.")
+
+    def _assemble_metadata(self, parser):
+        """Assemble the metadata"""
         meta_types = [
             ("precursor_mz", np.float32),
             ("precursor_charge", np.uint8),
@@ -121,6 +121,20 @@ class SpectrumIndex:
         metadata["precursor_mz"] = parser.precursor_mz
         metadata["precursor_charge"] = parser.precursor_charge
         metadata["offset"] = parser.offset
+        return metadata
+
+    def add_file(self, ms_data_file):
+        """Add a MS data file to the index"""
+        ms_data_file = Path(ms_data_file)
+        if str(ms_data_file) in self._file_map:
+            return
+
+        # Read the file:
+        parser = self._get_parser(ms_data_file)
+        parser.read()
+
+        # Create the tables:
+        metadata = self._assemble_metadata(parser)
 
         spectrum_types = [
             ("mz_array", np.float64),
@@ -187,7 +201,18 @@ class SpectrumIndex:
             stop_offset = spectra.shape[0]
 
         spectrum = spectra[start_offset:stop_offset]
-        return spectrum["mz_array"], spectrum["intensity_array"]
+        precursor = metadata[spectrum_index]
+        out = [
+            spectrum["mz_array"],
+            spectrum["intensity_array"],
+            precursor["precursor_mz"],
+            precursor["precursor_charge"],
+        ]
+
+        if self.annotated:
+            out += [precursor["annotations"].decode()]
+
+        return tuple(out)
 
     def __getitem__(self, idx):
         """Retrieve a spectrum"""
@@ -224,3 +249,93 @@ class SpectrumIndex:
     def overwrite(self):
         """Overwrite a previous index?"""
         return self._overwrite
+
+    @property
+    def n_spectra(self):
+        """The total number of mass spectra in the index."""
+        if self._handle is None:
+            with self:
+                return self._handle.attrs["n_spectra"]
+
+        return self._handle.attrs["n_spectra"]
+
+    @property
+    def n_peaks(self):
+        """The total number of mass spectra in the index."""
+        if self._handle is None:
+            with self:
+                return self._handle.attrs["n_peaks"]
+
+        return self._handle.attrs["n_peaks"]
+
+
+class AnnotatedSpectrumIndex(SpectrumIndex):
+    """Store and access a collection of annotated mass spectra.
+
+    This class parses one or more mzML file, converts it to our HDF5 index
+    format. This allows us to access spectra from many different files quickly
+    and without loading them all into memory.
+
+    Parameters
+    ----------
+    index_path : str
+        The name and path of the HDF5 file index. If the path does
+        not contain the `.h5` or `.hdf5` extension, `.hdf5` will be added.
+    ms_data_files : str or list of str, optional
+        The MGF to include in this collection.
+    ms_level : int, optional
+        The level of tandem mass spectra to use.
+    metadata : dict or list of dict, optional
+        Additional metadata to store with the files.
+    overwite : bool
+        Overwrite previously indexed files? If ``False`` and new files are
+        provided, they will be appended to the collection.
+
+    Attributes
+    ----------
+    path : Path
+    """
+
+    annotated = True
+
+    def __init__(
+        self,
+        index_path,
+        ms_data_files=None,
+        ms_level=2,
+        overwrite=False,
+    ):
+        """Initialize an AnnotatedSpectrumIndex"""
+        super().__init__(
+            index_path=index_path,
+            ms_data_files=ms_data_files,
+            ms_level=ms_level,
+            overwrite=overwrite,
+        )
+
+    def _get_parser(self, ms_data_file):
+        """Get the parser for the MS data file"""
+        if ms_data_file.suffix.lower() == ".mgf":
+            return MgfParser(
+                ms_data_file,
+                ms_level=self.ms_level,
+                annotations=True,
+            )
+
+        raise ValueError(f"'{ms_data_file}' has an invalid file extension.")
+
+    def _assemble_metadata(self, parser):
+        """Assemble the metadata"""
+        meta_types = [
+            ("precursor_mz", np.float32),
+            ("precursor_charge", np.uint8),
+            ("offset", np.uint64),
+            ("annotations", h5py.string_dtype()),
+        ]
+
+        metadata = np.empty(parser.n_spectra, dtype=meta_types)
+        metadata["precursor_mz"] = parser.precursor_mz
+        metadata["precursor_charge"] = parser.precursor_charge
+        metadata["offset"] = parser.offset
+        metadata["annotations"] = parser.annotations
+        return metadata

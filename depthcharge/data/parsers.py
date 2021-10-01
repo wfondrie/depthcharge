@@ -147,12 +147,9 @@ class MgfParser(BaseParser):
         spectrum : dict
             The dictionary defining the spectrum in mzML format.
         """
-        if spectrum["ms level"] != self.ms_level:
-            return
-
         if self.ms_level > 1:
-            self.precursor_mz.append(spectrum["params"]["pepmass"])
-            self.precursor_charge.append(spectrum["params"]["charge"])
+            self.precursor_mz.append(spectrum["params"]["pepmass"][0])
+            self.precursor_charge.append(spectrum["params"]["charge"][0])
         else:
             self.precursor_mz.append(None)
             self.precursor_charge.append(None)
