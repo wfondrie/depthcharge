@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from .. import utils
 from .model import Spec2Pep
-from ..embedder.model import SpectrumTransformer
+from ..embedder.model import SiameseSpectrumEncoder
 from ..data import AnnotatedSpectrumDataset
 
 LOGGER = logging.getLogger(__name__)

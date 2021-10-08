@@ -69,6 +69,7 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         tol=0.01,
         p_close=0.0,
         close_scans=50,
+        num_workers=8,
         random_state=None,
     ):
         """Initialize the PairedSpectrumDataModule"""
@@ -84,6 +85,7 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         self.tol = tol
         self.p_close = p_close
         self.close_scans = close_scans
+        self.num_workers = num_workers
         self.rng = np.random.default_rng(random_state)
 
         if splits_path is None:
@@ -103,9 +105,12 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         }
 
         for split, projects in self.splits.items():
+            if split == "rejected":
+                continue
+
             index = index_map[split]
             for project, ms_files in projects.items():
-                for ms_file in ms_files[:1]:
+                for ms_file in ms_files:
                     fname = str(Path(project, ms_file))
                     if any(fname in f for f in index.ms_files):
                         continue
@@ -133,6 +138,7 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
             batch_size=self.train_batch_size,
             collate_fn=prepare_batch,
             pin_memory=True,
+            num_workers=self.num_workers,
         )
 
     def val_dataloader(self):
@@ -154,6 +160,7 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
             batch_size=self.eval_batch_size,
             collate_fn=prepare_batch,
             pin_memory=True,
+            num_workers=self.num_workers,
         )
 
     def test_dataloader(self):

@@ -180,9 +180,9 @@ class Spec2Pep(torch.nn.Module):
         scores = []
         self.eval()
         with torch.no_grad():
-            for spectra, precursors, _ in loader:
+            for spectra, precursors, *_ in loader:
                 spectra = spectra.to(self.encoder.device)
-                precursor = precursors.to(self.decoder.device)
+                precursors = precursors.to(self.decoder.device)
                 b_scores, b_tokens = self.greedy_decode(spectra, precursors)
                 scores.append(b_scores)
                 sequences += [self.decoder.detokenize(t) for t in b_tokens]

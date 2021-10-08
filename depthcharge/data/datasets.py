@@ -172,7 +172,6 @@ class PairedSpectrumDataset(SpectrumDataset):
         else:
             indices = self._generate_pairs()
 
-        print(indices)
         x_spec, _, _ = super().__getitem__(indices[0, 0])
         y_spec, _, _ = super().__getitem__(indices[0, 1])
         sim = similarity.gsp(np.array(x_spec), np.array(y_spec), self.tol)
