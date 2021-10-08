@@ -59,7 +59,6 @@ class SpectrumIndex:
         self._handle = None
         self._file_offsets = np.array([0])
         self._file_map = {}
-        ms_data_files = utils.listify(ms_data_files)
 
         # Create the file if it doesn't exist.
         if not self.path.exists() or self.overwrite:
@@ -86,6 +85,7 @@ class SpectrumIndex:
 
         # Now parse spectra.
         if ms_data_files is not None:
+            ms_data_files = utils.listify(ms_data_files)
             LOGGER.info("Reading %i files...", len(ms_data_files))
             for ms_file in ms_data_files:
                 self.add_file(ms_file)
@@ -234,6 +234,11 @@ class SpectrumIndex:
         """Close the HDF5 file."""
         self._handle.close()
         self._handle = None
+
+    @property
+    def ms_files(self):
+        """The files currently in the index."""
+        return list(self._file_map.keys())
 
     @property
     def path(self):

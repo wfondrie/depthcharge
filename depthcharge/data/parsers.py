@@ -108,7 +108,7 @@ class MzmlParser(BaseParser):
                 .get("selectedIon")[0]
             )
             self.precursor_mz.append(data["selected ion m/z"])
-            self.precursor_charge.append(data["charge state"])
+            self.precursor_charge.append(data.get("charge state", 0))
         else:
             self.precursor_mz.append(None)
             self.precursor_charge.append(None)

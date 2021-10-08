@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 
-from .model import prepare_batch
+# from .model import prepare_batch
 
 LOGGER = logging.getLogger(__name__)
 
