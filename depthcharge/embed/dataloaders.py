@@ -3,7 +3,6 @@
 This module also ensure consistent train, validation, and test splits.
 """
 import json
-import shutil
 from pathlib import Path
 
 import ppx
