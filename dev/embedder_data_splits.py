@@ -33,12 +33,20 @@ class ProjectSplits:
         The number of projects to use for testing.
     path : Path, optional
         The path to the JSON file storing previously used files.
+    projects : list of str
+        The projects to choose from. By default this is all of MassIVE.
     random_state : int or Generator, optional
         The numpy random state.
     """
 
     def __init__(
-        self, n_train=40, n_valid=5, n_test=5, path=None, random_state=42
+        self,
+        n_train=50,
+        n_valid=7,
+        n_test=7,
+        path=None,
+        project=None,
+        random_state=42,
     ):
         """Initialize the ProjectSplits"""
         self.rng = np.random.default_rng(random_state)
@@ -69,9 +77,10 @@ class ProjectSplits:
             except AttributeError:
                 used += projects
 
-        avail = np.array(
-            [p for p in ppx.massive.list_projects() if p not in used]
-        )
+        if projects is None:
+            projects = ppx.massive.list_projects()
+
+        avail = np.array([p for p in projects if p not in used])
         self.rng.shuffle(avail)
         self._projects = list(avail)
 
