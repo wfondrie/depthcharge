@@ -4,6 +4,7 @@ This module also ensure consistent train, validation, and test splits.
 """
 import json
 from pathlib import Path
+from functools import partial
 
 import ppx
 import torch
@@ -60,8 +61,7 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         valid_index_path,
         test_index_path,
         splits_path=None,
-        train_batch_size=128,
-        eval_batch_size=1028,
+        batch_size=128,
         n_peaks=200,
         n_pairs=10000,
         min_mz=140,
@@ -77,8 +77,7 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         self.train_index = SpectrumIndex(train_index_path)
         self.valid_index = SpectrumIndex(valid_index_path)
         self.test_index = SpectrumIndex(test_index_path)
-        self.train_batch_size = train_batch_size
-        self.eval_batch_size = eval_batch_size
+        self.batch_size = batch_size
         self.n_peaks = n_peaks
         self.n_pairs = n_pairs
         self.min_mz = min_mz
@@ -88,6 +87,9 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.keep_files = keep_files
         self.rng = np.random.default_rng(random_state)
+        self.train_dataset = None
+        self.valid_dataset = None
+        self.test_dataset = None
 
         if splits_path is None:
             splits_path = SPLITS
@@ -122,10 +124,10 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
                     if not self.keep_files:
                         downloaded.unlink()  # Delete the file when we're done
 
-    def train_dataloader(self):
-        """Get the training DataLoader."""
-        dataset = PairedSpectrumDataset(
-            self.train_index,
+    def setup(self, stage=None):
+        """Set up the PyTorch Datasets."""
+        make_dataset = partial(
+            PairedSpectrumDataset,
             n_peaks=self.n_peaks,
             n_pairs=self.n_pairs,
             min_mz=self.min_mz,
@@ -135,56 +137,36 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
             random_state=self.rng,
         )
 
+        if stage in (None, "fit"):
+            self.train_dataset = make_dataset(self.train_index)
+        elif stage in (None, "validate"):
+            self.valid_dataset = make_dataset(self.valid_index)
+            self.valid_dataset.eval()
+        else:
+            self.test_dataset = make_dataset(self.test_index)
+            self.test_dataset.eval()
+
+    def _make_loader(self, dataset):
+        """Create a PyTorch DataLoader"""
         return torch.utils.data.DataLoader(
             dataset,
-            batch_size=self.train_batch_size,
+            batch_size=self.batch_size,
             collate_fn=prepare_batch,
             pin_memory=True,
             num_workers=self.num_workers,
         )
+
+    def train_dataloader(self):
+        """Get the training DataLoader."""
+        return self._make_loader(self.train_dataset)
 
     def val_dataloader(self):
         """Get the ValidationDataLoader"""
-        dataset = PairedSpectrumDataset(
-            self.valid_index,
-            n_peaks=self.n_peaks,
-            n_pairs=self.n_pairs,
-            min_mz=self.min_mz,
-            tol=self.tol,
-            p_close=self.p_close,
-            close_scans=self.close_scans,
-            random_state=None,
-        )
-        dataset.eval()
-
-        return torch.utils.data.DataLoader(
-            dataset,
-            batch_size=self.eval_batch_size,
-            collate_fn=prepare_batch,
-            pin_memory=True,
-            num_workers=self.num_workers,
-        )
+        return self._make_loader(self.valid_dataset)
 
     def test_dataloader(self):
         """Get the ValidationDataLoader"""
-        dataset = PairedSpectrumDataset(
-            self.test_index,
-            n_peaks=self.n_peaks,
-            n_pairs=self.n_pairs,
-            min_mz=self.min_mz,
-            tol=self.tol,
-            p_close=self.p_close,
-            close_scans=self.close_scans,
-            random_state=None,
-        )
-        dataset.eval()
-
-        return torch.utils.data.DataLoader(
-            dataset,
-            batch_size=self.eval_batch_size,
-            collate_fn=prepare_batch,
-            pin_memory=True,
-        )
+        return self._make_loader(self.test_dataset)
 
 
 def prepare_batch(batch):
