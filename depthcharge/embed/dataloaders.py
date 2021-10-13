@@ -69,6 +69,7 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         p_close=0.0,
         close_scans=50,
         num_workers=8,
+        keep_files=False,
         random_state=None,
     ):
         """Initialize the PairedSpectrumDataModule"""
@@ -85,6 +86,7 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         self.p_close = p_close
         self.close_scans = close_scans
         self.num_workers = num_workers
+        self.keep_files = keep_files
         self.rng = np.random.default_rng(random_state)
 
         if splits_path is None:
@@ -117,7 +119,8 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
                     proj = ppx.find_project(project)
                     downloaded = proj.download(ms_file)[0]
                     index.add_file(downloaded)
-                    downloaded.unlink()  # Delete the file when we're done
+                    if not self.keep_files:
+                        downloaded.unlink()  # Delete the file when we're done
 
     def train_dataloader(self):
         """Get the training DataLoader."""

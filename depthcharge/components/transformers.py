@@ -82,9 +82,10 @@ class SpectrumEncoder(torch.nn.Module):
         mem_mask : torch.Tensor
             The memory mask specifying which elements were padding in X.
         """
+        zeros = ~spectra.sum(dim=2).bool()
         mask = [
-            torch.tensor([[False]] * spectra.shape[0]),
-            ~spectra.sum(dim=2).bool(),
+            torch.tensor([[False]] * spectra.shape[0]).type_as(zeros),
+            zeros,
         ]
         mask = torch.cat(mask, dim=1)
         peaks = self.mz_encoder(spectra)
