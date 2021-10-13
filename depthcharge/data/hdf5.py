@@ -227,7 +227,12 @@ class SpectrumIndex:
 
     def __enter__(self):
         """Enable context manager."""
-        self._handle = h5py.File(self.path, "r")
+        self._handle = h5py.File(
+            self.path,
+            "r",
+            rdcc_nbytes=int(3e8),
+            rdcc_nslots=1024000,
+        )
         return self
 
     def __exit__(self, *args):
