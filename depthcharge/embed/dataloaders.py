@@ -145,7 +145,7 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
             print(self.valid_dataset)
             self.valid_dataset.eval()
 
-        if state in (None, "test"):
+        if stage in (None, "test"):
             self.test_dataset = make_dataset(self.test_index)
             self.test_dataset.eval()
 
