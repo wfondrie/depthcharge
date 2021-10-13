@@ -139,10 +139,13 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
 
         if stage in (None, "fit"):
             self.train_dataset = make_dataset(self.train_index)
-        elif stage in (None, "validate"):
+
+        if stage in (None, "validate"):
             self.valid_dataset = make_dataset(self.valid_index)
+            print(self.valid_dataset)
             self.valid_dataset.eval()
-        else:
+
+        if state in (None, "test"):
             self.test_dataset = make_dataset(self.test_index)
             self.test_dataset.eval()
 
