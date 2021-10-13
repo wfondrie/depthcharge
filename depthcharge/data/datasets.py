@@ -42,9 +42,9 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
         if self.rng is not None:
             self.rng.shuffle(self._order)
 
-    def __len__(self):
-        """The number of spectra"""
-        return self.n_spectra
+    # def __len__(self):
+    #    """The number of spectra"""
+    #    return self.n_spectra
 
     def __iter__(self):
         """Return spectra"""
@@ -161,12 +161,12 @@ class PairedSpectrumDataset(SpectrumDataset):
         # Setup for evaluation
         self._eval_pairs = self._generate_pairs(self.n_spectra)
 
-    def __len__(self):
-        """The number of pairs"""
-        if self._eval:
-            return self.n_pairs
+    # def __len__(self):
+    #    """The number of pairs"""
+    #    if self._eval:
+    #        return self.n_pairs
 
-        raise TypeError("'len()' is not defined in training mode.")
+    #    raise TypeError("'len()' is not defined in training mode.")
 
     def __iter__(self):
         """Generate random pairs."""
