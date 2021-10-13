@@ -53,10 +53,9 @@ class BaseParser(ABC):
         # Build the index
         sizes = np.array([0] + [s.shape[0] for s in self.mz_arrays])
         self.offset = sizes[:-1].cumsum()
-        self.mz_arrays = np.concatenate(self.mz_arrays, dtype=np.float64)
-        self.intensity_arrays = np.concatenate(
-            self.intensity_arrays,
-            dtype=np.float32,
+        self.mz_arrays = np.concatenate(self.mz_arrays).astype(np.float64)
+        self.intensity_arrays = np.concatenate(self.intensity_arrays).astype(
+            np.float32
         )
 
     @property
