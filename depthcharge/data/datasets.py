@@ -1,4 +1,6 @@
 """A PyTorch Dataset class for annotated spectra."""
+import math
+
 import torch
 import numpy as np
 
@@ -40,13 +42,24 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
         if self.rng is not None:
             self.rng.shuffle(self._order)
 
-    # def __len__(self):
-    #    """The number of spectra"""
-    #    return self.n_spectra
+    def __len__(self):
+        """The number of spectra"""
+        return self.n_spectra
 
     def __iter__(self):
         """Return spectra"""
-        for idx in range(self.n_spectra):
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is None:
+            iter_start = 0
+            iter_end = len(self.n_spectra)
+        else:
+            n_workers = float(worker_info.num_workers)
+            per_worker = int(math.ceil(len(self.n_spectra) / n_workers))
+            iter_start = worker_info.id * per_worker
+            iter_end = min(iter_start + per_worker, len(self.n_spectra))
+            self._rng = np.random.default_rng(self.rng.integers(999999))
+
+        for idx in range(iter_start, iter_end):
             yield self[idx]
 
     def __getitem__(self, idx):
@@ -148,17 +161,28 @@ class PairedSpectrumDataset(SpectrumDataset):
         # Setup for evaluation
         self._eval_pairs = self._generate_pairs(self.n_spectra)
 
-    # def __len__(self):
-    #    """The number of pairs"""
-    #    if self._eval:
-    #        return self.n_pairs
+    def __len__(self):
+        """The number of pairs"""
+        if self._eval:
+            return self.n_pairs
 
-    #    raise TypeError("'len()' is not defined in training mode.")
+        raise TypeError("'len()' is not defined in training mode.")
 
     def __iter__(self):
         """Generate random pairs."""
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is None:
+            iter_start = 0
+            iter_end = len(self._eval_pairs)
+        else:
+            n_workers = float(worker_info.num_workers)
+            per_worker = int(math.ceil(len(self._eval_pairs) / n_workers))
+            iter_start = worker_info.id * per_worker
+            iter_end = min(iter_start + per_worker, len(self._eval_pairs))
+            self._rng = np.random.default_rng(self.rng.integers(999999))
+
         if self._eval:
-            for idx in range(len(self._eval_pairs)):
+            for idx in range(iter_start, iter_end):
                 yield self[idx]
 
         else:
