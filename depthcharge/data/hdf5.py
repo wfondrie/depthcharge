@@ -161,15 +161,11 @@ class SpectrumIndex:
             group.create_dataset(
                 "metadata",
                 data=metadata,
-                chunks=True,
-                compression="gzip",
             )
 
             group.create_dataset(
                 "spectra",
                 data=spectra,
-                chunks=True,
-                compression="gzip",
             )
 
             self._file_map[str(ms_data_file)] = group_index
