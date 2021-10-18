@@ -11,7 +11,7 @@ import torch
 import numpy as np
 import pytorch_lightning as pl
 
-from ..data import PairedSpectrumDataset, SpectrumIndex
+from ..data import PairedSpectrumDataset, PairedSpectrumStreamer, SpectrumIndex
 
 SPLITS = Path(__file__).parent / "SPLITS.json"
 
@@ -138,13 +138,19 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         )
 
         if stage in (None, "fit", "validate"):
-            self.train_dataset = make_dataset(self.train_index)
+            self.train_dataset = PairedSpectrumStreamer(
+                self.train_index,
+                n_peaks=self.n_peaks,
+                min_mz=self.min_mz,
+                tol=self.tol,
+                p_close=self.p_close,
+                close_scans=self.close_scans,
+                random_state=self.rng,
+            )
             self.valid_dataset = make_dataset(self.valid_index)
-            self.valid_dataset.eval()
 
         if stage in (None, "test"):
             self.test_dataset = make_dataset(self.test_index)
-            self.test_dataset.eval()
 
     def _make_loader(self, dataset):
         """Create a PyTorch DataLoader"""

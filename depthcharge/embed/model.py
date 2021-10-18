@@ -88,33 +88,54 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
     def training_step(self, batch, *args):
         """A single training step with the model."""
         loss = self.step(batch)
-        self.log("train_loss", loss.item(), on_step=False, on_epoch=True)
+        self.log(
+            "MSE",
+            {"train": loss.item()},
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
         return loss
 
     def validation_step(self, batch, *args):
         """A single validation step with the model."""
         loss = self.step(batch)
-        self.log("valid_loss", loss.item(), on_step=False, on_epoch=True)
+        self.log(
+            "MSE",
+            {"valid": loss.item()},
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
         return loss
+
+    def on_train_epoch_end(self):
+        """Log the training loss"""
+        metrics = {
+            "epoch": self.trainer.current_epoch,
+            "train": self.trainer.callback_metrics["MSE"]["train"].item(),
+        }
+        self._history.append(metrics)
 
     def on_validation_epoch_end(self):
         """Log the epoch metrics to self.history"""
-        metrics = {"epoch": self.trainer.current_epoch}
-        metrics.update(
-            {k: v.item() for k, v in self.trainer.callback_metrics.items()}
-        )
-        self._history.append(metrics)
+        if not self._history:
+            return
+
+        valid_loss = self.trainer.callback_metrics["MSE"]["valid"].item()
+        self._history[-1]["valid"] = valid_loss
         if len(self._history) == 1:
             LOGGER.info("---------------------------------------")
             LOGGER.info("  Epoch |   Train Loss  |  Valid Loss  ")
             LOGGER.info("---------------------------------------")
 
+        metrics = self._history[-1]
         if not metrics["epoch"] % self.n_log:
             LOGGER.info(
                 "  %5i | %15.7f | %15.7f ",
                 metrics["epoch"],
-                metrics.get("train_loss", np.nan),
-                metrics["valid_loss"],
+                metrics.get("train", np.nan),
+                metrics["valid"],
             )
 
     def configure_optimizers(self):

@@ -93,9 +93,10 @@ class SpectrumIndex:
     def _reindex(self):
         """Update the file mappings and offsets"""
         offsets = []
-        for name, grp in self._handle.items():
+        for idx in range(len(self._handle)):
+            grp = self._handle[str(idx)]
             offsets.append(grp.attrs["n_spectra"])
-            self._file_map[grp.attrs["path"]] = int(name)
+            self._file_map[grp.attrs["path"]] = idx
 
         self._file_offsets = np.cumsum([0] + offsets)
 
@@ -188,8 +189,8 @@ class SpectrumIndex:
         grp = self._handle[str(file_index)]
         metadata = grp["metadata"]
         spectra = grp["spectra"]
-
         offsets = metadata["offset"][spectrum_index : spectrum_index + 2]
+
         start_offset = offsets[0]
         if offsets.shape[0] == 2:
             stop_offset = offsets[1]

@@ -2,6 +2,7 @@
 from .datasets import (
     SpectrumDataset,
     PairedSpectrumDataset,
+    PairedSpectrumStreamer,
     AnnotatedSpectrumDataset,
 )
 
