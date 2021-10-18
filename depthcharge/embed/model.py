@@ -77,17 +77,20 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         """The forward pass"""
         return self.encoder(X)[0][:, 0, :]
 
-    def step(self, batch):
+    def _step(self, batch):
         """A single step during training."""
         X, Y, gsp = batch
         X_emb = self(X)
         Y_emb = self(Y)
-        pred = self.head(torch.hstack([X_emb, Y_emb])).squeeze()
-        return self.mse(pred, gsp)
+        return self.head(torch.hstack([X_emb, Y_emb])).squeeze()
+
+    def predict_step(self, batch, *args):
+        """Make a prediction"""
+        return self.step(batch)
 
     def training_step(self, batch, *args):
         """A single training step with the model."""
-        loss = self.step(batch)
+        loss = self.mse(*self.step(batch))
         self.log(
             "MSE",
             {"train": loss.item()},
@@ -99,7 +102,7 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
 
     def validation_step(self, batch, *args):
         """A single validation step with the model."""
-        loss = self.step(batch)
+        loss = self.mse(*self.step(batch))
         self.log(
             "MSE",
             {"valid": loss.item()},
