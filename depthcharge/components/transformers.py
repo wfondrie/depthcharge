@@ -42,7 +42,8 @@ class SpectrumEncoder(torch.nn.Module):
         """Initialize a SpectrumEncoder"""
         super().__init__()
 
-        self.latent_spectrum = torch.nn.Parameter(torch.randn(1, dim_model))
+        self.latent_spectrum = torch.nn.Parameter(torch.randn(1, 1, dim_model))
+
         if mz_encoder:
             self.mz_encoder = MzEncoder(dim_model)
         else:
@@ -91,9 +92,7 @@ class SpectrumEncoder(torch.nn.Module):
         peaks = self.mz_encoder(spectra)
 
         # Add the spectrum representation to each input:
-        latent_spectra = einops.repeat(
-            self.latent_spectrum, "n f -> b n f", b=peaks.shape[0]
-        )
+        latent_spectra = self.spectrum_token.expand(peaks.shape[0], -1, -1)
 
         peaks = torch.cat([latent_spectra, peaks], dim=1)
         return self.transformer_encoder(peaks, src_key_padding_mask=mask), mask
