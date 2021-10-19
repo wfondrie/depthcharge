@@ -43,7 +43,7 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         dim_feedforward=1024,
         n_layers=1,
         n_head_layers=3,
-        dropout=0,
+        dropout=0.1,
         n_log=10,
         **kwargs,
     ):
