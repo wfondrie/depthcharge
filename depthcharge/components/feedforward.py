@@ -36,8 +36,7 @@ class FeedForward(torch.nn.Module):
         for idx in range(len(sizes) - 1):
             stack.append(torch.nn.Linear(sizes[idx], sizes[idx + 1]))
             if idx < len(sizes) - 2:
-                # stack.append(torch.nn.LeakyReLU())
-                stack.append(torch.nn.GELU())
+                stack.append(torch.nn.LeakyReLU())
                 if dropout:
                     stack.append(torch.nn.Dropout(dropout))
 
