@@ -11,7 +11,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
-    """A Transformer model for self-supervised learning of spectrum embeddings.
+    """A Transformer model for self-supervised learning of mass spectrum
+    embeddings.
+
+    Use this model in conjuction with a pytorch-lightning Trainer.
 
     Parameters
     ----------
@@ -26,12 +29,15 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         transformer layers of the model.
     n_layers : int, optional
         The number of transformer layers.
-    n_head_layer : int or tuple of int, optional
+    n_head_layers : int or tuple of int, optional
         The number of hidden layers for the multilayer perceptron head.
         Alternatively this may be a tuple of integers specifying the size of
         each linear layer.
     dropout : float, optional
         The dropout rate in all layers of the model.
+    n_log : int, optional
+        The frequency with which to log losses to the console. These are only
+        visible when the logging level is set to ``INFO``.
     **kwargs : Dict
         Keyword arguments passed to the Adam optimizer
     """
@@ -74,23 +80,63 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         self._history = []
 
     def forward(self, X):
-        """The forward pass"""
+        """Embed a mass spectrum.
+
+        Parameters
+        ----------
+        X : torch.Tensor of shape (batch_size, n_peaks, 2)
+            The mass spectra to embed, where ``X[:, :, 0]`` are the m/z values
+            and ``X[:, :, 1]`` are their associated intensities.
+
+        Returns
+        -------
+        torch.Tensor of shape (batch_size, dim_model)
+            The embeddings for the mass spectra.
+        """
         return self.encoder(X)[0][:, 0, :]
 
-    def _step(self, batch):
-        """A single step during training."""
+    def predict_step(self, batch):
+        """Predict the GSP between two mass spectra.
+
+        Note that this is used within the context of a pytorch-lightning
+        Trainer to generate a prediction.
+
+        Parameters
+        ----------
+        batch : tuple of torch.Tensor
+            A batch is expected to contain pairs of mass spectra
+            (index 0 and 1) and the calcualted GSP between them (index 2).
+
+        Returns
+        -------
+        predicted : torch.tensor of shape (batch_size,)
+            The predicted GSP between the batch of mass spectra.
+        truth : torch.tensor of shape (batch_size,)
+            The calcualted GSP between the batch of mass spectra.
+        """
         X, Y, gsp = batch
         X_emb = self(X)
         Y_emb = self(Y)
         return self.head(torch.hstack([X_emb, Y_emb])).squeeze(), gsp
 
-    def predict_step(self, batch, *args):
-        """Make a prediction"""
-        return self._step(batch)
-
     def training_step(self, batch, *args):
-        """A single training step with the model."""
-        loss = self.mse(*self._step(batch))
+        """A single training step with the model.
+
+        Note that this is used within the context of a pytorch-lightning
+        Trainer for each step in the training loop.
+
+        Parameters
+        ----------
+        batch : tuple of torch.Tensor
+            A batch is expected to contain pairs of mass spectra
+            (index 0 and 1) and the calcualted GSP between them (index 2).
+
+        Returns
+        -------
+        torch.tensor of shape (1)
+            The mean squared error for the batch.
+        """
+        loss = self.mse(*self.predict_step(batch))
         self.log(
             "MSE",
             {"train": loss.item()},
@@ -101,8 +147,23 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         return loss
 
     def validation_step(self, batch, *args):
-        """A single validation step with the model."""
-        loss = self.mse(*self._step(batch))
+        """A single validation step with the model.
+
+        Note that this is used within the context of a pytorch-lightning
+        Trainer for each step in the validation loop.
+
+        Parameters
+        ----------
+        batch : tuple of torch.Tensor
+            A batch is expected to contain pairs of mass spectra
+            (index 0 and 1) and the calcualted GSP between them (index 2).
+
+        Returns
+        -------
+        torch.tensor of shape (1)
+            The mean squared error for the batch.
+        """
+        loss = self.mse(*self.predict_step(batch))
         self.log(
             "MSE",
             {"valid": loss.item()},
@@ -113,7 +174,10 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         return loss
 
     def on_train_epoch_end(self):
-        """Log the training loss"""
+        """Log the training loss.
+
+        This is a pytorch-lightning hook.
+        """
         metrics = {
             "epoch": self.trainer.current_epoch,
             "train": self.trainer.callback_metrics["MSE"]["train"].item(),
@@ -121,7 +185,10 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         self._history.append(metrics)
 
     def on_validation_epoch_end(self):
-        """Log the epoch metrics to self.history"""
+        """Log the epoch metrics to self.history.
+
+        This is a pytorch-lightning hook.
+        """
         if not self._history:
             return
 
@@ -142,5 +209,14 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
             )
 
     def configure_optimizers(self):
-        """Initialize our optimizer"""
+        """Initialize the optimizer.
+
+        This is used by pytorch-lightning when preparing the model for
+        training.
+
+        Returns
+        -------
+        torch.optim.Adam
+            The intialized Adam optimizer.
+        """
         return torch.optim.Adam(self.parameters(), **self.opt_kwargs)

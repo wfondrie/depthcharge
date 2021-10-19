@@ -2,6 +2,7 @@
 
 This module also ensure consistent train, validation, and test splits.
 """
+import os
 import json
 from pathlib import Path
 from functools import partial
@@ -17,20 +18,25 @@ SPLITS = Path(__file__).parent / "SPLITS.json"
 
 
 class PairedSpectrumDataModule(pl.LightningDataModule):
-    """Prepare data for a SiameseSpectrumEncoder
+    """Prepare data for a SiameseSpectrumEncoder.
 
     Parameters
     ----------
-    train_dataset : PairedSpectrumDataset
-        The training dataset to use.
-    valid_dataset : PairedSpectrumDataset, optional
-        The validation dataset to use.
-    projects : ProjectSplits object, optional
-        The projects data splits to use.
-    train_batch_size : int, optional
-        The batch size to use for training.
-    eval_batch_size : int, optional
-        The batch size to use for evaluation.
+    train_index_path : str or Path
+        The path to the HDF5 spectrum index file for training. If it does not
+        exist, a new one will be created.
+    valid_index_path : str or Path
+        The path to the HDF5 spectrum index file for validation. If it does not
+        exist, a new one will be created.
+    test_index_path : str or Path
+        The path to the HDF5 spectrum index file for testing. If it does not
+        exist, a new one will be created.
+    splits_path : str or Path, optional
+        The path to a JSON file describing which MassIVE projects should be
+        associated with each split. If ``None``, splits included with
+        depthcharge will be used.
+    batch_size : int, optional
+        The batch size to use for training and evaluations
     n_peaks : int, optional
         Keep only the top-n most intense peaks in any spectrum. ``None``
         retains all of the peaks.
@@ -50,6 +56,12 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
     close_scans : int, optional
         If look for a "close" pair of spectra, this is the number of scans
         within which to look.
+    num_workers : int, optional
+        The number of workers to use for data loading. By default, the number
+        of available CPU cores on the current machine is used.
+    keep_files : bool, optional
+        Keep the downloaded mzML files? Otherwise, the downloaded files are
+        deleted after they have been added to a spectrum index.
     random_state : int or Generator, optional.
         The numpy random state. ``None`` leaves mass spectra in the order
         they were parsed.
@@ -68,11 +80,11 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         tol=0.01,
         p_close=0.0,
         close_scans=50,
-        num_workers=8,
+        num_workers=None,
         keep_files=False,
         random_state=None,
     ):
-        """Initialize the PairedSpectrumDataModule"""
+        """Initialize the PairedSpectrumDataModule."""
         super().__init__()
         self.train_index = SpectrumIndex(train_index_path)
         self.valid_index = SpectrumIndex(valid_index_path)
@@ -91,6 +103,9 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         self.valid_dataset = None
         self.test_dataset = None
 
+        if self.num_workers is None:
+            self.num_workers = os.cpu_count()
+
         if splits_path is None:
             splits_path = SPLITS
         else:
@@ -100,7 +115,11 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
             self.splits = json.load(split_data)
 
     def prepare_data(self):
-        """Verify that the indices contain all of the files."""
+        """Verify that the spectrum indices contain the expected spectra.
+
+        If a mass spectrometry data file is missing from a spectrum index,
+        this function will download the missing mzML file and add it.
+        """
         index_map = {
             "train": self.train_index,
             "validation": self.valid_index,
@@ -125,7 +144,14 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
                         downloaded.unlink()  # Delete the file when we're done
 
     def setup(self, stage=None):
-        """Set up the PyTorch Datasets."""
+        """Set up the PyTorch Datasets.
+
+        Parameters
+        ----------
+        stage : str {"fit", "validate", "test"}
+            The stage indicating which Datasets to prepare. All are prepared
+            by default.
+        """
         make_dataset = partial(
             PairedSpectrumDataset,
             n_peaks=self.n_peaks,
@@ -153,7 +179,18 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
             self.test_dataset = make_dataset(self.test_index)
 
     def _make_loader(self, dataset):
-        """Create a PyTorch DataLoader"""
+        """Create a PyTorch DataLoader.
+
+        Parameters
+        ----------
+        dataset : torch.utils.data.Dataset
+            A PyTorch Dataset.
+
+        Returns
+        -------
+        torch.utils.data.DataLoader
+            A PyTorch DataLoader.
+        """
         return torch.utils.data.DataLoader(
             dataset,
             batch_size=self.batch_size,
@@ -167,16 +204,34 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
         return self._make_loader(self.train_dataset)
 
     def val_dataloader(self):
-        """Get the ValidationDataLoader"""
+        """Get the validation DataLoader."""
         return self._make_loader(self.valid_dataset)
 
     def test_dataloader(self):
-        """Get the ValidationDataLoader"""
+        """Get the test DataLoader."""
         return self._make_loader(self.test_dataset)
 
 
 def prepare_batch(batch):
-    """This is the collate function"""
+    """This is the collate function.
+
+    The mass spectra must be padded so that they fit nicely as a tensor.
+    However, the padded elements are ignored during the subsequent steps.
+
+    Parameters
+    ----------
+    batch : tuple of tuple of torch.tensor
+        A batch of data from a PairedSpectrumDataset.
+
+    Returns
+    -------
+    X : torch.Tensor of shape (batch_size, n_peaks, 2)
+    Y : torch.Tensor of shape (batch_size, n_peaks, 2)
+        The mass spectra to embed, where ``X[:, :, 0]`` are the m/z values
+        and ``X[:, :, 1]`` are their associated intensities.
+    gsp : torch.Tensor of shape (batch_size,)
+        The GSP calculated between the mass spectra in X and Y.
+    """
     X, Y, gsp = list(zip(*batch))
     X = torch.nn.utils.rnn.pad_sequence(X, batch_first=True)
     Y = torch.nn.utils.rnn.pad_sequence(Y, batch_first=True)

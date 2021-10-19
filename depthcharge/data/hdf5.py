@@ -14,9 +14,9 @@ LOGGER = logging.getLogger(__name__)
 class SpectrumIndex:
     """Store and access a collection of mass spectra.
 
-    This class parses one or more mzML file, converts it to our HDF5 index
-    format. This allows us to access spectra from many different files quickly
-    and without loading them all into memory.
+    This class parses one or more mzML file, converts it to an HDF5 file
+    format. This allows depthcharge to access spectra from many different
+    files quickly and without loading them all into memory.
 
     Parameters
     ----------
@@ -29,13 +29,18 @@ class SpectrumIndex:
         The level of tandem mass spectra to use.
     metadata : dict or list of dict, optional
         Additional metadata to store with the files.
-    overwite : bool
+    overwite : bool, optional
         Overwrite previously indexed files? If ``False`` and new files are
         provided, they will be appended to the collection.
 
     Attributes
     ----------
+    ms_files : list of str
     path : Path
+    ms_level : int
+    overwrite : bool
+    n_spectra : int
+    n_peaks : int
     """
 
     annotated = False
@@ -91,7 +96,7 @@ class SpectrumIndex:
                 self.add_file(ms_file)
 
     def _reindex(self):
-        """Update the file mappings and offsets"""
+        """Update the file mappings and offsets."""
         offsets = []
         for idx in range(len(self._handle)):
             grp = self._handle[str(idx)]
@@ -101,17 +106,39 @@ class SpectrumIndex:
         self._file_offsets = np.cumsum([0] + offsets)
 
     def _get_parser(self, ms_data_file):
-        """Get the parser for the MS data file"""
+        """Get the parser for the MS data file.
+
+        Parameters
+        ----------
+        ms_data_file : Path
+            The mass spectrometry data file to be parsed.
+
+        Returns
+        -------
+        MzmlParser or MgfParser
+            The appropriate parser for the file.
+        """
         if ms_data_file.suffix.lower() == ".mzml":
             return MzmlParser(ms_data_file, ms_level=self.ms_level)
 
         if ms_data_file.suffix.lower() == ".mgf":
             return MgfParser(ms_data_file, ms_level=self.ms_level)
 
-        raise ValueError(f"'{ms_data_file}' has an invalid file extension.")
+        raise ValueError(f"Only mzML and MGF files are supported.")
 
     def _assemble_metadata(self, parser):
-        """Assemble the metadata"""
+        """Assemble the metadata.
+
+        Parameters
+        ----------
+        parser : MzmlParser or MgfParser
+            The parser to use.
+
+        Returns
+        -------
+        numpy.ndarray of shape (n_spectra,)
+            The file metadata.
+        """
         meta_types = [
             ("precursor_mz", np.float32),
             ("precursor_charge", np.uint8),
@@ -125,7 +152,14 @@ class SpectrumIndex:
         return metadata
 
     def add_file(self, ms_data_file):
-        """Add a MS data file to the index"""
+        """Add a mass spectrometry data file to the index.
+
+        Parameters
+        ----------
+        ms_data_file : str or Path
+            The mass spectrometry data file to add. It must be in an mzML or
+            MGF file format and use an ``.mzML`` or ``.mgf`` file extension.
+        """
         ms_data_file = Path(ms_data_file)
         if str(ms_data_file) in self._file_map:
             return
@@ -174,14 +208,20 @@ class SpectrumIndex:
             self._file_offsets = np.append(self._file_offsets, [end_offset])
 
     def get_spectrum(self, file_index, spectrum_index):
-        """Access a spectrum.
+        """Access a mass spectrum.
 
         Parameters
         ----------
         file_index : int
             The group index of the MS data file.
-        offset: int
-            The index of the
+        spectrum_index : int
+            The index of the mass spectrum within the file.
+
+        Returns
+        -------
+        tuple of numpy.ndarray
+            The m/z values, intensity values, precurosr m/z, precurosr charge,
+            and the annotation (if available).
         """
         if self._handle is None:
             raise RuntimeError("Use the context manager for access.")
@@ -212,7 +252,19 @@ class SpectrumIndex:
         return tuple(out)
 
     def __getitem__(self, idx):
-        """Retrieve a spectrum"""
+        """Access a mass spectrum.
+
+        Parameters
+        ----------
+        idx : int
+            The overall index of the mass spectrum to retrieve.
+
+        Returns
+        -------
+        tuple of numpy.ndarray
+            The m/z values, intensity values, precurosr m/z, precurosr charge,
+            and the annotation (if available).
+        """
         file_index = np.searchsorted(self._file_offsets[1:], idx, side="right")
         spectrum_index = idx - self._file_offsets[file_index]
 
@@ -223,7 +275,7 @@ class SpectrumIndex:
         return self.get_spectrum(file_index, spectrum_index)
 
     def __enter__(self):
-        """Enable context manager."""
+        """Open the index file for reading."""
         self._handle = h5py.File(
             self.path,
             "r",
@@ -268,7 +320,7 @@ class SpectrumIndex:
 
     @property
     def n_peaks(self):
-        """The total number of mass spectra in the index."""
+        """The total number of mass peaks in the index."""
         if self._handle is None:
             with self:
                 return self._handle.attrs["n_peaks"]
@@ -300,7 +352,12 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
 
     Attributes
     ----------
+    ms_files : list of str
     path : Path
+    ms_level : int
+    overwrite : bool
+    n_spectra : int
+    n_peaks : int
     """
 
     annotated = True
@@ -329,10 +386,21 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
                 annotations=True,
             )
 
-        raise ValueError(f"'{ms_data_file}' has an invalid file extension.")
+        raise ValueError(f"Only MGF files are supported.")
 
     def _assemble_metadata(self, parser):
-        """Assemble the metadata"""
+        """Assemble the metadata.
+
+        Parameters
+        ----------
+        parser : MzmlParser or MgfParser
+            The parser to use.
+
+        Returns
+        -------
+        numpy.ndarray of shape (n_spectra,)
+            The file metadata.
+        """
         meta_types = [
             ("precursor_mz", np.float32),
             ("precursor_charge", np.uint8),
