@@ -49,7 +49,7 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         dim_feedforward=1024,
         n_layers=1,
         n_head_layers=3,
-        dropout=0.1,
+        dropout=0,
         n_log=10,
         **kwargs,
     ):
@@ -72,10 +72,12 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
             in_dim=2 * dim_model,
             out_dim=1,
             layers=n_head_layers,
-            append=torch.nn.Sigmoid(),
+            # append=torch.nn.Sigmoid(),
+            append=None,
         )
 
         self.mse = torch.nn.MSELoss()
+        # self.mse = ZeroWeightedMSELoss(0.001)
         self.opt_kwargs = kwargs
         self._history = []
 
@@ -93,13 +95,10 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         torch.Tensor of shape (batch_size, dim_model)
             The embeddings for the mass spectra.
         """
-        return self.encoder(X)[0][:, 0, :]
+        return self.encoder(X)[0].sum(axis=1)
 
-    def predict_step(self, batch):
-        """Predict the GSP between two mass spectra.
-
-        Note that this is used within the context of a pytorch-lightning
-        Trainer to generate a prediction.
+    def _step(self, batch):
+        """Predict the GSP, without clipping, for two mass spectra.
 
         Parameters
         ----------
@@ -119,6 +118,29 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         Y_emb = self(Y)
         return self.head(torch.hstack([X_emb, Y_emb])).squeeze(), gsp
 
+    def predict_step(self, batch, *args):
+        """Predict the GSP between two mass spectra.
+
+        Note that this is used within the context of a pytorch-lightning
+        Trainer to generate a prediction.
+
+        Parameters
+        ----------
+        batch : tuple of torch.Tensor
+            A batch is expected to contain pairs of mass spectra
+            (index 0 and 1) and the calcualted GSP between them (index 2).
+
+        Returns
+        -------
+        predicted : torch.tensor of shape (batch_size,)
+            The predicted GSP between the batch of mass spectra.
+        truth : torch.tensor of shape (batch_size,)
+            The calcualted GSP between the batch of mass spectra.
+        """
+        pred, gsp = self._step(batch)
+        return torch.clamp(pred, 0, 1), gsp
+        # return pred, gsp
+
     def training_step(self, batch, *args):
         """A single training step with the model.
 
@@ -136,10 +158,22 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         torch.tensor of shape (1)
             The mean squared error for the batch.
         """
-        loss = self.mse(*self.predict_step(batch))
+        pred, gsp = self._step(batch)
+        loss = self.mse(pred, gsp)
         self.log(
             "MSE",
             {"train": loss.item()},
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+
+        with torch.no_grad():
+            clipped = self.mse(torch.clamp(pred, 0, 1), gsp)
+
+        self.log(
+            "clipped_MSE",
+            {"train": clipped.item()},
             on_step=False,
             on_epoch=True,
             sync_dist=True,
@@ -163,10 +197,22 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         torch.tensor of shape (1)
             The mean squared error for the batch.
         """
-        loss = self.mse(*self.predict_step(batch))
+        pred, gsp = self._step(batch)
+        loss = self.mse(pred, gsp)
         self.log(
             "MSE",
             {"valid": loss.item()},
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+
+        with torch.no_grad():
+            clipped = self.mse(torch.clamp(pred, 0, 1), gsp)
+
+        self.log(
+            "clipped_MSE",
+            {"valid": clipped.item()},
             on_step=False,
             on_epoch=True,
             sync_dist=True,
@@ -178,9 +224,11 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
 
         This is a pytorch-lightning hook.
         """
+        mse = "clipped_MSE"
+        # mse = "MSE"
         metrics = {
             "epoch": self.trainer.current_epoch,
-            "train": self.trainer.callback_metrics["MSE"]["train"].item(),
+            "train": self.trainer.callback_metrics[mse]["train"].item(),
         }
         self._history.append(metrics)
 
@@ -192,7 +240,9 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         if not self._history:
             return
 
-        valid_loss = self.trainer.callback_metrics["MSE"]["valid"].item()
+        mse = "clipped_MSE"
+        # mse = "MSE"
+        valid_loss = self.trainer.callback_metrics[mse]["valid"].item()
         self._history[-1]["valid"] = valid_loss
         if len(self._history) == 1:
             LOGGER.info("---------------------------------------")
@@ -220,3 +270,15 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
             The intialized Adam optimizer.
         """
         return torch.optim.Adam(self.parameters(), **self.opt_kwargs)
+
+
+class ZeroWeightedMSELoss:
+    def __init__(self, zero_weight=1):
+        """Downweight zeros."""
+        self.zero_weight = zero_weight
+
+    def __call__(self, input, target):
+        """Do the thing"""
+        loss = (input - target) ** 2
+        loss[target == 0] = loss[target == 0] * self.zero_weight
+        return torch.mean(loss)

@@ -201,7 +201,14 @@ class PairedSpectrumDataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         """Get the training DataLoader."""
-        return self._make_loader(self.train_dataset)
+        return torch.utils.data.DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            collate_fn=prepare_batch,
+            pin_memory=True,
+            num_workers=self.num_workers,
+            worker_init_fn=worker_init_fn,
+        )
 
     def val_dataloader(self):
         """Get the validation DataLoader."""
@@ -237,3 +244,8 @@ def prepare_batch(batch):
     Y = torch.nn.utils.rnn.pad_sequence(Y, batch_first=True)
     gsp = torch.tensor(gsp)
     return X, Y, gsp
+
+
+def worker_init_fn(worker_id):
+    worker_info = torch.utils.data.get_worker_info()
+    worker_info.dataset.rng = torch.randint(1, 99999, (1,)).item()

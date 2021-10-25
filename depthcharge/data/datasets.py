@@ -47,11 +47,8 @@ class SpectrumDataset(Dataset):
         super().__init__()
         self.n_peaks = n_peaks
         self.min_mz = min_mz
-        self._rng = np.random.default_rng(random_state)
+        self.rng = np.random.default_rng(random_state)
         self._index = spectrum_index
-        self._order = np.arange(self.index.n_spectra)
-        if self.rng is not None:
-            self.rng.shuffle(self._order)
 
     def __len__(self):
         """The number of spectra."""
@@ -75,8 +72,7 @@ class SpectrumDataset(Dataset):
         precursor_charge : int
             The charge of the precursor.
         """
-        spec_idx = self._order[idx]
-        mz_array, int_array, prec_mz, prec_charge = self.index[spec_idx]
+        mz_array, int_array, prec_mz, prec_charge = self.index[idx]
         spec = self._process_peaks(mz_array, int_array)
         return spec, prec_mz, prec_charge
 
@@ -125,6 +121,11 @@ class SpectrumDataset(Dataset):
     def rng(self):
         """The numpy random number generator."""
         return self._rng
+
+    @rng.setter
+    def rng(self, seed):
+        """Set the numpy random number generator."""
+        self._rng = np.random.default_rng(seed)
 
 
 class PairedSpectrumDataset(SpectrumDataset):
@@ -201,7 +202,7 @@ class PairedSpectrumDataset(SpectrumDataset):
         self.tol = tol
         self.p_close = p_close
         self.close_scans = close_scans
-        self._pairs = self._generate_pairs(self.n_spectra)
+        self._pairs = self._generate_pairs(self.n_pairs)
 
     def __len__(self):
         """The number of pairs."""
@@ -333,10 +334,16 @@ class PairedSpectrumStreamer(IterableDataset, PairedSpectrumDataset):
         """Generate random pairs."""
         worker_info = torch.utils.data.get_worker_info()
         if worker_info is not None:
-            self._rng = np.random.default_rng(self.rng.integers(999999))
+            num = worker_info.id
+        else:
+            num = 0
 
         while True:
-            yield self[0]
+            indices = self._generate_pairs(num + 1)[num, :]
+            x_spec, _, _ = SpectrumDataset.__getitem__(self, indices[0])
+            y_spec, _, _ = SpectrumDataset.__getitem__(self, indices[1])
+            sim = similarity.gsp(np.array(x_spec), np.array(y_spec), self.tol)
+            yield x_spec, y_spec, sim
 
     def __getitem__(self, idx):
         """Return a single pair of mass spectra.
@@ -344,7 +351,7 @@ class PairedSpectrumStreamer(IterableDataset, PairedSpectrumDataset):
         Parameters
         ----------
         idx : int
-            The index to return.
+            This is essentially meaningless.
 
         Returns
         -------
@@ -357,11 +364,7 @@ class PairedSpectrumStreamer(IterableDataset, PairedSpectrumDataset):
         gsp : float
             The calculated GSP between the two mass spectra.
         """
-        indices = self._generate_pairs()
-        x_spec, _, _ = super().__getitem__(indices[0, 0])
-        y_spec, _, _ = super().__getitem__(indices[0, 1])
-        sim = similarity.gsp(np.array(x_spec), np.array(y_spec), self.tol)
-        return x_spec, y_spec, sim
+        return torch.utils.data.IterableDataset.__getitem__(self, idx)
 
 
 class AnnotatedSpectrumDataset(SpectrumDataset):
