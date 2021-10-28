@@ -246,13 +246,16 @@ class PairedSpectrumDataset(SpectrumDataset):
         numpy.ndarray of shape (n_pairs, 2)
             The indices of spectra to pair.
         """
-        indices = self.rng.integers(self.n_spectra, size=(n_pairs, 2))
+        indices = self.rng.integers(self.n_spectra - 1, size=(n_pairs, 2))
         replace = self.rng.binomial(1, self.p_close, size=n_pairs).astype(bool)
         new_idx = indices[:, 0] + self.rng.integers(
             low=-self.close_scans,
             high=self.close_scans,
             size=n_pairs,
         )
+
+        too_big = np.nonzero(new_idx >= self.n_spectra)
+        new_idx[too_big] = new_idx[too_big] - self.n_spectra
         indices[replace, 1] = new_idx[replace]
         return indices
 

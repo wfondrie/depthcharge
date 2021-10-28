@@ -72,8 +72,8 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
             in_dim=2 * dim_model,
             out_dim=1,
             layers=n_head_layers,
-            # append=torch.nn.Sigmoid(),
-            append=None,
+            append=torch.nn.Sigmoid(),
+            # append=None,
         )
 
         self.mse = torch.nn.MSELoss()
@@ -95,7 +95,7 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         torch.Tensor of shape (batch_size, dim_model)
             The embeddings for the mass spectra.
         """
-        return self.encoder(X)[0].sum(axis=1)
+        return self.encoder(X)[0][:, 0, :]
 
     def _step(self, batch):
         """Predict the GSP, without clipping, for two mass spectra.
