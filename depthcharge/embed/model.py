@@ -72,8 +72,8 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
             in_dim=2 * dim_model,
             out_dim=1,
             layers=n_head_layers,
-            append=torch.nn.Sigmoid(),
-            # append=None,
+            # append=torch.nn.Sigmoid(),
+            append=None,
         )
 
         self.mse = torch.nn.MSELoss()

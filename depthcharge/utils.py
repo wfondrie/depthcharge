@@ -1,4 +1,34 @@
 """Common utility functions"""
+import pandas as pd
+from tensorboard.backend.event_processing.event_accumulator import (
+    EventAccumulator,
+)
+
+
+def read_tensorboard_scalars(path):
+    """Read scalars from Tensorboard logs.
+
+    Parameters
+    ----------
+    path : str
+        The path of the scalar log file.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A dataframe containing the scalar values.
+    """
+    event = EventAccumulator(path)
+    event.Reload()
+    data = []
+    for tag in event.Tags()["scalars"]:
+        tag_df = pd.DataFrame(
+            event.Scalars(tag), columns=["wall_time", "step", "value"]
+        )
+        tag_df["tag"] = tag
+        data.append(tag_df)
+
+    return pd.concat(data)
 
 
 def listify(obj):
