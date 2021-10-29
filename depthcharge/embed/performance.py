@@ -3,7 +3,7 @@ import logging
 
 import torch
 import numpy as np
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 LOGGER = logging.getLogger(__name__)
 
