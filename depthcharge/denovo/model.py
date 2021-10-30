@@ -1,20 +1,21 @@
 """A de novo peptide sequencing model"""
-import time
 import logging
-from functools import partial
 
 import torch
 import numpy as np
-import pandas as pd
+import pytorch_lightning as pl
 
 from ..masses import PeptideMass
-from ..components import SpectrumEncoder, PeptideDecoder
+from ..components import SpectrumEncoder, PeptideDecoder, ModelMixin
+from ..embed.model import SiameseSpectrumEncoder
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Spec2Pep(torch.nn.Module):
+class Spec2Pep(pl.LightningModule, ModelMixin):
     """A Transformer model for de novo peptide sequencing.
+
+    Use this model in conjunction with a pytorch-lightning Trainer.
 
     Parameters
     ----------
@@ -30,21 +31,7 @@ class Spec2Pep(torch.nn.Module):
         The number of Transformer layers.
     dropout : float, optional
         The dropout probability for all layers.
-    max_epochs : int, optional
-        The maximum number of epochs to train for.
-    updates_per_epoch : int, optional
-        The number of parameter updates that defines and epoch. :code:`None`
-        indicates a full pass through the data.
-    train_batch_size : int, optional
-        The batch size for training
-    eval_batch_size : int, optinoal
-        The batch size for evaluation
-    num_workers : int, optional
-        The number of workers to use for loading batches.
-    patience : int, optional
-        If the validation set loss has not improved in this many epochs,
-        training will stop. :code:`None` disables early stopping.
-    custom_encoder : SpectrumEncoder, optional
+    custom_encoder : SpectrumEncoder or PairedSpectrumEncoder, optional
         A pretrained encoder to use. The ``dim_model`` of the encoder must
         be the same as that specified by the ``dim_model`` parameter here.
     max_length : int, optional
@@ -62,12 +49,6 @@ class Spec2Pep(torch.nn.Module):
         dim_feedforward=1024,
         n_layers=1,
         dropout=0,
-        max_epochs=100,
-        updates_per_epoch=500,
-        train_batch_size=128,
-        eval_batch_size=1000,
-        num_workers=1,
-        patience=20,
         custom_encoder=None,
         max_length=100,
         n_log=10,
@@ -77,19 +58,15 @@ class Spec2Pep(torch.nn.Module):
         super().__init__()
 
         # Writable
-        self.max_epochs = max_epochs
-        self.updates_per_epoch = updates_per_epoch
-        self.train_batch_size = train_batch_size
-        self.eval_batch_size = eval_batch_size
-        self.num_workers = num_workers
-        self.patience = patience
         self.max_length = max_length
         self.n_log = n_log
-        self.fitted = False
 
         # Build the model
-        if custom_encoder:
-            self.encoder = custom_encoder
+        if custom_encoder is not None:
+            if isinstance(custom_encoder, SiameseSpectrumEncoder):
+                self.encoder = custom_encoder.encoder
+            else:
+                self.encoder = custom_encoder
         else:
             self.encoder = SpectrumEncoder(
                 dim_model=dim_model,
@@ -108,24 +85,108 @@ class Spec2Pep(torch.nn.Module):
         )
 
         self.softmax = torch.nn.Softmax(2)
+        self.celoss = torch.nn.CrossEntropyLoss(ignore_index=0)
 
         # Things for training
         self._history = []
-        self._opt_kwargs = kwargs
-        self._dim_model = dim_model
+        self.opt_kwargs = kwargs
 
-    @property
-    def history(self):
-        """The training history."""
-        return pd.DataFrame(self._history)
+    def forward(self, spectra, precursors):
+        """Sequence a batch of mass spectra.
 
-    @property
-    def n_parameters(self):
-        """The number of learnable parameters."""
-        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+        Parameters
+        ----------
+        spectrum : torch.Tensor of shape (n_spectra, n_peaks, 2)
+            The spectra to embed. Axis 0 represents a mass spectrum, axis 1
+            contains the peaks in the mass spectrum, and axis 2 is essentially
+            a 2-tuple specifying the m/z-intensity pair for each peak. These
+            should be zero-padded, such that all of the spectra in the batch
+            are the same length.
+        precursors : torch.Tensor of size (n_spectra, 2)
+            The measured precursor mass (axis 0) and charge (axis 1) of each
+            tandem mass spectrum.
 
-    def forward(self, spectra, precursors, sequences):
-        """The forward pass
+        Returns
+        -------
+        sequences : list or str
+            The sequence for each spectrum.
+        scores : torch.Tensor of shape (n_spectra, length, n_amino_acids)
+            The score for each amino acid.
+        """
+        spectra = spectra.to(self.encoder.device)
+        precursors = precursors.to(self.decoder.device)
+        scores, tokens = self.greedy_decode(spectra, precursors)
+        sequences = [self.decoder.detokenize(t) for t in tokens]
+        return sequences, scores
+
+    def predict_step(self, batch, *args):
+        """Sequence a batch of mass spectra.
+
+        Note that this is used within the context of a pytorch-lightning
+        Trainer to generate a prediction.
+
+        Parameters
+        ----------
+        batch : tuple of torch.Tensor
+            A batch is expected to contain mass spectra (index 0) and the
+            precursor mass and charge (index 1). It may have more indices,
+            but these will be ignored.
+
+
+        Returns
+        -------
+        sequences : list or str
+            The sequence for each spectrum.
+        scores : torch.Tensor of shape (n_spectra, length, n_amino_acids)
+            The score for each amino acid.
+        """
+        return self(batch[0], batch[1])
+
+    def greedy_decode(self, spectra, precursors):
+        """Greedy decode the spoectra.
+
+        Parameters
+        ----------
+        spectrum : torch.Tensor of shape (n_spectra, n_peaks, 2)
+            The spectra to embed. Axis 0 represents a mass spectrum, axis 1
+            contains the peaks in the mass spectrum, and axis 2 is essentially
+            a 2-tuple specifying the m/z-intensity pair for each peak. These
+            should be zero-padded, such that all of the spectra in the batch
+            are the same length.
+        precursors : torch.Tensor of size (n_spectra, 2)
+            The measured precursor mass (axis 0) and charge (axis 1) of each
+            tandem mass spectrum.
+
+        Returns
+        -------
+        tokens : list or str
+            The token sequence for each spectrum.
+        scores : torch.Tensor of shape (n_spectra, length, n_amino_acids)
+            The score for each amino acid.
+        """
+        memories, mem_masks = self.encoder(spectra)
+        all_scores = []
+        all_tokens = []
+        for prec, mem, mask in zip(precursors, memories, mem_masks):
+            prec = prec[None, :]
+            mem = mem[None, :]
+            mask = mask[None, :]
+            scores, _ = self.decoder(None, prec, mem, mask)
+            tokens = torch.argmax(scores, axis=2)
+            for _ in range(self.max_length - 1):
+                if self.decoder._idx2aa[tokens[0, -1].item()] == "$":
+                    break
+
+                scores, _ = self.decoder(tokens, prec, mem, mask)
+                tokens = torch.argmax(scores, axis=2)
+
+            all_scores.append(self.softmax(scores).squeeze())
+            all_tokens.append(tokens.squeeze())
+
+        return all_scores, all_tokens
+
+    def _step(self, spectra, precursors, sequences):
+        """The forward learning step.
 
         Parameters
         ----------
@@ -152,160 +213,115 @@ class Spec2Pep(torch.nn.Module):
         scores, tokens = self.decoder(sequences, precursors, memory, mem_mask)
         return scores, tokens
 
-    def predict(self, ms_data):
-        """Generate the best sequence for a spectrum.
+    def training_step(self, batch, *args):
+        """A single training step
 
-        Currently, we use a greedy decoding; that is, only the best amino
-        acid is retained at each decoding step.
+        Note that this is used within the context of a pytorch-lightning
+        Trainer to generate a prediction.
 
         Parameters
         ----------
-        ms_data : SpectrumDataset or AnnotatedSpectrumDataset
-            The dataset containing the tandem mass spectra to sequence.
+        batch : tuple of torch.Tensor
+            A batch is expected to contain mass spectra (index 0), the
+            precursor mass and charge (index 1), and the peptide sequence
+            (index 2)
 
         Returns
         -------
-        sequences : list or str
-            The sequence for each spectrum.
-        scores : torch.Tensor of shape (n_spectra, length, n_amino_acids)
-            The score for each amino acid.
+        torch.Tensor
+            The loss.
         """
-        loader = torch.utils.data.DataLoader(
-            ms_data,
-            batch_size=self.eval_batch_size,
-            collate_fn=prepare_batch,
+        spectra, precursors, sequences = batch
+        pred, truth = self._step(spectra, precursors, sequences)
+        pred = pred[:, :-1, :].reshape(-1, self.decoder.vocab_size)
+        loss = self.celoss(pred, truth.flatten())
+        self.log(
+            "CELoss",
+            {"train": loss.item()},
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
         )
+        return loss
 
-        sequences = []
-        scores = []
-        self.eval()
-        with torch.no_grad():
-            for spectra, precursors, *_ in loader:
-                spectra = spectra.to(self.encoder.device)
-                precursors = precursors.to(self.decoder.device)
-                b_scores, b_tokens = self.greedy_decode(spectra, precursors)
-                scores.append(b_scores)
-                sequences += [self.decoder.detokenize(t) for t in b_tokens]
+    def validation_step(self, batch, *args):
+        """A single validation step
 
-        return sequences, scores
-
-    def greedy_decode(self, spectra, precursors):
-        """Greedy decode the spoectra.
+        Note that this is used within the context of a pytorch-lightning
+        Trainer to generate a prediction.
 
         Parameters
         ----------
-        spectrum : torch.Tensor of shape (n_spectra, n_peaks, 2)
-            The spectra to embed. Axis 0 represents a mass spectrum, axis 1
-            contains the peaks in the mass spectrum, and axis 2 is essentially
-            a 2-tuple specifying the m/z-intensity pair for each peak. These
-            should be zero-padded, such that all of the spectra in the batch
-            are the same length.
-        precursors : torch.Tensor of size (n_spectra, 2)
-            The measured precursor mass (axis 0) and charge (axis 1) of each
-            tandem mass spectrum.
+        batch : tuple of torch.Tensor
+            A batch is expected to contain mass spectra (index 0), the
+            precursor mass and charge (index 1), and the peptide sequence
+            (index 2)
 
         Returns
+        -------
+        torch.Tensor
+            The loss.
         """
-        memories, mem_masks = self.encoder(spectra)
-        all_scores = []
-        all_tokens = []
-        for prec, mem, mask in zip(precursors, memories, mem_masks):
-            prec = prec[None, :]
-            mem = mem[None, :]
-            mask = mask[None, :]
-            scores, _ = self.decoder(None, prec, mem, mask)
-            tokens = torch.argmax(scores, axis=2)
-            for _ in range(self.max_length - 1):
-                if self.decoder._idx2aa[tokens[0, -1].item()] == "$":
-                    break
-
-                scores, _ = self.decoder(tokens, prec, mem, mask)
-                tokens = torch.argmax(scores, axis=2)
-
-            all_scores.append(self.softmax(scores).squeeze())
-            all_tokens.append(tokens.squeeze())
-
-        return all_scores, all_tokens
-
-    def fit(self, ms_data):
-        """Train the model using a AnnotatedSpectrumDataset
-
-        Parameters
-        ----------
-        ms_data : AnnotatedSpectrumDataset
-            The AnnotatedSpectrumDataset contaiing labeled mass spectra to
-            use for training.
-        """
-        loader = torch.utils.data.DataLoader(
-            ms_data,
-            batch_size=self.train_batch_size,
-            collate_fn=prepare_batch,
-            pin_memory=True,
+        spectra, precursors, sequences = batch
+        pred, truth = self._step(spectra, precursors, sequences)
+        pred = pred[:, :-1, :].reshape(-1, self.decoder.vocab_size)
+        loss = self.celoss(pred, truth.flatten())
+        self.log(
+            "CELoss",
+            {"valid": loss.item()},
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
         )
+        return loss
 
-        opt = torch.optim.Adam(self.parameters(), **self._opt_kwargs)
-        cross_entropy = torch.nn.CrossEntropyLoss(ignore_index=0)
+    def on_train_epoch_end(self):
+        """Log the training loss.
 
-        LOGGER.info("Training the Spec2Pep model:")
-        LOGGER.info("--------------------------------------")
-        LOGGER.info("  Epoch |     CE Loss     | Time (s)  ")
-        LOGGER.info("--------------------------------------")
-        epoch = len(self._history)
-        self.train()
+        This is a pytorch-lightning hook.
+        """
+        metrics = {
+            "epoch": self.trainer.current_epoch,
+            "train": self.trainer.callback_metrics["CELoss"]["train"].item(),
+        }
+        self._history.append(metrics)
 
-        # The main training loop
-        try:
-            n_updates = 0
-            start_time = time.time()
-            while epoch <= self.max_epochs:
-                for spectra, precursors, sequences in loader:
-                    if not n_updates:
-                        ce_loss = []
+    def on_validation_epoch_end(self):
+        """Log the epoch metrics to self.history.
 
-                    spectra = spectra.to(self.encoder.device)
-                    precursors = precursors.to(self.encoder.device)
-                    opt.zero_grad()
-                    pred, truth = self(spectra, precursors, sequences)
-                    # The prediction is one longer than we want:
-                    pred = pred[:, :-1, :].reshape(-1, self.decoder.vocab_size)
-                    truth = truth.flatten()
-                    loss = cross_entropy(pred, truth)
-                    loss.backward()
-                    opt.step()
-                    n_updates += 1
-                    ce_loss.append(loss.item())
+        This is a pytorch-lightning hook.
+        """
+        if not self._history:
+            return
 
-                    if n_updates == self.updates_per_epoch:
-                        epoch += 1
-                        ce_loss = np.mean(ce_loss)
-                        self._history.append({"cross_entropy_loss": ce_loss})
-                        n_updates = 0  # reset for next epoch.
+        valid_loss = self.trainer.callback_metrics["CELoss"]["valid"].item()
+        self._history[-1]["valid"] = valid_loss
 
-                    if not epoch % self.n_log and not n_updates:
-                        LOGGER.info(
-                            "  %5i | %15.7f | %8.2f",
-                            epoch,
-                            ce_loss,
-                            time.time() - start_time,
-                        )
-                        start_time == time.time()
+    def on_epoch_end(self):
+        """Print log to console, if requested."""
+        if len(self._history) == 1:
+            LOGGER.info("---------------------------------------")
+            LOGGER.info("  Epoch |   Train Loss  |  Valid Loss  ")
+            LOGGER.info("---------------------------------------")
 
-            LOGGER.info("--------------------------------------")
-            LOGGER.info("Training complete.")
+        metrics = self._history[-1]
+        if not metrics["epoch"] % self.n_log:
+            LOGGER.info(
+                "  %5i | %13.6f | %13.6f ",
+                metrics["epoch"],
+                metrics.get("train", np.nan),
+                metrics.get("valid", np.nan),
+            )
 
-        except KeyboardInterrupt:
-            LOGGER.info("--------------------------------------")
-            LOGGER.info("Keyboard interrupt. Stopping...")
+    def configure_optimizers(self):
+        """Initialize the optimizer.
 
-        self.fitted = True
-        return self
+        This is used by pytorch-lightning when preparing the model for
+        training.
 
-
-def prepare_batch(batch):
-    """This is the collate function"""
-    spec, mz, charge, seq = list(zip(*batch))
-    charge = torch.tensor(charge)
-    mass = (torch.tensor(mz) - 1.007276) * charge
-    precursors = torch.vstack([mass, charge]).T.float()
-    spec = torch.nn.utils.rnn.pad_sequence(spec, batch_first=True)
-    return spec, precursors, seq
+        Returns
+        -------
+        torch.optim.Adam
+            The intialized Adam optimizer.
+        """
+        return torch.optim.Adam(self.parameters(), **self.opt_kwargs)
