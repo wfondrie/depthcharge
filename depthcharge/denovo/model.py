@@ -36,6 +36,12 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         be the same as that specified by the ``dim_model`` parameter here.
     max_length : int, optional
         The maximum peptide length to decode.
+    residues: Dict or str {"massivekb", "canonical"}, optional
+        The amino acid dictionary and their masses. By default this is only
+        the 20 canonical amino acids, with cysteine carbamidomethylated. If
+        "massivekb", this dictionary will include the modifications found in
+        MassIVE-KB. Additionally, a dictionary can be used to specify a custom
+        collection of amino acids and masses.
     n_log : int, optional
         The number of epochs to wait between logging messages.
     **kwargs : Dict
@@ -51,6 +57,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         dropout=0,
         custom_encoder=None,
         max_length=100,
+        residues="canonical",
         n_log=10,
         **kwargs,
     ):
@@ -82,6 +89,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
             dim_feedforward=dim_feedforward,
             n_layers=n_layers,
             dropout=dropout,
+            residues=residues,
         )
 
         self.softmax = torch.nn.Softmax(2)
@@ -90,6 +98,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         # Things for training
         self._history = []
         self.opt_kwargs = kwargs
+        self.stop_token = self.decoder._aa2idx["$"]
 
     def forward(self, spectra, precursors):
         """Sequence a batch of mass spectra.
@@ -115,7 +124,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         """
         spectra = spectra.to(self.encoder.device)
         precursors = precursors.to(self.decoder.device)
-        scores, tokens = self.greedy_decode(spectra, precursors)
+        scores, tokens = self.greedy_decode2(spectra, precursors)
         sequences = [self.decoder.detokenize(t) for t in tokens]
         return sequences, scores
 
@@ -159,9 +168,9 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
 
         Returns
         -------
-        tokens : list or str
+        tokens : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
             The token sequence for each spectrum.
-        scores : torch.Tensor of shape (n_spectra, length, n_amino_acids)
+        scores : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
             The score for each amino acid.
         """
         memories, mem_masks = self.encoder(spectra)
@@ -184,6 +193,65 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
             all_tokens.append(tokens.squeeze())
 
         return all_scores, all_tokens
+
+    def greedy_decode2(self, spectra, precursors):
+        """Greedy decode the spoectra.
+
+        Parameters
+        ----------
+        spectrum : torch.Tensor of shape (n_spectra, n_peaks, 2)
+            The spectra to embed. Axis 0 represents a mass spectrum, axis 1
+            contains the peaks in the mass spectrum, and axis 2 is essentially
+            a 2-tuple specifying the m/z-intensity pair for each peak. These
+            should be zero-padded, such that all of the spectra in the batch
+            are the same length.
+        precursors : torch.Tensor of size (n_spectra, 2)
+            The measured precursor mass (axis 0) and charge (axis 1) of each
+            tandem mass spectrum.
+
+        Returns
+        -------
+        tokens : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
+            The token sequence for each spectrum.
+        scores : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
+            The score for each amino acid.
+        """
+        memories, mem_masks = self.encoder(spectra)
+
+        # initialize scores:
+        scores = torch.zeros(
+            spectra.shape[0],
+            self.max_length + 1,
+            self.decoder.vocab_size,
+        )
+        scores = scores.type_as(spectra)
+
+        # The first predition:
+        scores[:, :1, :], _ = self.decoder(
+            None,
+            precursors,
+            memories,
+            mem_masks,
+        )
+
+        tokens = torch.argmax(scores, axis=2)
+
+        # Keep predicting until all have a stop token or max_length is reached.
+        # Don't count the stop token toward max_length though.
+        for idx in range(2, self.max_length + 2):
+            decoded = (tokens == self.stop_token).any(axis=1)
+            if decoded.all():
+                break
+
+            scores[~decoded, :idx, :], _ = self.decoder(
+                tokens[~decoded, : (idx - 1)],
+                precursors[~decoded, :],
+                memories[~decoded, :, :],
+                mem_masks[~decoded, :],
+            )
+            tokens = torch.argmax(scores, axis=2)
+
+        return self.softmax(scores), tokens
 
     def _step(self, spectra, precursors, sequences):
         """The forward learning step.
