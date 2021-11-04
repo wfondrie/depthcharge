@@ -1,122 +1,100 @@
 """A PyTorch Dataset class for annotated spectra."""
-import logging
-from pathlib import Path
+import math
 
 import torch
 import numpy as np
-from tqdm import tqdm
-from pyteomics.mzml import MzML
-from pyteomics.mgf import MGF
+from torch.utils.data import Dataset, IterableDataset
 
-from . import parse
-from .. import utils
 from .. import similarity
 
-LOGGER = logging.getLogger(__name__)
 
-
-# Classes ---------------------------------------------------------------------
-class SpectrumDataset(torch.utils.data.IterableDataset):
-    """Parse and retrieve collections of mass spectra
+class SpectrumDataset(Dataset):
+    """Parse and retrieve collections of mass spectra.
 
     Parameters
     ----------
-    ms_data_files : str, Path object, or List of either
-        One or more mzML or MGF files containing mass spectra. Alternatively
-        these can be the cached *.npy files.
+    spectrum_index : depthcharge.data.SpectrumIndex
+        The collection of spectra to use as a dataset.
     n_peaks : int, optional
-        Keep only the top-n most intense peaks in any spectrum. :code:`None`
+        Keep only the top-n most intense peaks in any spectrum. ``None``
         retains all of the peaks.
-    ms_level : int, optional,
-        The MSn level to analyze.
     min_mz : float, optional
         The minimum m/z to include. The default is 140 m/z, in order to
         exclude TMT and iTRAQ reporter ions.
-    rng : int or RandomState, optional.
-        The numpy random state. :code:`None` leaves mass spectra in the order
+    random_state : int or RandomState, optional.
+        The numpy random state. ``None`` leaves mass spectra in the order
         they were parsed.
-    cache_dir : str or Path, optional
-        The directory in which to save the cached spectra.
-    file_root : str or list of str
-        The prefix to add to the cached files.
+
+    Attributes
+    ----------
+    n_peaks : int
+        The maximum number of mass speak to consider for each mass spectrum.
+    min_mz : float
+        The minimum m/z to consider for each mass spectrum.
+    n_spectra : int
+    index : depthcharge.data.SpectrumIndex
+    rng : numpy.random.Generator
     """
 
     def __init__(
         self,
-        ms_data_files,
+        spectrum_index,
         n_peaks=200,
-        ms_level=2,
         min_mz=140,
-        rng=None,
-        cache_dir=None,
-        file_root=None,
+        random_state=None,
     ):
         """Initialize a SpectrumDataset"""
         super().__init__()
-        self.n_peaks = int(n_peaks)
-        self.min_mz = float(min_mz)
-        self.rng = rng
-        self.cache_dir = cache_dir
-        self._ms_level = int(ms_level)
-
-        try:
-            self._require_prec
-        except AttributeError:
-            self._require_prec = True
-
-        try:
-            self._peptides
-        except AttributeError:
-            self._peptides = False
-
-        self._file_map, self._spectra = parse.spectra(
-            ms_data_files=ms_data_files,
-            ms_level=self.ms_level,
-            npy_dir=self.cache_dir,
-            prefix=file_root,
-            require_prec=self._require_prec,
-            peptides=self._peptides,
-        )
-
-        self._order = np.arange(self.n_spectra)
-        if self.rng is not None:
-            self.rng.shuffle(self._order)
+        self.n_peaks = n_peaks
+        self.min_mz = min_mz
+        self.rng = np.random.default_rng(random_state)
+        self._index = spectrum_index
 
     def __len__(self):
-        """The number of spectra"""
+        """The number of spectra."""
         return self.n_spectra
 
-    def __iter__(self):
-        """Return spectra"""
-        for idx in range(len(self)):
-            yield self[idx]
-
     def __getitem__(self, idx):
-        """Return a single mass spectrum"""
-        spec_idx = self._order[idx]
-        spec, prec, pep = self._get_spectrum(spec_idx)
-        return torch.tensor(spec), prec, pep
+        """Return a single mass spectrum.
 
-    def _get_spectrum(self, idx):
-        """Retrieve a spectrum"""
-        sfile, sloc = self._spectra[idx]
-        indices, specs, precursors, peptides = self._file_map[sfile]
-        spec = specs[indices[sloc] : indices[sloc + 1], :]
-        if precursors is not None:
-            precursor = tuple(precursors[sloc, :])
-        else:
-            precursor = (None, None)
+        Parameters
+        ----------
+        idx : int
+            The index to return.
 
-        if peptides is not None:
-            peptide = peptides[sloc]
-        else:
-            peptide = None
+        Returns
+        -------
+        spectrum : torch.Tensor of shape (n_peaks, 2)
+            The mass spectrum where ``spectrum[:, 0]`` are the m/z values and
+            ``spectrum[:, 1]`` are their associated intensities.
+        precursor_mz : float
+            The m/z of the precursor.
+        precursor_charge : int
+            The charge of the precursor.
+        """
+        mz_array, int_array, prec_mz, prec_charge = self.index[idx]
+        spec = self._process_peaks(mz_array, int_array)
+        if not spec.sum():
+            spec = torch.tensor([[0, 1]]).float()
 
-        return self._process_peaks(spec), precursor, peptide
+        return spec, prec_mz, prec_charge
 
-    def _process_peaks(self, spec):
-        """Choose the top n peaks and normalize the spectrum intensities."""
-        mz_array, int_array = spec.T
+    def _process_peaks(self, mz_array, int_array):
+        """Choose the top n peaks and normalize the spectrum intensities.
+
+        Parameters
+        ----------
+        mz_array : numpy.ndarray of shape (n_peaks,)
+            The m/z values of the peaks in the spectrum.
+        int_array : numpy.ndarray of shape (n_peaks,)
+            The intensity values of the peaks in the spectrum.
+
+        Returns
+        -------
+        torch.Tensor of shape (n_peaks, 2)
+            The mass spectrum where ``spectrum[:, 0]`` are the m/z values and
+            ``spectrum[:, 1]`` are their associated intensities.
+        """
         if self.min_mz is not None:
             keep = mz_array >= self.min_mz
             mz_array = mz_array[keep]
@@ -130,54 +108,27 @@ class SpectrumDataset(torch.utils.data.IterableDataset):
 
         int_array = np.sqrt(int_array)
         int_array = int_array / np.linalg.norm(int_array)
-        return np.array([mz_array, int_array]).T
+        return torch.tensor([mz_array, int_array]).T.float()
 
     @property
     def n_spectra(self):
         """The total number of spectra."""
-        return len(self._spectra)
+        return self.index.n_spectra
 
     @property
-    def files(self):
-        """The cached spectrum files."""
-        return list(self._file_map.keys())
-
-    @property
-    def ms_level(self):
-        """The MSn level to analyze."""
-        return self._ms_level
+    def index(self):
+        """The underyling SpectrumIndex."""
+        return self._index
 
     @property
     def rng(self):
-        """The numpy random number generator"""
+        """The numpy random number generator."""
         return self._rng
 
     @rng.setter
-    def rng(self, rng):
-        """Set the random number generators"""
-        if rng is not None:
-            self._rng = np.random.default_rng(rng)
-        else:
-            self._rng = None
-
-    @property
-    def cache_dir(self):
-        """The directory where the parsed mass spectra are cached"""
-        return self._cache_dir
-
-    @cache_dir.setter
-    def cache_dir(self, path):
-        """Set the cache directory"""
-        if path is None:
-            self._cache_dir = Path.cwd()
-        else:
-            self._cache_dir = Path(path)
-
-        if not self._cache_dir.exists():
-            raise FileNotFoundError(
-                f"The requested cache directory (self._cache_dir) does not "
-                "exist."
-            )
+    def rng(self, seed):
+        """Set the numpy random number generator."""
+        self._rng = np.random.default_rng(seed)
 
 
 class PairedSpectrumDataset(SpectrumDataset):
@@ -185,117 +136,241 @@ class PairedSpectrumDataset(SpectrumDataset):
 
     Parameters
     ----------
-    ms_data_files : str, Path object, or List of either.
-        One or more mzML or MGF files to parse. Alternatively, these can be the
-        cached *.npy files.
+    spectrum_index : depthcharge.data.SpectrumIndex
+        The collection of spectra to use as a dataset.
     n_peaks : int, optional
-        Keep only the top-n most intense peaks in any spectrum. :code:`None`
+        Keep only the top-n most intense peaks in any spectrum. ``None``
         retains all of the peaks.
     n_pairs : int, optional
         The number of randomly paired spectra to use for evaluation.
-    frac_identical : float, optional
-        The fraction of pairs that should consist of the same spectrum during
-        training.
-    rng : int or RandomState, optional
-        The numpy random number generator.
-    ms_level : int, optional
-        The MSn level to analyze.
-    tol : float, optional
-        The tolerance with which to calculate the generalized scalar product.
     min_mz : float, optional
         The minimum m/z to include. The default is 140 m/z, in order to
         exclude TMT and iTRAQ reporter ions.
-    cache_dir : str or Path, optional
-        The directory in which to save the cached spectra.
-    file_root : str or list of str
-        The prefix to add to the cached files.
+    tol : float, optional
+        The tolerance with which to calculate the generalized scalar product.
+    p_close : float, optional
+        The probability of pairs occuring within a number of indices defined
+        by ``close_scans``. The idea here is to try and enrich for pairs
+        that have a higher similarity, such as those that occur within a few
+        scans of each other.
+    close_scans : int, optional
+        If looking for a "close" pair of spectra, this is the number of scans
+        within which to look.
+    random_state : int or RandomState, optional.
+        The numpy random state. ``None`` leaves mass spectra in the order
+        they were parsed.
+
+    Attributes
+    ----------
+    n_peaks : int
+        The maximum number of mass speak to consider for each mass spectrum.
+    n_pairs : int
+        The number of pairs to generate.
+    min_mz : float
+        The minimum m/z to consider for each mass spectrum.
+    tol : float
+        The tolerance for calculating the GSP.
+    p_close : float
+        The probability of pairs occuring within a number of indices defined
+        by ``close_scans``.
+    close_scans : int
+        If looking for a "close" pair of spectra, this is the number of scans
+        within which to look.
+    n_spectra : int
+    index : depthcharge.data.SpectrumIndex
+    rng : numpy.random.Generator
     """
 
     def __init__(
         self,
-        ms_data_files,
+        spectrum_index,
         n_peaks=200,
         n_pairs=10000,
-        p_identical=0.0,
-        ms_level=2,
         min_mz=140,
         tol=0.01,
-        rng=42,
-        cache_dir=None,
-        file_root=None,
+        p_close=0.0,
+        close_scans=50,
+        random_state=42,
     ):
-        """Initialize a PairedSpectrumDataset"""
-        self._require_prec = False
+        """Initialize a PairedSpectrumDataset."""
         super().__init__(
-            ms_data_files=ms_data_files,
+            spectrum_index,
             n_peaks=n_peaks,
-            ms_level=ms_level,
             min_mz=min_mz,
-            rng=rng,
-            cache_dir=cache_dir,
-            file_root=file_root,
+            random_state=random_state,
         )
 
         self._eval = False
-        self.n_pairs = int(n_pairs)
-        self.tol = float(tol)
-        self.p_identical = float(p_identical)
+        self.n_pairs = n_pairs
+        self.tol = tol
+        self.p_close = p_close
+        self.close_scans = close_scans
+        self._pairs = self._generate_pairs(self.n_pairs)
 
-        # Setup for evaluation
-        self._eval_pairs = self.rng.integers(
-            self.n_spectra, size=(self.n_pairs, 2)
+    def __len__(self):
+        """The number of pairs."""
+        return self.n_pairs
+
+    def __getitem__(self, idx):
+        """Return a single pair of mass spectra.
+
+        Parameters
+        ----------
+        idx : int
+            The index to return.
+
+        Returns
+        -------
+        spectrum_x : torch.Tensor of shape (n_peaks, 2)
+            The mass spectrum where ``spectrum_x[:, 0]`` are the m/z values and
+            ``spectrum_y[:, 1]`` are their associated intensities.
+        spectrum_y : torch.Tensor of shape (n_peaks, 2)
+            The mass spectrum where ``spectrum_y[:, 0]`` are the m/z values and
+            ``spectrum_y[:, 1]`` are their associated intensities.
+        gsp : float
+            The calculated GSP between the two mass spectra.
+        """
+        indices = self._pairs[[idx], :]
+        x_spec, _, _ = super().__getitem__(indices[0, 0])
+        y_spec, _, _ = super().__getitem__(indices[0, 1])
+        sim = similarity.gsp(np.array(x_spec), np.array(y_spec), self.tol)
+        return x_spec, y_spec, sim
+
+    def _generate_pairs(self, n_pairs=1):
+        """Select a pair of spectra.
+
+        Parameters
+        ----------
+        n_pairs : int, optional
+            The number of pairs to generate.
+
+        Returns
+        -------
+        numpy.ndarray of shape (n_pairs, 2)
+            The indices of spectra to pair.
+        """
+        indices = self.rng.integers(self.n_spectra - 1, size=(n_pairs, 2))
+        replace = self.rng.binomial(1, self.p_close, size=n_pairs).astype(bool)
+        new_idx = indices[:, 0] + self.rng.integers(
+            low=-self.close_scans,
+            high=self.close_scans,
+            size=n_pairs,
+        )
+
+        too_big = np.nonzero(new_idx >= self.n_spectra)
+        new_idx[too_big] = new_idx[too_big] - self.n_spectra
+        indices[replace, 1] = new_idx[replace]
+        return indices
+
+
+class PairedSpectrumStreamer(IterableDataset, PairedSpectrumDataset):
+    """Parse and retrieve collections of mass spectra.
+
+    Parameters
+    ----------
+    spectrum_index : depthcharge.data.SpectrumIndex
+        The collection of spectra to use as a dataset.
+    n_peaks : int, optional
+        Keep only the top-n most intense peaks in any spectrum. ``None``
+        retains all of the peaks.
+    min_mz : float, optional
+        The minimum m/z to include. The default is 140 m/z, in order to
+        exclude TMT and iTRAQ reporter ions.
+    tol : float, optional
+        The tolerance with which to calculate the generalized scalar product.
+    p_close : float, optional
+        The probability of pairs occuring within a number of indices defined
+        by ``close_scans``. The idea here is to try and enrich for pairs
+        that have a higher similarity, such as those that occur within a few
+        scans of each other.
+    close_scans : int, optional
+        If look for a "close" pair of spectra, this is the number of scans
+        within which to look.
+    random_state : int or RandomState, optional.
+        The numpy random state. ``None`` leaves mass spectra in the order
+        they were parsed.
+
+    Attributes
+    ----------
+    n_peaks : int
+        The maximum number of mass speak to consider for each mass spectrum.
+    min_mz : float
+        The minimum m/z to consider for each mass spectrum.
+    tol : float
+        The tolerance for calculating the GSP.
+    p_close : float
+        The probability of pairs occuring within a number of indices defined
+        by ``close_scans``.
+    close_scans : int
+        If looking for a "close" pair of spectra, this is the number of scans
+        within which to look.
+    n_spectra : int
+    index : depthcharge.data.SpectrumIndex
+    rng : numpy.random.Generator
+    """
+
+    def __init__(
+        self,
+        spectrum_index,
+        n_peaks=200,
+        min_mz=140,
+        tol=0.01,
+        p_close=0.0,
+        close_scans=50,
+        random_state=42,
+    ):
+        """Initialize a PairedSpectrumDataset"""
+        super().__init__(
+            spectrum_index,
+            n_peaks=n_peaks,
+            n_pairs=1,
+            min_mz=min_mz,
+            tol=tol,
+            p_close=p_close,
+            close_scans=close_scans,
+            random_state=random_state,
         )
 
     def __len__(self):
-        """The number of pairs"""
-        if self._eval:
-            return len(self._eval_pairs)
-
-        raise TypeError("'len()' is not defined in training mode.")
+        """Undefined for an torch.utils.data.IterableDataset."""
+        # See https://github.com/pytorch/pytorch/blob/ab5e1c69a7e77f79df64b6ad3b04cff72e09807b/torch/utils/data/sampler.py#L26-L51
+        raise TypeError
 
     def __iter__(self):
         """Generate random pairs."""
-        if self._eval:
-            for idx in range(len(self._eval_pairs)):
-                yield self[idx]
-
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is not None:
+            num = worker_info.id
         else:
-            while True:
-                yield self[0]
+            num = 0
+
+        while True:
+            indices = self._generate_pairs(num + 1)[num, :]
+            x_spec, _, _ = SpectrumDataset.__getitem__(self, indices[0])
+            y_spec, _, _ = SpectrumDataset.__getitem__(self, indices[1])
+            sim = similarity.gsp(np.array(x_spec), np.array(y_spec), self.tol)
+            yield x_spec, y_spec, sim
 
     def __getitem__(self, idx):
-        """Return a single spectrum-pair"""
-        if self._eval:
-            x_idx, y_idx = self._eval_pairs[idx, :]
-        else:
-            x_idx, y_idx = self.rng.integers(self.n_spectra, size=2)
-            if self.rng.binomial(1, p=self.p_identical):
-                new_idx = x_idx + self.rng.integers(-100, 100)
-                if new_idx < self.n_spectra and new_idx >= 0:
-                    y_idx = new_idx
+        """Return a single pair of mass spectra.
 
-        x_spec, _, _ = self._get_spectrum(x_idx)
-        y_spec, _, _ = self._get_spectrum(y_idx)
-        sim = similarity.gsp(x_spec, y_spec, self.tol)
-        return torch.tensor(x_spec), torch.tensor(y_spec), sim
+        Parameters
+        ----------
+        idx : int
+            This is essentially meaningless.
 
-    @property
-    def rng(self):
-        """The random number generator"""
-        return self._rng
-
-    @rng.setter
-    def rng(self, rng):
-        """Set the random number generators"""
-        self._rng = np.random.default_rng(rng)
-
-    def train(self):
-        """Set the dataset to training mode"""
-        self._eval = False
-
-    def eval(self):
-        """Set the datset to validation mode"""
-        self._eval = True
+        Returns
+        -------
+        spectrum_x : torch.Tensor of shape (n_peaks, 2)
+            The mass spectrum where ``spectrum_x[:, 0]`` are the m/z values and
+            ``spectrum_y[:, 1]`` are their associated intensities.
+        spectrum_y : torch.Tensor of shape (n_peaks, 2)
+            The mass spectrum where ``spectrum_y[:, 0]`` are the m/z values and
+            ``spectrum_y[:, 1]`` are their associated intensities.
+        gsp : float
+            The calculated GSP between the two mass spectra.
+        """
+        return torch.utils.data.IterableDataset.__getitem__(self, idx)
 
 
 class AnnotatedSpectrumDataset(SpectrumDataset):
@@ -303,44 +378,64 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
 
     Parameters
     ----------
-    mgf_files : str, Path object, or List of either
-        One or more MGF files containing mass spectra. Alternatively
-        these can be the cached *.npy files.
+    annotated_spectrum_index : depthcharge.data.SpectrumIndex
+        The collection of annotated mass spectra to use as a dataset.
     n_peaks : int, optional
-        Keep only the top-n most intense peaks in any spectrum. :code:`None`
+        Keep only the top-n most intense peaks in any spectrum. ``None``
         retains all of the peaks.
-    ms_level : int, optional,
-        The MSn level to analyze.
     min_mz : float, optional
         The minimum m/z to include. The default is 140 m/z, in order to
         exclude TMT and iTRAQ reporter ions.
-    rng : int or RandomState, optional.
-        The numpy random state. :code:`None` leaves mass spectra in the order
+    random_state : int or RandomState, optional.
+        The numpy random state. ``None`` leaves mass spectra in the order
         they were parsed.
-    cache_dir : str or Path, optional
-        The directory in which to save the cached spectra.
-    file_root : str or list of str
-        The prefix to add to the cached files.
+
+    Attributes
+    ----------
+    n_peaks : int
+        The maximum number of mass speak to consider for each mass spectrum.
+    min_mz : float
+        The minimum m/z to consider for each mass spectrum.
+    n_spectra : int
+    index : depthcharge.data.SpectrumIndex
+    rng : numpy.random.Generator
     """
 
     def __init__(
         self,
-        mgf_files,
+        annotated_spectrum_index,
         n_peaks=200,
-        ms_level=2,
         min_mz=140,
-        rng=None,
-        cache_dir=None,
-        file_root=None,
+        random_state=None,
     ):
-        """Initialize a SpectrumDataset"""
-        self._peptides = True
+        """Initialize an AnnotatedSpectrumDataset"""
         super().__init__(
-            ms_data_files=mgf_files,
+            annotated_spectrum_index,
             n_peaks=n_peaks,
-            ms_level=ms_level,
             min_mz=min_mz,
-            rng=rng,
-            cache_dir=cache_dir,
-            file_root=file_root,
+            random_state=random_state,
         )
+
+    def __getitem__(self, idx):
+        """Return a single annotated mass spectrum.
+
+        Parameters
+        ----------
+        idx : int
+            The index to return.
+
+        Returns
+        -------
+        spectrum : torch.Tensor of shape (n_peaks, 2)
+            The mass spectrum where ``spectrum[:, 0]`` are the m/z values and
+            ``spectrum[:, 1]`` are their associated intensities.
+        precursor_mz : float
+            The m/z of the precursor.
+        precursor_charge : int
+            The charge of the precursor.
+        annotation : str
+            The annotation for the mass spectrum.
+        """
+        mz_array, int_array, prec_mz, prec_charge, pep = self.index[idx]
+        spec = self._process_peaks(mz_array, int_array)
+        return spec, prec_mz, prec_charge, pep

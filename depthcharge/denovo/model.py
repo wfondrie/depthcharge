@@ -1,582 +1,395 @@
 """A de novo peptide sequencing model"""
-import re
-import time
 import logging
-from pathlib import Path
-from functools import partial
 
 import torch
-import einops
 import numpy as np
-import pandas as pd
-from tqdm import tqdm
+import pytorch_lightning as pl
 
 from ..masses import PeptideMass
+from ..components import SpectrumEncoder, PeptideDecoder, ModelMixin
+from ..embed.model import SiameseSpectrumEncoder
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Spec2Pep(torch.nn.Module):
+class Spec2Pep(pl.LightningModule, ModelMixin):
     """A Transformer model for de novo peptide sequencing.
+
+    Use this model in conjunction with a pytorch-lightning Trainer.
 
     Parameters
     ----------
-    spectrum_transformer : a depthcharge.embedder.SpectrumTransformer object
-        The transformer for encoding mass spectra.
-    d_transformer_fc : int, optional
-        The dimensionality of the fully connected layers within the
-        transformer layers of the model. :code:`None` will match the
-        `spectrum_transformer`.
-    n_transformer_layers : int, optional
-        The number of decoder transformer layers. :code:`None` will match the
-        `spectrum_transformer`.
-    dropout : int, optional
-        The dropout rate to use in the decoder layers. :code:`None` will match
-        the `spectrum_transformer`
-    n_epochs : int, optional
-        The maximum number of epochs to train for.
-    updates_per_epoch : int, optional
-        The number of parameter updates that defines and epoch. :code:`None`
-        indicates a full pass through the data.
-    train_batch_size : int, optional
-        The batch size for training
-    eval_batch_size : int, optinoal
-        The batch size for evaluation
-    num_workers : int, optional
-        The number of workers to use for loading batches.
-    patience : int, optional
-        If the validation set loss has not improved in this many epochs,
-        training will stop. :code:`None` disables early stopping.
-    use_gpu : str, optional
-        Use one or more GPUs if available.
-    output_dir : str or Path, optional
-        The location to save the training models.
-    file_root : str, optional
-        A stem to add to the file names for the saved models.
+    dim_model : int, optional
+        The latent dimensionality used by the Transformer model.
+    n_head : int, optional
+        The number of attention heads in each layer. ``dim_model`` must be
+        divisible by ``n_head``.
+    dim_feedforward : int, optional
+        The dimensionality of the fully connected layers in the Transformer
+        model.
+    n_layers : int, optional
+        The number of Transformer layers.
+    dropout : float, optional
+        The dropout probability for all layers.
+    custom_encoder : SpectrumEncoder or PairedSpectrumEncoder, optional
+        A pretrained encoder to use. The ``dim_model`` of the encoder must
+        be the same as that specified by the ``dim_model`` parameter here.
+    max_length : int, optional
+        The maximum peptide length to decode.
+    residues: Dict or str {"massivekb", "canonical"}, optional
+        The amino acid dictionary and their masses. By default this is only
+        the 20 canonical amino acids, with cysteine carbamidomethylated. If
+        "massivekb", this dictionary will include the modifications found in
+        MassIVE-KB. Additionally, a dictionary can be used to specify a custom
+        collection of amino acids and masses.
+    n_log : int, optional
+        The number of epochs to wait between logging messages.
     **kwargs : Dict
         Keyword arguments passed to the Adam optimizer
     """
 
     def __init__(
         self,
-        spectrum_transformer,
-        freeze_encoder=False,
-        d_transformer_fc=None,
-        n_transformer_layers=None,
-        dropout=None,
-        n_epochs=100,
-        updates_per_epoch=500,
-        train_batch_size=128,
-        eval_batch_size=1000,
-        num_workers=1,
-        patience=20,
-        use_gpu=True,
-        output_dir=None,
-        file_root=None,
+        dim_model=128,
+        n_head=8,
+        dim_feedforward=1024,
+        n_layers=1,
+        dropout=0,
+        custom_encoder=None,
+        max_length=100,
+        residues="canonical",
+        n_log=10,
         **kwargs,
     ):
         """Initialize a Spec2Pep model"""
         super().__init__()
 
-        # Readable
-        self._spectrum_transformer = spectrum_transformer
-        self._d_model = spectrum_transformer._d_model
-        self._n_head = spectrum_transformer._n_head
-        self._n_transformer_layers = spectrum_transformer._n_transformer_layers
-        self._d_transformer_fc = spectrum_transformer._d_transformer_fc
-        self._dropout = spectrum_transformer._dropout
-        self._peptide_calc = PeptideMass(extended=True)
-
-        self._idx2aa = {
-            i: aa for i, aa in enumerate(self._peptide_calc.masses.keys())
-        }
-        self._idx2aa[len(self._idx2aa)] = "<eop>"
-        self._aa2idx = {aa: i for i, aa in self._idx2aa.items()}
-
-        if d_transformer_fc is not None:
-            self._d_transformer_fc = int(d_transformer_fc)
-
-        if n_transformer_layers is not None:
-            self._n_transformer_layers = int(n_transformer_layers)
-
-        if dropout is not None:
-            self._dropout = float(dropout)
-
         # Writable
-        self.n_epochs = int(n_epochs)
-        self.updates_per_epoch = updates_per_epoch
-        self.train_batch_size = train_batch_size
-        self.eval_batch_size = eval_batch_size
-        self.num_workers = int(num_workers)
-        self.patience = int(patience)
-        self.use_gpu = use_gpu
-        self.file_root = file_root
-        self.output_dir = output_dir
+        self.max_length = max_length
+        self.n_log = n_log
 
         # Build the model
-        vocab_size = len(self._peptide_calc) + 1
-        self.embedder = torch.nn.Sequential(
-            torch.nn.Embedding(vocab_size, self._d_model),
-            PosEncoder(self._d_model),
-        )
-
-        self.massdiff_embedder = torch.nn.Linear(1, self._d_model)
-
-        # The transformer
-        transformer_decoder_layers = torch.nn.TransformerDecoderLayer(
-            d_model=self._d_model,
-            nhead=self._n_head,
-            dim_feedforward=self._d_transformer_fc,
-            dropout=self._dropout,
-        )
-
-        transformer_decoder = torch.nn.TransformerDecoder(
-            transformer_decoder_layers, num_layers=self._n_transformer_layers
-        )
-
-        self.decoder = TransformerDecoderAdapter(transformer_decoder)
-        self.final = torch.nn.Linear(self._d_model, vocab_size)
-
-        # The optimizer and loss
-        self.celoss = torch.nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), **kwargs)
-        self.epoch = 0
-        self._base_loader = partial(
-            torch.utils.data.DataLoader,
-            pin_memory=True,
-            collate_fn=prepare_batch,
-        )
-
-        # Attributes that are set during training:
-        self._train_dataset = None
-        self._val_dataset = None
-        self._train_loader = None
-        self._eval_loader = None
-        self._train_loss = None
-        self._val_loss = None
-        self._val_min = None
-        self._start = None
-
-        if freeze_encoder:
-            for param in self.spectrum_transformer.parameters():
-                param.requires_grad = False
-
-        # For multi-GPU support:
-        # self.embedder = torch.nn.DataParallel(self.embedder)
-        # self.massdiff_embedder = torch.nn.DataParallel(self.massdiff_embedder)
-        # self.decoder = torch.nn.DataParallel(self.decoder)
-        # self.final = torch.nn.DataParallel(self.final)
-
-    @property
-    def loss(self):
-        """The loss as a :py:class:`pandas.DataFrame`"""
-        n_updates = np.arange(len(self._val_loss)) * self.updates_per_epoch
-        loss_df = pd.DataFrame(
-            {"n_updates": n_updates, "train_mse": self._train_loss}
-        )
-        if self._val_loss is not None:
-            loss_df["validation_mse"] = self._val_loss
-
-        return loss_df
-
-    @property
-    def spectrum_transformer(self):
-        """The SpectrumTransformer model used for encoding mass spectra"""
-        return self._spectrum_transformer
-
-    @property
-    def n_parameters(self):
-        """The number of learnable parameters."""
-        return sum(p.numel() for p in self.parameters() if p.requires_grad)
-
-    @property
-    def output_dir(self):
-        """The directory where models will be saved."""
-        return self._output_dir
-
-    @output_dir.setter
-    def output_dir(self, path):
-        """Set the output directory"""
-        if path is None:
-            path = Path.cwd()
-
-        self._output_dir = Path(path)
-
-    @property
-    def file_root(self):
-        """The prefix added to the saved files"""
-        return self._file_root
-
-    @file_root.setter
-    def file_root(self, root):
-        """Set the file root"""
-        if root is None:
-            self._file_root = ""
-        elif str(root).endswith("."):
-            self._file_root = str(root)
+        if custom_encoder is not None:
+            if isinstance(custom_encoder, SiameseSpectrumEncoder):
+                self.encoder = custom_encoder.encoder
+            else:
+                self.encoder = custom_encoder
         else:
-            self._file_root = str(root) + "."
-
-    @property
-    def use_gpu(self):
-        """Use one or more GPUs if available."""
-        return self._use_gpu
-
-    @use_gpu.setter
-    def use_gpu(self, val):
-        """Set whether to use a GPU."""
-        self._use_gpu = bool(val)
-        if val and torch.cuda.is_available():
-            self._device = "cuda"
-        else:
-            self._device = "cpu"
-
-    def forward(self, spec, mass, seq):
-        """The forward pass"""
-        # Encode:
-        spec, mem_mask = self.spectrum_transformer(spec.to(self._device))
-
-        # Decode:
-        preds = [self._force_feed(*d) for d in zip(spec, seq, mass, mem_mask)]
-        preds, truth = list(zip(*preds))
-        return torch.cat(preds, dim=0), torch.cat(truth, dim=0)
-
-    def _force_feed(self, memory, tgt, mass, mem_mask=None):
-        """Force feed the network a peptide sequecnce"""
-        # Prepare sequence:
-        tgt = tgt.replace("I", "L")
-        seq = list(reversed(re.split(r"(?<=.)(?=[A-Z])", tgt)))
-        tokens = [self._aa2idx[aa] for aa in seq + ["<eop>"]]
-        tokens = torch.tensor(tokens, device=self._device)[None, :]
-
-        # Calculate the remaining mass at each step:
-        # Dims should be position (n) x batch (b) x feature (f) for input into
-        # the transformer.
-        tags = [0] + [
-            self._peptide_calc.mass(seq[:i]) for i in range(len(seq))
-        ]
-        tags += tags[-1:]
-        tags = mass - torch.tensor(tags).to(self._device)[None, :, None]
-        tags = self.massdiff_embedder(tags)
-
-        # The input embedding:
-        Y = self.embedder(tokens)
-        Y = einops.repeat(Y, "b n f -> n (m b) f", m=tags.shape[1])
-        Y = torch.cat([tags, Y], dim=0)
-        X = einops.repeat(memory, "t f -> t b f", b=Y.shape[1])
-        mem_mask = mem_mask.to(self._device)
-        mem_mask = einops.repeat(mem_mask, "t -> n t", n=Y.shape[0])
-        mask = generate_mask(Y.shape[1])
-        mask = mask.to(self._device)
-        preds = self.decoder(
-            tgt=Y,
-            memory=X,
-            tgt_mask=mask,
-            memory_key_padding_mask=mem_mask,
-        )
-        preds = self.final(einops.rearrange(preds, "n b f -> b n f"))
-        return torch.diagonal(preds).T[:-1, :], tokens.squeeze()
-
-    def predict(self, spec, mass):
-        """Get the best prediction for a spectrum"""
-        spec, mem_mask = self.spectrum_transformer(spec.to(self._device))
-
-        tokens = []
-        seqs = []
-        scores = []
-        for idx in range(spec.shape[0]):
-            token, score, seq = self._greedy_decode(
-                spec[[idx], :, :], mass[idx].item(), mem_mask[[idx], :]
+            self.encoder = SpectrumEncoder(
+                dim_model=dim_model,
+                n_head=n_head,
+                dim_feedforward=dim_feedforward,
+                n_layers=n_layers,
+                dropout=dropout,
             )
-            tokens.append(token)
-            scores.append(score)
-            seqs.append(seq)
 
-        return tokens, scores, seqs
-
-    def _greedy_decode(self, spec, mass, mem_mask):
-        """Greedy decode each spectrum"""
-        # spec = einops.rearrange(spec, "n b f -> b n f")
-        Y = torch.tensor([mass], device=self._device)[None, None, :]
-        Y = self.massdiff_embedder(Y)
-        pred = self.decoder(
-            tgt=Y, memory=spec, memory_key_padding_mask=mem_mask
+        self.decoder = PeptideDecoder(
+            dim_model=dim_model,
+            n_head=n_head,
+            dim_feedforward=dim_feedforward,
+            n_layers=n_layers,
+            dropout=dropout,
+            residues=residues,
         )
-        pred = self.final(einops.rearrange(pred, "n b f -> b n f"))
-        tokens = [torch.argmax(pred, dim=2)]
-        scores = [pred[[0], -1, :]]
 
-        # Iterate, keeping only the best scoring sequence.
-        for _ in range(100):
-            seq = [self._idx2aa[i.item()] for i in tokens]
-            if seq[-1] == "<eop>":
+        self.softmax = torch.nn.Softmax(2)
+        self.celoss = torch.nn.CrossEntropyLoss(ignore_index=0)
+
+        # Things for training
+        self._history = []
+        self.opt_kwargs = kwargs
+        self.stop_token = self.decoder._aa2idx["$"]
+
+    def forward(self, spectra, precursors):
+        """Sequence a batch of mass spectra.
+
+        Parameters
+        ----------
+        spectrum : torch.Tensor of shape (n_spectra, n_peaks, 2)
+            The spectra to embed. Axis 0 represents a mass spectrum, axis 1
+            contains the peaks in the mass spectrum, and axis 2 is essentially
+            a 2-tuple specifying the m/z-intensity pair for each peak. These
+            should be zero-padded, such that all of the spectra in the batch
+            are the same length.
+        precursors : torch.Tensor of size (n_spectra, 2)
+            The measured precursor mass (axis 0) and charge (axis 1) of each
+            tandem mass spectrum.
+
+        Returns
+        -------
+        sequences : list or str
+            The sequence for each spectrum.
+        scores : torch.Tensor of shape (n_spectra, length, n_amino_acids)
+            The score for each amino acid.
+        """
+        spectra = spectra.to(self.encoder.device)
+        precursors = precursors.to(self.decoder.device)
+        scores, tokens = self.greedy_decode2(spectra, precursors)
+        sequences = [self.decoder.detokenize(t) for t in tokens]
+        return sequences, scores
+
+    def predict_step(self, batch, *args):
+        """Sequence a batch of mass spectra.
+
+        Note that this is used within the context of a pytorch-lightning
+        Trainer to generate a prediction.
+
+        Parameters
+        ----------
+        batch : tuple of torch.Tensor
+            A batch is expected to contain mass spectra (index 0) and the
+            precursor mass and charge (index 1). It may have more indices,
+            but these will be ignored.
+
+
+        Returns
+        -------
+        sequences : list or str
+            The sequence for each spectrum.
+        scores : torch.Tensor of shape (n_spectra, length, n_amino_acids)
+            The score for each amino acid.
+        """
+        return self(batch[0], batch[1])
+
+    def greedy_decode(self, spectra, precursors):
+        """Greedy decode the spoectra.
+
+        Parameters
+        ----------
+        spectrum : torch.Tensor of shape (n_spectra, n_peaks, 2)
+            The spectra to embed. Axis 0 represents a mass spectrum, axis 1
+            contains the peaks in the mass spectrum, and axis 2 is essentially
+            a 2-tuple specifying the m/z-intensity pair for each peak. These
+            should be zero-padded, such that all of the spectra in the batch
+            are the same length.
+        precursors : torch.Tensor of size (n_spectra, 2)
+            The measured precursor mass (axis 0) and charge (axis 1) of each
+            tandem mass spectrum.
+
+        Returns
+        -------
+        tokens : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
+            The token sequence for each spectrum.
+        scores : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
+            The score for each amino acid.
+        """
+        memories, mem_masks = self.encoder(spectra)
+        all_scores = []
+        all_tokens = []
+        for prec, mem, mask in zip(precursors, memories, mem_masks):
+            prec = prec[None, :]
+            mem = mem[None, :]
+            mask = mask[None, :]
+            scores, _ = self.decoder(None, prec, mem, mask)
+            tokens = torch.argmax(scores, axis=2)
+            for _ in range(self.max_length - 1):
+                if self.decoder._idx2aa[tokens[0, -1].item()] == "$":
+                    break
+
+                scores, _ = self.decoder(tokens, prec, mem, mask)
+                tokens = torch.argmax(scores, axis=2)
+
+            all_scores.append(self.softmax(scores).squeeze())
+            all_tokens.append(tokens.squeeze())
+
+        return all_scores, all_tokens
+
+    def greedy_decode2(self, spectra, precursors):
+        """Greedy decode the spoectra.
+
+        Parameters
+        ----------
+        spectrum : torch.Tensor of shape (n_spectra, n_peaks, 2)
+            The spectra to embed. Axis 0 represents a mass spectrum, axis 1
+            contains the peaks in the mass spectrum, and axis 2 is essentially
+            a 2-tuple specifying the m/z-intensity pair for each peak. These
+            should be zero-padded, such that all of the spectra in the batch
+            are the same length.
+        precursors : torch.Tensor of size (n_spectra, 2)
+            The measured precursor mass (axis 0) and charge (axis 1) of each
+            tandem mass spectrum.
+
+        Returns
+        -------
+        tokens : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
+            The token sequence for each spectrum.
+        scores : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
+            The score for each amino acid.
+        """
+        memories, mem_masks = self.encoder(spectra)
+
+        # initialize scores:
+        scores = torch.zeros(
+            spectra.shape[0],
+            self.max_length + 1,
+            self.decoder.vocab_size,
+        )
+        scores = scores.type_as(spectra)
+
+        # The first predition:
+        scores[:, :1, :], _ = self.decoder(
+            None,
+            precursors,
+            memories,
+            mem_masks,
+        )
+
+        tokens = torch.argmax(scores, axis=2)
+
+        # Keep predicting until all have a stop token or max_length is reached.
+        # Don't count the stop token toward max_length though.
+        for idx in range(2, self.max_length + 2):
+            decoded = (tokens == self.stop_token).any(axis=1)
+            if decoded.all():
                 break
 
-            mdiff = mass - self._peptide_calc.mass(seq)
-            mdiff = torch.tensor([mdiff], device=self._device)[None, None, :]
-            mdiff = self.massdiff_embedder(mdiff)
-
-            Y = self.embedder(torch.cat(tokens, dim=0))
-            Y = torch.cat([mdiff, Y], dim=0)
-            Y = einops.rearrange(Y, "b n f -> n b f")
-            pred = self.decoder(
-                tgt=Y, memory=spec, memory_key_padding_mask=mem_mask
+            scores[~decoded, :idx, :], _ = self.decoder(
+                tokens[~decoded, : (idx - 1)],
+                precursors[~decoded, :],
+                memories[~decoded, :, :],
+                mem_masks[~decoded, :],
             )
-            pred = self.final(einops.rearrange(pred, "n b f -> b n f"))
-            tokens.append(torch.argmax(pred, dim=2)[[-1], :])
-            scores.append(pred[[0], -1, :])
+            tokens = torch.argmax(scores, axis=2)
 
-        tokens = torch.cat(tokens, dim=0).squeeze()
-        return tokens, torch.cat(scores, dim=0), "".join(seq)
+        return self.softmax(scores), tokens
 
-    def fit(self, train_dataset, val_dataset=None, encoder_dataset=None):
-        """Train the model using a AnnotatedSpectrumDataset
-
-        If a validation set is provided, early stopping can also be
-        enabled.
+    def _step(self, spectra, precursors, sequences):
+        """The forward learning step.
 
         Parameters
         ----------
-        train_dataset : AnnotatedSpectrumDataset
-            The AnnotatedSpectrumDataset contaiing labeled mass spectra to
-            use for training.
-        val_dataset : AnnotatedSpectrumDataset, optional
-            The AnnoatedSpectrumDAtaset containing labeld mass spectra to
-            use for validation.
-        encoder_dataset : SpectrumDataset, optional
-            The SpectrumDataset to use for training the encoder.
+        spectra : torch.Tensor of shape (n_spectra, n_peaks, 2)
+            The spectra to embed. Axis 0 represents a mass spectrum, axis 1
+            contains the peaks in the mass spectrum, and axis 2 is essentially
+            a 2-tuple specifying the m/z-intensity pair for each peak. These
+            should be zero-padded, such that all of the spectra in the batch
+            are the same length.
+        precursors : torch.Tensor of size (n_spectra, 2)
+            The measured precursor mass (axis 0) and charge (axis 1) of each
+            tandem mass spectrum.
+        sequences : list or str of length n_spectra
+            The partial peptide sequences to predict.
+
+        Returns
+        -------
+        scores : torch.Tensor of shape (n_spectra, length, n_amino_acids)
+            The raw scores for each amino acid at each position.
+        tokens : torch.Tensor of shape (n_spectra, length)
+            The best token at each sequence position
         """
-        self.to(self._device)
-        self.optimizer.load_state_dict(self.optimizer.state_dict())
+        memory, mem_mask = self.encoder(spectra)
+        scores, tokens = self.decoder(sequences, precursors, memory, mem_mask)
+        return scores, tokens
 
-        self._train_dataset = train_dataset
-        self._train_loader = self._base_loader(
-            train_dataset, batch_size=self.train_batch_size
-        )
+    def training_step(self, batch, *args):
+        """A single training step
 
-        self._eval_loader = [
-            self._base_loader(train_dataset, batch_size=self.eval_batch_size)
-        ]
-
-        self._val_dataset = val_dataset
-        if self._val_dataset is not None:
-            self._eval_loader.append(
-                self._base_loader(val_dataset, batch_size=self.eval_batch_size)
-            )
-
-        if self._train_loss is None:
-            self._train_loss = []
-
-        if self._val_loss is None and self._val_dataset is not None:
-            self._val_loss = []
-            self._val_min = np.inf
-
-        # Evaluate the untrained model
-        self._start = time.time()
-        self._checkpoint()
-
-        # The main training loop
-        try:
-            n_updates = 0
-            self.optimizer.zero_grad()
-            for _ in range(self.n_epochs):
-                self._start = time.time()
-                pbar = tqdm(total=len(self._train_loader), leave=False)
-                for idx, (specs, seqs, mass) in enumerate(self._train_loader):
-                    preds, truth = self(specs, seqs, mass)
-                    loss = self.celoss(preds, truth)
-                    loss.backward()
-                    self.optimizer.step()
-                    self.optimizer.zero_grad()
-                    n_updates += 1
-                    pbar.update()
-                    if n_updates == self.updates_per_epoch:
-                        pbar.close()
-                        n_updates = 0
-                        self.epoch += 1
-                        self._checkpoint()
-                        pbar = tqdm(
-                            initial=idx,
-                            total=len(self._train_loader),
-                            leave=False,
-                        )
-
-                pbar.close()
-                self._checkpoint()
-
-            self.save(self.output_dir / (self.file_root + "final.pt"))
-
-        except KeyboardInterrupt:
-            pass
-
-        self.optimizer.zero_grad()
-        del specs, seqs
-        self.to("cpu")
-        self.save(self.output_dir / (self.file_root + "latest.pt"))
-
-    def _checkpoint(self):
-        """Evaluate performance and save the best models."""
-        with torch.no_grad():
-            self.eval()
-            self._train_loss.append(self._calc_loss(self._eval_loader[0]))
-
-            if self._val_dataset is not None:
-                tail_char = ""
-                self._val_loss.append(self._calc_loss(self._eval_loader[1]))
-                if self._val_loss[-1] <= self._val_min:
-                    self._val_min = self._val_loss[-1]
-                    tail_char = "*"
-                    self.save(
-                        self.output_dir / (self.file_root + "checkpoint.pt")
-                    )
-
-                LOGGER.info(
-                    "Epoch %i: Train CE %.3g, Val CE %.3g [%3g min]%s",
-                    self.epoch,
-                    self._train_loss[-1],
-                    self._val_loss[-1],
-                    (time.time() - self._start) / 60,
-                    tail_char,
-                )
-            else:
-                LOGGER.info(
-                    "Epoch %i: Train CE %.3g [%g min]",
-                    self.epoch,
-                    self._train_loss[-1],
-                    (time.time() - self._start) / 60,
-                )
-
-            self.save(self.output_dir / (self.file_root + "latest.pt"))
-            self.train()
-
-    def _calc_loss(self, loader):
-        """Calculate the loss of the entire dataset"""
-        pred = []
-        truth = []
-        iters = 10000 // self.eval_batch_size
-        for idx, batch in zip(tqdm(range(iters), leave=False), loader):
-            res = self(*batch)
-            pred.append(res[0])
-            truth.append(res[1])
-
-        pred = torch.cat(pred)
-        truth = torch.cat(truth)
-        return self.celoss(pred, truth).item()
-
-    def save(self, path):
-        """Save the model weights and metadata
+        Note that this is used within the context of a pytorch-lightning
+        Trainer to generate a prediction.
 
         Parameters
         ----------
-        path : str or Path
-            The file in which to save the weights and metadata.
-        """
-        data = {
-            "epoch": self.epoch,
-            "model_state_dict": self.state_dict(),
-            "optimizer_state_dict": self.optimizer.state_dict(),
-            "train_loss": self._train_loss,
-            "val_loss": self._val_loss,
-        }
-        torch.save(data, path)
-
-    def load(self, path):
-        """Load the model weights and metadata
-
-        Parameters
-        ----------
-        path : str or Path
-            The file from which to load the weights and metadata.
-        """
-        data = torch.load(path, map_location=self._device)
-        self.load_state_dict(data["model_state_dict"])
-        self.optimizer.load_state_dict(data["optimizer_state_dict"])
-        self.epoch = data["epoch"]
-        self._train_loss = data["train_loss"]
-        self._val_loss = data["val_loss"]
-        self._val_min = min(data["val_loss"])
-
-
-class TransformerDecoderAdapter(torch.nn.Module):
-    """An adapter so that the transformer works with DataParallel"""
-
-    def __init__(self, transformer):
-        """Initialize the TransformerAdapter"""
-        super().__init__()
-        self.transformer = transformer
-
-    def forward(self, tgt, memory, **kwargs):
-        """The forward pass"""
-        ret = self.transformer(
-            tgt.permute(1, 0, 2), memory.permute(1, 0, 2), **kwargs
-        )
-        return ret.permute(1, 0, 2)
-
-
-class PosEncoder(torch.nn.Module):
-    """The positional encoder for m/z values
-
-    Parameters
-    ----------
-    d_model : int
-        The number of features to output.
-    """
-
-    def __init__(self, d_model, max_wavelength=10000):
-        """Initialize the MzEncoder"""
-        super().__init__()
-
-        n_sin = int(d_model / 2)
-        n_cos = d_model - n_sin
-        scale = max_wavelength / (2 * np.pi)
-
-        sin_term = scale ** (torch.arange(0, n_sin).float() / (n_sin - 1))
-        cos_term = scale ** (torch.arange(0, n_cos).float() / (n_cos - 1))
-        self.register_buffer("sin_term", sin_term)
-        self.register_buffer("cos_term", cos_term)
-
-    def forward(self, X):
-        """Encode m/z values.
-
-        Parameters
-        ----------
-        X : torch.Tensor
-            A batch of mass spectra.
+        batch : tuple of torch.Tensor
+            A batch is expected to contain mass spectra (index 0), the
+            precursor mass and charge (index 1), and the peptide sequence
+            (index 2)
 
         Returns
         -------
         torch.Tensor
-            The encoded features for the mass spectra.
+            The loss.
         """
-        pos = torch.arange(X.shape[0]).to(X.device)
-        pos = einops.repeat(pos, "n -> n b", b=X.shape[1])
-        sin_in = einops.repeat(pos, "n b -> n b f", f=len(self.sin_term))
-        cos_in = einops.repeat(pos, "n b -> n b f", f=len(self.cos_term))
+        spectra, precursors, sequences = batch
+        pred, truth = self._step(spectra, precursors, sequences)
+        pred = pred[:, :-1, :].reshape(-1, self.decoder.vocab_size)
+        loss = self.celoss(pred, truth.flatten())
+        self.log(
+            "CELoss",
+            {"train": loss.item()},
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+        return loss
 
-        sin_pos = torch.sin(sin_in / self.sin_term)
-        cos_pos = torch.cos(cos_in / self.cos_term)
-        encoded = torch.cat([sin_pos, cos_pos], dim=2)
-        return encoded + X
+    def validation_step(self, batch, *args):
+        """A single validation step
 
+        Note that this is used within the context of a pytorch-lightning
+        Trainer to generate a prediction.
 
-def prepare_batch(batch):
-    """This is the collate function"""
-    spec, prec, seq = list(zip(*batch))
-    mz, charge = list(zip(*prec))
-    mass = (torch.tensor(mz) - 1.007276) * torch.tensor(charge)
-    spec = torch.nn.utils.rnn.pad_sequence(spec, batch_first=True)
-    return spec, mass, seq
+        Parameters
+        ----------
+        batch : tuple of torch.Tensor
+            A batch is expected to contain mass spectra (index 0), the
+            precursor mass and charge (index 1), and the peptide sequence
+            (index 2)
 
+        Returns
+        -------
+        torch.Tensor
+            The loss.
+        """
+        spectra, precursors, sequences = batch
+        pred, truth = self._step(spectra, precursors, sequences)
+        pred = pred[:, :-1, :].reshape(-1, self.decoder.vocab_size)
+        loss = self.celoss(pred, truth.flatten())
+        self.log(
+            "CELoss",
+            {"valid": loss.item()},
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+        return loss
 
-def generate_mask(sz):
-    """Generate a square mask for the sequence. The masked positions
-    are filled with float('-inf'). Unmasked positions are filled with
-    float(0.0).
-    """
-    mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-    mask = (
-        mask.float()
-        .masked_fill(mask == 0, float("-inf"))
-        .masked_fill(mask == 1, float(0.0))
-    )
-    return mask
+    def on_train_epoch_end(self):
+        """Log the training loss.
+
+        This is a pytorch-lightning hook.
+        """
+        metrics = {
+            "epoch": self.trainer.current_epoch,
+            "train": self.trainer.callback_metrics["CELoss"]["train"].item(),
+        }
+        self._history.append(metrics)
+
+    def on_validation_epoch_end(self):
+        """Log the epoch metrics to self.history.
+
+        This is a pytorch-lightning hook.
+        """
+        if not self._history:
+            return
+
+        valid_loss = self.trainer.callback_metrics["CELoss"]["valid"].item()
+        self._history[-1]["valid"] = valid_loss
+
+    def on_epoch_end(self):
+        """Print log to console, if requested."""
+        if len(self._history) == 1:
+            LOGGER.info("---------------------------------------")
+            LOGGER.info("  Epoch |   Train Loss  |  Valid Loss  ")
+            LOGGER.info("---------------------------------------")
+
+        metrics = self._history[-1]
+        if not metrics["epoch"] % self.n_log:
+            LOGGER.info(
+                "  %5i | %13.6f | %13.6f ",
+                metrics["epoch"],
+                metrics.get("train", np.nan),
+                metrics.get("valid", np.nan),
+            )
+
+    def configure_optimizers(self):
+        """Initialize the optimizer.
+
+        This is used by pytorch-lightning when preparing the model for
+        training.
+
+        Returns
+        -------
+        torch.optim.Adam
+            The intialized Adam optimizer.
+        """
+        return torch.optim.Adam(self.parameters(), **self.opt_kwargs)

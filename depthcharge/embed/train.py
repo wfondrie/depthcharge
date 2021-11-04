@@ -7,11 +7,6 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from . import splits
-from .. import utils
-from .model import SpectrumTransformer
-from ..data import PairedSpectrumDataset
-
 LOGGER = logging.getLogger(__name__)
 
 

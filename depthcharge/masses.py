@@ -7,57 +7,67 @@ class PeptideMass:
 
     Parameters
     ----------
-    extended: bool, optional
-        Include the modifications present in MassIVE-KB.
+    residues: Dict or str {"massivekb", "canonical"}, optional
+        The amino acid dictionary and their masses. By default this is only
+        the 20 canonical amino acids, with cysteine carbamidomethylated. If
+        "massivekb", this dictionary will include the modifications found in
+        MassIVE-KB. Additionally, a dictionary can be used to specify a custom
+        collection of amino acids and masses.
     """
 
-    _aa_mass = {
-        "G": 57.02146,
-        "A": 71.03711,
-        "S": 87.03203,
-        "P": 97.05276,
-        "V": 99.06841,
-        "T": 101.04768,
-        "C": 103.00919,
-        "L": 113.08406,
-        "I": 113.08406,
-        "N": 114.04293,
-        "D": 115.02694,
-        "Q": 128.05858,
-        "K": 128.09496,
-        "E": 129.04259,
-        "M": 131.04049,
-        "H": 137.05891,
-        "F": 147.06841,
-        "U": 150.95364,
-        "R": 156.10111,
-        "Y": 163.06333,
-        "W": 186.07931,
-        "O": 237.14773,
+    canonical = {
+        "G": 57.021463735,
+        "A": 71.037113805,
+        "S": 87.032028435,
+        "P": 97.052763875,
+        "V": 99.068413945,
+        "T": 101.047678505,
+        "C+57.021": 103.009184505 + 57.02146,
+        "L": 113.084064015,
+        "I": 113.084064015,
+        "N": 114.042927470,
+        "D": 115.026943065,
+        "Q": 128.058577540,
+        "K": 128.094963050,
+        "E": 129.042593135,
+        "M": 131.040484645,
+        "H": 137.058911875,
+        "F": 147.068413945,
+        # "U": 150.953633405,
+        "R": 156.101111050,
+        "Y": 163.063328575,
+        "W": 186.079312980,
+        # "O": 237.147726925,
     }
 
     # Modfications found in MassIVE-KB
-    _extended = {
+    massivekb = {
         # N-terminal mods:
         "+42.011": 42.010565,  # Acetylation
         "+43.006": 43.005814,  # Carbamylation
         "-17.027": -17.026549,  # NH3 loss
         "+43.006-17.027": (43.006814 - 17.026549),
         # AA mods:
-        "M+15.995": _aa_mass["M"] + 15.994915,  # Met Oxidation
-        "N+0.984": _aa_mass["N"] + 0.984016,  # Asn Deamidation
-        "Q+0.984": _aa_mass["Q"] + 0.984016,  # Gln Deamidation
-        "C+57.021": _aa_mass["C"] + 57.02146,
+        "M+15.995": canonical["M"] + 15.994915,  # Met Oxidation
+        "N+0.984": canonical["N"] + 0.984016,  # Asn Deamidation
+        "Q+0.984": canonical["Q"] + 0.984016,  # Gln Deamidation
     }
 
-    proton = 1.007276
-    h2o = 2 * proton + 15.994915
+    # Constants
+    hydrogen = 1.007825035
+    oxygen = 15.99491463
+    h2o = 2 * hydrogen + oxygen
+    proton = 1.00727646688
 
-    def __init__(self, extended=False):
+    def __init__(self, residues="canonical"):
         """Initialize the PeptideMass object"""
-        self.masses = self._aa_mass
-        if extended:
-            self.masses.update(self._extended)
+        if residues == "canonical":
+            self.masses = self.canonical
+        elif residues == "massivekb":
+            self.masses = self.canonical
+            self.masses.update(self.massivekb)
+        else:
+            self.masses = residues
 
     def __len__(self):
         """Return the length of the residue dictionary"""
