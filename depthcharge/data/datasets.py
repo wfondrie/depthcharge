@@ -74,6 +74,9 @@ class SpectrumDataset(Dataset):
         """
         mz_array, int_array, prec_mz, prec_charge = self.index[idx]
         spec = self._process_peaks(mz_array, int_array)
+        if not spec.sum():
+            spec = torch.tensor([[0, 1]]).float()
+
         return spec, prec_mz, prec_charge
 
     def _process_peaks(self, mz_array, int_array):
