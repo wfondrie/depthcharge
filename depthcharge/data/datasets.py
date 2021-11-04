@@ -436,7 +436,6 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         annotation : str
             The annotation for the mass spectrum.
         """
-        spec_idx = self._order[idx]
-        mz_array, int_array, prec_mz, prec_charge, pep = self.index[spec_idx]
+        mz_array, int_array, prec_mz, prec_charge, pep = self.index[idx]
         spec = self._process_peaks(mz_array, int_array)
         return spec, prec_mz, prec_charge, pep

@@ -139,7 +139,6 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         """
         pred, gsp = self._step(batch)
         return torch.clamp(pred, 0, 1), gsp
-        # return pred, gsp
 
     def training_step(self, batch, *args):
         """A single training step with the model.

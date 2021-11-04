@@ -124,6 +124,12 @@ class PeptideDecoder(torch.nn.Module):
         Use positional encodings for the amino acid sequence.
     reverse : bool, optional
         Sequence peptides from c-terminus to n-terminus.
+    residues: Dict or str {"massivekb", "canonical"}, optional
+        The amino acid dictionary and their masses. By default this is only
+        the 20 canonical amino acids, with cysteine carbamidomethylated. If
+        "massivekb", this dictionary will include the modifications found in
+        MassIVE-KB. Additionally, a dictionary can be used to specify a custom
+        collection of amino acids and masses.
     """
 
     def __init__(
@@ -135,13 +141,14 @@ class PeptideDecoder(torch.nn.Module):
         dropout=0,
         pos_encoder=True,
         reverse=True,
+        residues="canonical",
     ):
         """Initialize a PeptideDecoder"""
         super().__init__()
         self.reverse = reverse
 
         # Things we'll need
-        self._peptide_mass = PeptideMass(extended=True)
+        self._peptide_mass = PeptideMass(residues=residues)
         self._amino_acids = list(self._peptide_mass.masses.keys()) + ["$"]
         self._idx2aa = {i + 1: aa for i, aa in enumerate(self._amino_acids)}
         self._aa2idx = {aa: i for i, aa in self._idx2aa.items()}
@@ -266,7 +273,7 @@ class PeptideDecoder(torch.nn.Module):
         ----------
         tokens : torch.Tensor of shape (n_amino_acids)
         """
-        sequence = [self._idx2aa[i.item()] for i in tokens]
+        sequence = [self._idx2aa.get(i.item(), "") for i in tokens]
         if self.reverse:
             sequence = list(reversed(sequence))
 
