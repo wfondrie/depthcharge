@@ -4,8 +4,8 @@ import einops
 import numpy as np
 
 
-class MzEncoder(torch.nn.Module):
-    """Encode m/z values in a mass spectrum using sine and cosine waves.
+class MassEncoder(torch.nn.Module):
+    """Encode mass values using sine and cosine waves.
 
     Parameters
     ----------
@@ -18,13 +18,18 @@ class MzEncoder(torch.nn.Module):
     """
 
     def __init__(self, dim_model, min_wavelength=0.001, max_wavelength=10000):
-        """Initialize the MzEncoder"""
+        """Initialize the MassEncoder"""
         super().__init__()
 
         n_sin = int(dim_model / 2)
         n_cos = dim_model - n_sin
-        base = min_wavelength / (2 * np.pi)
-        scale = max_wavelength / min_wavelength
+
+        if min_wavelength:
+            base = min_wavelength / (2 * np.pi)
+            scale = max_wavelength / min_wavelength
+        else:
+            base = 1
+            scale = max_wavelength / (2 * np.pi)
 
         sin_term = base * scale ** (
             torch.arange(0, n_sin).float() / (n_sin - 1)
@@ -33,12 +38,75 @@ class MzEncoder(torch.nn.Module):
             torch.arange(0, n_cos).float() / (n_cos - 1)
         )
 
-        self.linear = torch.nn.Linear(1, dim_model, bias=False)
         self.register_buffer("sin_term", sin_term)
         self.register_buffer("cos_term", cos_term)
 
     def forward(self, X):
         """Encode m/z values.
+
+        Parameters
+        ----------
+        X : torch.Tensor of shape (n_masses)
+            The masses to embed.
+
+        Returns
+        -------
+        torch.Tensor of shape (n_masses, dim_model)
+            The encoded features for the mass spectra.
+        """
+        sin_mz = torch.sin(X / self.sin_term)
+        cos_mz = torch.cos(X / self.cos_term)
+        return torch.cat([sin_mz, cos_mz], axis=-1)
+
+
+class PeakEncoder(MassEncoder):
+    """Encode m/z values in a mass spectrum using sine and cosine waves.
+
+    Parameters
+    ----------
+    dim_model : int
+        The number of features to output.
+    dim_intensity : int, optional
+        The number of features to use for intensity. The remaining features
+        will be used to encode the m/z values.
+    min_wavelength : float, optional
+        The minimum wavelength to use.
+    max_wavelength : float, optional
+        The maximum wavelength to use.
+    """
+
+    def __init__(
+        self,
+        dim_model,
+        dim_intensity=None,
+        min_wavelength=0.001,
+        max_wavelength=10000,
+    ):
+        """Initialize the MzEncoder"""
+        self.dim_intensity = dim_intensity
+        self.dim_mz = dim_model
+        if self.dim_intensity is not None:
+            self.dim_mz -= self.dim_intensity
+
+        super().__init__(
+            dim_model=self.dim_mz,
+            min_wavelength=min_wavelength,
+            max_wavelength=max_wavelength,
+        )
+
+        if self.dim_intensity is None:
+            self.int_encoder = torch.nn.Linear(1, dim_model, bias=False)
+        else:
+            self.int_encoder = MassEncoder(
+                dim_model=dim_intensity,
+                min_wavelength=0,
+                max_wavelength=1,
+            )
+
+    def forward(self, X):
+        """Encode m/z values and intensities.
+
+        Note that we expect intensities to fall within the interval [0, 1].
 
         Parameters
         ----------
@@ -54,12 +122,13 @@ class MzEncoder(torch.nn.Module):
         torch.Tensor of shape (n_spectr, n_peaks, dim_model)
             The encoded features for the mass spectra.
         """
-        mz = X[:, :, [0]]
-        sin_mz = torch.sin(mz / self.sin_term)
-        cos_mz = torch.cos(mz / self.cos_term)
-        encoded = torch.cat([sin_mz, cos_mz], axis=2)
-        intensity = self.linear(X[:, :, [1]])
-        return encoded + intensity
+        m_over_z = X[:, :, [0]]
+        encoded = super().forward(m_over_z)
+        intensity = self.int_encoder(X[:, :, [1]])
+        if self.dim_intensity is None:
+            return encoded + intensity
+
+        return torch.cat([encoded, intensity], dim=2)
 
 
 class PositionalEncoder(torch.nn.Module):

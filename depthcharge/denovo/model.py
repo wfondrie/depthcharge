@@ -31,6 +31,12 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         The number of Transformer layers.
     dropout : float, optional
         The dropout probability for all layers.
+    dim_intensity : int or None, optional
+        The number of features to use for encoding peak intensity.
+        The remaining (``dim_model - dim_intensity``) are reserved for
+        encoding the m/z value. If ``None``, the intensity will be projected
+        up to ``dim_model`` using a linear layer, then summed with the m/z
+        emcoding for each peak.
     custom_encoder : SpectrumEncoder or PairedSpectrumEncoder, optional
         A pretrained encoder to use. The ``dim_model`` of the encoder must
         be the same as that specified by the ``dim_model`` parameter here.
@@ -42,6 +48,8 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         "massivekb", this dictionary will include the modifications found in
         MassIVE-KB. Additionally, a dictionary can be used to specify a custom
         collection of amino acids and masses.
+    max_charge : int, optional
+        The maximum charge state to consider.
     n_log : int, optional
         The number of epochs to wait between logging messages.
     **kwargs : Dict
@@ -55,9 +63,11 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         dim_feedforward=1024,
         n_layers=1,
         dropout=0,
+        dim_intensity=None,
         custom_encoder=None,
         max_length=100,
         residues="canonical",
+        max_charge=5,
         n_log=10,
         **kwargs,
     ):
@@ -81,6 +91,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
                 dim_feedforward=dim_feedforward,
                 n_layers=n_layers,
                 dropout=dropout,
+                dim_intensity=dim_intensity,
             )
 
         self.decoder = PeptideDecoder(
@@ -90,6 +101,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
             n_layers=n_layers,
             dropout=dropout,
             residues=residues,
+            max_charge=max_charge,
         )
 
         self.softmax = torch.nn.Softmax(2)
