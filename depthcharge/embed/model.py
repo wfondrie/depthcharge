@@ -35,6 +35,12 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         each linear layer.
     dropout : float, optional
         The dropout rate in all layers of the model.
+    dim_intensity : int or None, optional
+        The number of features to use for encoding peak intensity.
+        The remaining (``dim_model - dim_intensity``) are reserved for
+        encoding the m/z value. If ``None``, the intensity will be projected
+        up to ``dim_model`` using a linear layer, then summed with the m/z
+        emcoding for each peak.
     n_log : int, optional
         The frequency with which to log losses to the console. These are only
         visible when the logging level is set to ``INFO``.
@@ -50,6 +56,7 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
         n_layers=1,
         n_head_layers=3,
         dropout=0,
+        dim_intensity=None,
         n_log=10,
         **kwargs,
     ):
@@ -66,6 +73,7 @@ class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
             dim_feedforward=dim_feedforward,
             n_layers=n_layers,
             dropout=dropout,
+            dim_intensity=dim_intensity,
         )
 
         self.head = FeedForward(
