@@ -136,7 +136,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         """
         spectra = spectra.to(self.encoder.device)
         precursors = precursors.to(self.decoder.device)
-        scores, tokens = self.greedy_decode2(spectra, precursors)
+        scores, tokens = self.greedy_decode(spectra, precursors)
         sequences = [self.decoder.detokenize(t) for t in tokens]
         return sequences, scores
 
@@ -164,50 +164,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         return self(batch[0], batch[1])
 
     def greedy_decode(self, spectra, precursors):
-        """Greedy decode the spoectra.
-
-        Parameters
-        ----------
-        spectrum : torch.Tensor of shape (n_spectra, n_peaks, 2)
-            The spectra to embed. Axis 0 represents a mass spectrum, axis 1
-            contains the peaks in the mass spectrum, and axis 2 is essentially
-            a 2-tuple specifying the m/z-intensity pair for each peak. These
-            should be zero-padded, such that all of the spectra in the batch
-            are the same length.
-        precursors : torch.Tensor of size (n_spectra, 2)
-            The measured precursor mass (axis 0) and charge (axis 1) of each
-            tandem mass spectrum.
-
-        Returns
-        -------
-        tokens : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
-            The token sequence for each spectrum.
-        scores : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
-            The score for each amino acid.
-        """
-        memories, mem_masks = self.encoder(spectra)
-        all_scores = []
-        all_tokens = []
-        for prec, mem, mask in zip(precursors, memories, mem_masks):
-            prec = prec[None, :]
-            mem = mem[None, :]
-            mask = mask[None, :]
-            scores, _ = self.decoder(None, prec, mem, mask)
-            tokens = torch.argmax(scores, axis=2)
-            for _ in range(self.max_length - 1):
-                if self.decoder._idx2aa[tokens[0, -1].item()] == "$":
-                    break
-
-                scores, _ = self.decoder(tokens, prec, mem, mask)
-                tokens = torch.argmax(scores, axis=2)
-
-            all_scores.append(self.softmax(scores).squeeze())
-            all_tokens.append(tokens.squeeze())
-
-        return all_scores, all_tokens
-
-    def greedy_decode2(self, spectra, precursors):
-        """Greedy decode the spoectra.
+        """Greedy decode the spectra.
 
         Parameters
         ----------
@@ -234,11 +191,11 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         scores = torch.zeros(
             spectra.shape[0],
             self.max_length + 1,
-            self.decoder.vocab_size,
+            self.decoder.vocab_size + 1,
         )
         scores = scores.type_as(spectra)
 
-        # The first predition:
+        # The first prediction:
         scores[:, :1, :], _ = self.decoder(
             None,
             precursors,
@@ -313,7 +270,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         """
         spectra, precursors, sequences = batch
         pred, truth = self._step(spectra, precursors, sequences)
-        pred = pred[:, :-1, :].reshape(-1, self.decoder.vocab_size)
+        pred = pred[:, :-1, :].reshape(-1, self.decoder.vocab_size + 1)
         loss = self.celoss(pred, truth.flatten())
         self.log(
             "CELoss",
@@ -344,7 +301,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         """
         spectra, precursors, sequences = batch
         pred, truth = self._step(spectra, precursors, sequences)
-        pred = pred[:, :-1, :].reshape(-1, self.decoder.vocab_size)
+        pred = pred[:, :-1, :].reshape(-1, self.decoder.vocab_size + 1)
         loss = self.celoss(pred, truth.flatten())
         self.log(
             "CELoss",

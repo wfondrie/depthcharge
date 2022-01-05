@@ -59,5 +59,5 @@ def test_peptide_decoder():
 
     decoder = PeptideDecoder(8, 1, 12, max_charge=3)
     scores, tokens = decoder(peptides, precursors, memory, mem_mask)
-    assert scores.shape == (2, 11, decoder.vocab_size + 1)
+    assert scores.shape == (2, 10, decoder.vocab_size + 1)
     assert tokens.shape == (2, 9)
