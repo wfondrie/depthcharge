@@ -414,7 +414,7 @@ class PeptideDecoder(_PeptideTransformer):
         # Prepare mass and charge
         masses = self.mass_encoder(precursors[:, None, [0]])
         charges = self.charge_encoder(precursors[:, 1].int() - 1)
-        precursors = masses + charges
+        precursors = masses + charges[:, None, :]
 
         # Feed through model:
         if sequences is None:
