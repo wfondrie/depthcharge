@@ -9,18 +9,20 @@ from depthcharge.data import AnnotatedSpectrumIndex
 
 
 def test_denovo_model(tmp_path):
+    """Test de novo model overfitting"""
+    pl.seed_everything(42)
     peptides = ["LESLIEK", "PEPTIDEK"]
     mgf_file = tmp_path / "fake.mgf"
     _create_mgf(peptides, mgf_file)
 
     index = AnnotatedSpectrumIndex(tmp_path / "test.hdf5", mgf_file)
-    loaders = DeNovoDataModule(index, num_workers=0, batch_size=4)
+    loaders = DeNovoDataModule(index, num_workers=0, batch_size=2)
     loaders.setup()
 
     # Create the model
     model = Spec2Pep(16, n_layers=1, n_log=20, dim_intensity=4)
     trainer = pl.Trainer(
-        logger=None, max_epochs=100, checkpoint_callback=False
+        logger=None, max_epochs=200, checkpoint_callback=False
     )
 
     # Fit the model
