@@ -1,13 +1,16 @@
 """A de novo peptide sequencing model"""
-import logging
+import logging, time, random, os
 
 import torch
 import numpy as np
 import pytorch_lightning as pl
+from torch.utils.tensorboard import SummaryWriter
+
 
 from ..masses import PeptideMass
 from ..components import SpectrumEncoder, PeptideDecoder, ModelMixin
 from ..embed.model import SiameseSpectrumEncoder
+from .evaluate import batch_aa_match, calc_eval_metrics	
 
 LOGGER = logging.getLogger(__name__)
 
@@ -69,6 +72,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         residues="canonical",
         max_charge=5,
         n_log=10,
+        tb_summarywriter = None,
         **kwargs,
     ):
         """Initialize a Spec2Pep model"""
@@ -77,7 +81,9 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         # Writable
         self.max_length = max_length
         self.n_log = n_log
-
+        
+        self.residues = residues 
+        
         # Build the model
         if custom_encoder is not None:
             if isinstance(custom_encoder, SiameseSpectrumEncoder):
@@ -111,6 +117,10 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         self._history = []
         self.opt_kwargs = kwargs
         self.stop_token = self.decoder._aa2idx["$"]
+        
+        self.tb_summarywriter = tb_summarywriter
+               
+        
 
     def forward(self, spectra, precursors):
         """Sequence a batch of mass spectra.
@@ -310,6 +320,52 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
             on_epoch=True,
             sync_dist=True,
         )
+        
+        #De novo sequence the batch
+        pred_seqs, scores = self.predict_step(batch)
+     
+        #Temporary solution to predictions with multiple stop token '$', filter them out
+        filtered_pred_seqs = []
+        filtered_sequences = []
+        for i in range(len(pred_seqs)):
+            if len(pred_seqs[i]) > 0:
+                ps = pred_seqs[i]
+                if pred_seqs[i][0] == "$":
+                    ps = pred_seqs[i][1:] #Remove stop token
+                if "$" not in ps and len(ps)>0:
+                    filtered_pred_seqs += [ps]
+                    filtered_sequences += [sequences[i]]        
+        
+        #Find AA and peptide matches
+        all_aa_match, orig_total_num_aa, pred_total_num_aa = batch_aa_match(filtered_pred_seqs, filtered_sequences, self.decoder._peptide_mass.masses, 'best')
+        #Calculate evaluation metrics based on matches
+        aa_precision, aa_recall, pep_recall = calc_eval_metrics(all_aa_match, orig_total_num_aa, pred_total_num_aa)
+        
+        self.log(
+            "aa_precision",
+            {"valid": aa_precision},
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )  
+        
+        self.log(
+            "aa_recall",
+            {"valid": aa_recall},
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )  
+        
+        self.log(
+            "pep_recall",
+            {"valid": pep_recall},
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )         
+        
+        
         return loss
 
     def on_train_epoch_end(self):
@@ -317,38 +373,54 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
 
         This is a pytorch-lightning hook.
         """
-        metrics = {
-            "epoch": self.trainer.current_epoch,
-            "train": self.trainer.callback_metrics["CELoss"]["train"].item(),
-        }
-        self._history.append(metrics)
-
+        train_loss = self.trainer.callback_metrics["CELoss"]["train"].item()
+        self._history[-1]["train"] = train_loss
+        
     def on_validation_epoch_end(self):
         """Log the epoch metrics to self.history.
 
         This is a pytorch-lightning hook.
         """
-        if not self._history:
-            return
-
-        valid_loss = self.trainer.callback_metrics["CELoss"]["valid"].item()
-        self._history[-1]["valid"] = valid_loss
-
+        metrics = {
+            "epoch": self.trainer.current_epoch,
+            "valid": self.trainer.callback_metrics["CELoss"]["valid"].item(),
+            "valid_aa_precision": self.trainer.callback_metrics["aa_precision"]["valid"].item(),
+            "valid_aa_recall": self.trainer.callback_metrics["aa_recall"]["valid"].item(),
+            "valid_pep_recall": self.trainer.callback_metrics["pep_recall"]["valid"].item(),
+        }
+        self._history.append(metrics)
+        
     def on_epoch_end(self):
         """Print log to console, if requested."""
-        if len(self._history) == 1:
-            LOGGER.info("---------------------------------------")
-            LOGGER.info("  Epoch |   Train Loss  |  Valid Loss  ")
-            LOGGER.info("---------------------------------------")
+        
+        if len(self._history) > 0:
+            #Print only if all output for the current epoch is recorded
+            if len(self._history[-1]) == 6:
+                if len(self._history) == 1:
+                    LOGGER.info("---------------------------------------------------------------------------------------------------------")
+                    LOGGER.info("  Epoch |   Train Loss  |  Valid Loss | Valid AA precision | Valid AA recall | Valid Peptide recall ")
+                    LOGGER.info("---------------------------------------------------------------------------------------------------------")
+                    
+                metrics = self._history[-1]
+                if not metrics["epoch"] % self.n_log:
+                    LOGGER.info(
+                        "  %5i | %13.6f | %13.6f | %13.6f | %13.6f | %13.6f ",
+                        metrics["epoch"],
+                        metrics.get("train", np.nan),
+                        metrics.get("valid", np.nan),
+                        metrics.get("valid_aa_precision", np.nan),
+                        metrics.get("valid_aa_recall", np.nan),
+                        metrics.get("valid_pep_recall", np.nan),
+                    )
+                    #Add metrics to SummaryWriter object if provided
+                    if self.tb_summarywriter is not None:
+                        self.tb_summarywriter.add_scalar('loss/train_crossentropy_loss', metrics.get("train", np.nan), metrics["epoch"]+1)
+                        self.tb_summarywriter.add_scalar('loss/dev_crossentropy_loss', metrics.get("valid", np.nan), metrics["epoch"]+1)
 
-        metrics = self._history[-1]
-        if not metrics["epoch"] % self.n_log:
-            LOGGER.info(
-                "  %5i | %13.6f | %13.6f ",
-                metrics["epoch"],
-                metrics.get("train", np.nan),
-                metrics.get("valid", np.nan),
-            )
+                        self.tb_summarywriter.add_scalar('eval/dev_aa_precision', metrics.get("valid_aa_precision", np.nan), metrics["epoch"]+1)
+                        self.tb_summarywriter.add_scalar('eval/dev_aa_recall', metrics.get("valid_aa_recall", np.nan), metrics["epoch"]+1)
+                        self.tb_summarywriter.add_scalar('eval/dev_pep_recall', metrics.get("valid_pep_recall", np.nan), metrics["epoch"]+1)
+
 
     def configure_optimizers(self):
         """Initialize the optimizer.
