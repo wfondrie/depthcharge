@@ -1,5 +1,1 @@
-# depthcharge
-A deep learning toolkit for proteomics
-
-Currently under rapid development...
-
+Depthcharge is a deep learning toolkit for building state-of-the-art models in mass spectrometry.
