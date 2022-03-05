@@ -2,6 +2,7 @@
 import logging
 
 import torch
+import einops
 import numpy as np
 import pytorch_lightning as pl
 
@@ -68,6 +69,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         max_length=100,
         residues="canonical",
         max_charge=5,
+        beam_size=3,
         n_log=10,
         **kwargs,
     ):
@@ -77,6 +79,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         # Writable
         self.max_length = max_length
         self.n_log = n_log
+        self.beam_size = beam_size
 
         # Build the model
         if custom_encoder is not None:
@@ -162,6 +165,58 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
             The score for each amino acid.
         """
         return self(batch[0], batch[1])
+
+    def beam_search_decode(self, spectra, precursors):
+        """Beam search decode the spectra
+
+        Parameters
+        ----------
+        spectrum : torch.Tensor of shape (n_spectra, n_peaks, 2)
+            The spectra to embed. Axis 0 represents a mass spectrum, axis 1
+            contains the peaks in the mass spectrum, and axis 2 is essentially
+            a 2-tuple specifying the m/z-intensity pair for each peak. These
+            should be zero-padded, such that all of the spectra in the batch
+            are the same length.
+        precursors : torch.Tensor of size (n_spectra, 2)
+            The measured precursor mass (axis 0) and charge (axis 1) of each
+            tandem mass spectrum.
+
+        Returns
+        -------
+        tokens : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
+            The token sequence for each spectrum.
+        scores : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
+            The score for each amino acid.
+        """
+        memories, mem_masks = self.encoder(spectra)
+
+        # initialize scores:
+        scores = torch.zeros(
+            spectra.shape[0],
+            self.max_length + 1,
+            self.decoder.vocab_size + 1,
+            self.beam_size,
+        )
+        scores = scores.type_as(spectra)
+
+        # Create the first prediction:
+        first_pred, _ = self.decoder(None, precursors, memories, mem_masks)
+
+        # scores is (batch_size, max_length + 1, vocab_size + 1, beam_size)
+        scores[:, :1, :, :] = torch.tile(first_pred, (self.beam_size,))
+
+        # tokens is (batch_size, max_length, beam_size, beam)
+        tokens = torch.argsort(scores, axis=2, descending=True)
+        tokens = tokens[:, :, : self.beam_size, :]
+
+        for idx in range(2, self.max_length + 2):
+            decoded = (tokens == self.stop_token).any(axis=1)
+            if decoded.all():
+                break
+
+            previous = einops.rearrange(
+                tokens[:, : (idx - 1), :, :],
+            )
 
     def greedy_decode(self, spectra, precursors):
         """Greedy decode the spectra.
