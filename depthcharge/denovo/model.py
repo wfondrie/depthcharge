@@ -136,7 +136,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         sequences : list of list of str
             The top sequences for each spectrum.
         scores : torch.Tensor of shape
-        (n_spectra, length, n_amino_acids, n_beams)
+        (n_spectra, length, n_amino_acids, beam_size)
             The score for each amino acid.
         """
         spectra = spectra.to(self.encoder.device)
@@ -174,7 +174,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         return self(batch[0], batch[1])
 
     def beam_search_decode(self, spectra, precursors):
-        """Beam search decode the spectra
+        """Beam search decode the spectra.
 
         Parameters
         ----------
@@ -190,9 +190,11 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
 
         Returns
         -------
-        tokens : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
+        tokens : torch.Tensor of shape
+        (n_spectra, max_length, n_amino_acids, beam_size)
             The token sequence for each spectrum.
-        scores : torch.Tensor of shape (n_spectra, max_length, n_amino_acids)
+        scores : torch.Tensor of shape
+        (n_spectra, max_length, n_amino_acids, beam_size)
             The score for each amino acid.
         """
         memories, mem_masks = self.encoder(spectra)
