@@ -30,7 +30,7 @@ def test_denovo_model(tmp_path):
 
     # Predict
     pred = trainer.predict(model, loaders.train_dataloader())
-    assert pred[0][0][0] == "$LESLLEK"
+    assert pred[0][0][0][0] == "$LESLLEK"
 
 
 def _create_mgf_entry(peptide, charge=2):
