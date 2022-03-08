@@ -6,7 +6,6 @@ import einops
 import numpy as np
 import pytorch_lightning as pl
 
-from ..masses import PeptideMass
 from ..components import SpectrumEncoder, PeptideDecoder, ModelMixin
 from ..embed.model import SiameseSpectrumEncoder
 
