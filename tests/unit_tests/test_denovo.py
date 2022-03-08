@@ -22,7 +22,7 @@ def test_denovo_model(tmp_path):
     # Create the model
     model = Spec2Pep(16, n_layers=1, n_log=20, dim_intensity=4)
     trainer = pl.Trainer(
-        logger=None, max_epochs=600, checkpoint_callback=False
+        logger=None, max_epochs=1000, checkpoint_callback=False
     )
 
     # Fit the model
