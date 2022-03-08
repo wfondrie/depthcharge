@@ -50,6 +50,8 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         collection of amino acids and masses.
     max_charge : int, optional
         The maximum charge state to consider.
+    beam_size : int, optional
+        The number of paths to pursue when decoding.
     n_log : int, optional
         The number of epochs to wait between logging messages.
     **kwargs : Dict
