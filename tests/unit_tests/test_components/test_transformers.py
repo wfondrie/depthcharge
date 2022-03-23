@@ -42,7 +42,13 @@ def test_peptide_encoder():
     assert mask.sum() == 1
 
     sums = emb.sum(dim=1)
-    assert (sums[1, :, :] != sums[2, :, :]).all()
+    assert (
+        sums[
+            1,
+            :,
+        ]
+        != sums[2, :]
+    ).all()
 
 
 def test_peptide_decoder():
