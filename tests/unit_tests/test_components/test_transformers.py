@@ -30,16 +30,19 @@ def test_spectrum_encoder():
 
 def test_peptide_encoder():
     """Test that a peptide encoder will run"""
-    peptides = ["LESLIEK", "PEPTIDER"]
-    charges = torch.tensor([2, 3])
+    peptides = ["LESLIEK", "PEPTIDER", "EDITPEPR"]
+    charges = torch.tensor([2, 3, 3])
 
     model = PeptideEncoder(8, 1, 12, max_charge=3)
     emb, mask = model(peptides, charges)
 
     vocab_size = len(PeptideMass("canonical").masses.keys()) + 1
     assert model.vocab_size == vocab_size
-    assert emb.shape == (2, 9, 8)
+    assert emb.shape == (3, 10, 8)
     assert mask.sum() == 1
+
+    sums = emb.sum(dim=1)
+    assert (sums[1, :, :] != sums[2, :, :]).all()
 
 
 def test_peptide_decoder():

@@ -302,10 +302,13 @@ class PeptideEncoder(_PeptideTransformer):
 
         # Encode charges
         charges = self.charge_encoder(charges - 1)[:, None]
-        encoded = self.pos_encoder(torch.cat([charges, encoded], dim=1))
+        encoded = torch.cat([charges, encoded], dim=1)
 
         # Create mask
         mask = ~encoded.sum(dim=2).bool()
+
+        # Add positional encodings
+        encoded = self.pos_encoder(encoded)
 
         # Run through the model:
         latent = self.transformer_encoder(encoded, src_key_padding_mask=mask)
@@ -426,8 +429,8 @@ class PeptideDecoder(_PeptideTransformer):
         else:
             tgt = torch.cat([precursors, self.aa_encoder(tokens)], dim=1)
 
-        tgt = self.pos_encoder(tgt)
         tgt_key_padding_mask = tgt.sum(axis=2) == 0
+        tgt = self.pos_encoder(tgt)
         tgt_mask = generate_tgt_mask(tgt.shape[1]).type_as(precursors)
         preds = self.transformer_decoder(
             tgt=tgt,
