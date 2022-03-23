@@ -9,10 +9,10 @@ import torch
 import numpy as np
 import pytorch_lightning as pl
 
-from ..data import AnnotatedSpectrumDataset
+from ...data import AnnotatedSpectrumDataset
 
 
-class DeNovoDataModule(pl.LightningDataModule):
+class Spec2PepDataModule(pl.LightningDataModule):
     """Prepare data for a SiameseSpectrumEncoder.
 
     Parameters

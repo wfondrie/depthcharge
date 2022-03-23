@@ -5,12 +5,12 @@ import torch
 import numpy as np
 import pytorch_lightning as pl
 
-from ..components import SpectrumEncoder, FeedForward, ModelMixin
+from ...components import SpectrumEncoder, FeedForward, ModelMixin
 
 LOGGER = logging.getLogger(__name__)
 
 
-class SiameseSpectrumEncoder(pl.LightningModule, ModelMixin):
+class PairedSpectrumEncoder(pl.LightningModule, ModelMixin):
     """A Transformer model for self-supervised learning of mass spectrum
     embeddings.
 
