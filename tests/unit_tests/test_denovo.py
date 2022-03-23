@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pytorch_lightning as pl
 from pyteomics.mass import calculate_mass
-from depthcharge.denovo import Spec2Pep, DeNovoDataModule
+from depthcharge.models import Spec2Pep, Spec2PepDataModule
 from depthcharge.data import AnnotatedSpectrumIndex
 
 
@@ -16,7 +16,7 @@ def test_denovo_model(tmp_path):
     _create_mgf(peptides, mgf_file)
 
     index = AnnotatedSpectrumIndex(tmp_path / "test.hdf5", mgf_file)
-    loaders = DeNovoDataModule(index, num_workers=0, batch_size=2)
+    loaders = Spec2PepDataModule(index, num_workers=0, batch_size=2)
     loaders.setup()
 
     # Create the model

@@ -6,8 +6,7 @@ import einops
 import numpy as np
 import pytorch_lightning as pl
 
-from ..components import SpectrumEncoder, PeptideDecoder, ModelMixin
-from ..embed.model import SiameseSpectrumEncoder
+from ...components import SpectrumEncoder, PeptideDecoder, ModelMixin
 
 LOGGER = logging.getLogger(__name__)
 
@@ -108,7 +107,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
             max_charge=max_charge,
         )
 
-        self.softmax = torch.nn.Softmax(2)
+        self.softmax = torch.nn.Softmax(dim=2)
         self.celoss = torch.nn.CrossEntropyLoss(ignore_index=0)
 
         # Things for training

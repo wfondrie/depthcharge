@@ -12,13 +12,17 @@ import torch
 import numpy as np
 import pytorch_lightning as pl
 
-from ..data import PairedSpectrumDataset, PairedSpectrumStreamer, SpectrumIndex
+from ...data import (
+    PairedSpectrumDataset,
+    PairedSpectrumStreamer,
+    SpectrumIndex,
+)
 
 SPLITS = Path(__file__).parent / "SPLITS.json"
 
 
 class PairedSpectrumDataModule(pl.LightningDataModule):
-    """Prepare data for a SiameseSpectrumEncoder.
+    """Prepare data for a PairedSpectrumEncoder.
 
     Parameters
     ----------
