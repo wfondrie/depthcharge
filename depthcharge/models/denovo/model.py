@@ -6,6 +6,7 @@ import einops
 import numpy as np
 import pytorch_lightning as pl
 
+from ..embed import PairedSpectrumEncoder
 from ...components import SpectrumEncoder, PeptideDecoder, ModelMixin
 
 LOGGER = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
 
         # Build the model
         if custom_encoder is not None:
-            if isinstance(custom_encoder, SiameseSpectrumEncoder):
+            if isinstance(custom_encoder, PairedSpectrumEncoder):
                 self.encoder = custom_encoder.encoder
             else:
                 self.encoder = custom_encoder
