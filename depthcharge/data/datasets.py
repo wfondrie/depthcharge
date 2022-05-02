@@ -439,3 +439,33 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         mz_array, int_array, prec_mz, prec_charge, pep = self.index[idx]
         spec = self._process_peaks(mz_array, int_array)
         return spec, prec_mz, prec_charge, pep
+
+    @staticmethod
+    def prepare_batch(batch):
+        """This is the collate function for an AnnotatedSpectrumDataset.
+
+        The mass spectra must be padded so that they fit nicely as a tensor.
+        However, the padded elements are ignored during the subsequent steps.
+
+        Parameters
+        ----------
+        batch : tuple of tuple of torch.Tensor
+            A batch of data from an AnnotatedSpectrumDataset.
+
+        Returns
+        -------
+        spectra : torch.Tensor of shape (batch_size, n_peaks, 2)
+            The mass spectra to sequence, where ``X[:, :, 0]`` are the m/z
+            values and ``X[:, :, 1]`` are their associated intensities.
+        precursors : torch.Tensor of shape (batch_size, 2)
+            The precursor mass and charge state.
+        sequence : list of str
+            The peptide sequence annotations.
+
+        """
+        spec, mz, charge, seq = list(zip(*batch))
+        charge = torch.tensor(charge)
+        mass = (torch.tensor(mz) - 1.007276) * charge
+        precursors = torch.vstack([mass, charge]).T.float()
+        spec = torch.nn.utils.rnn.pad_sequence(spec, batch_first=True)
+        return spec, precursors, seq

@@ -1,18 +1,14 @@
-"""Data loaders for the de novo sequencing task.
-
-This module also ensure consistent train, validation, and test splits.
-"""
-import os
+"""pytorch-lightning LightningDataModules for various tasks."""
 from functools import partial
 
 import torch
 import numpy as np
-import pytorch_lightning as pl
+from pytorch_lightning import LightningDataModule
 
-from ...data import AnnotatedSpectrumDataset
+from . import AnnotatedSpectrumDataset
 
 
-class Spec2PepDataModule(pl.LightningDataModule):
+class AnnotatedSpectrumDataModule(LightningDataModule):
     """Prepare data for a SiameseSpectrumEncoder.
 
     Parameters
@@ -112,7 +108,7 @@ class Spec2PepDataModule(pl.LightningDataModule):
         return torch.utils.data.DataLoader(
             dataset,
             batch_size=self.batch_size,
-            collate_fn=prepare_batch,
+            collate_fn=dataset.prepare_batch,
             pin_memory=True,
             num_workers=self.num_workers,
         )
@@ -128,32 +124,3 @@ class Spec2PepDataModule(pl.LightningDataModule):
     def test_dataloader(self):
         """Get the test DataLoader."""
         return self._make_loader(self.test_dataset)
-
-
-def prepare_batch(batch):
-    """This is the collate function
-
-    The mass spectra must be padded so that they fit nicely as a tensor.
-    However, the padded elements are ignored during the subsequent steps.
-
-    Parameters
-    ----------
-    batch : tuple of tuple of torch.Tensor
-        A batch of data from an AnnotatedSpectrumDataset.
-
-    Returns
-    -------
-    spectra : torch.Tensor of shape (batch_size, n_peaks, 2)
-        The mass spectra to sequence, where ``X[:, :, 0]`` are the m/z values
-        and ``X[:, :, 1]`` are their associated intensities.
-    precursors : torch.Tensor of shape (batch_size, 2)
-        The precursor mass and charge state.
-    sequence : list of str
-        The peptide sequence annotations.
-    """
-    spec, mz, charge, seq = list(zip(*batch))
-    charge = torch.tensor(charge)
-    mass = (torch.tensor(mz) - 1.007276) * charge
-    precursors = torch.vstack([mass, charge]).T.float()
-    spec = torch.nn.utils.rnn.pad_sequence(spec, batch_first=True)
-    return spec, precursors, seq
