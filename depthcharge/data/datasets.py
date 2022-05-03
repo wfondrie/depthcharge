@@ -1,6 +1,4 @@
 """A PyTorch Dataset class for annotated spectra."""
-import math
-
 import torch
 import numpy as np
 from torch.utils.data import Dataset, IterableDataset
@@ -106,9 +104,10 @@ class SpectrumDataset(Dataset):
             mz_array = mz_array[top_p]
             int_array = int_array[top_p]
 
+        mz_array = torch.tensor(mz_array)
         int_array = np.sqrt(int_array)
-        int_array = int_array / np.linalg.norm(int_array)
-        return torch.tensor([mz_array, int_array]).T.float()
+        int_array = torch.tensor(int_array / np.linalg.norm(int_array))
+        return torch.hstack([mz_array, int_array]).float()
 
     @property
     def n_spectra(self):
@@ -129,6 +128,36 @@ class SpectrumDataset(Dataset):
     def rng(self, seed):
         """Set the numpy random number generator."""
         self._rng = np.random.default_rng(seed)
+
+    @staticmethod
+    def collate_fn(batch):
+        """This is the collate function for a SpectrumDataset.
+
+        The mass spectra must be padded so that they fit nicely as a tensor.
+        However, the padded elements are ignored during the subsequent steps.
+
+        Parameters
+        ----------
+        batch : tuple of tuple of torch.Tensor
+            A batch of data from an AnnotatedSpectrumDataset.
+
+        Returns
+        -------
+        spectra : torch.Tensor of shape (batch_size, n_peaks, 2)
+            The mass spectra to sequence, where ``X[:, :, 0]`` are the m/z
+            values and ``X[:, :, 1]`` are their associated intensities.
+        precursors : torch.Tensor of shape (batch_size, 2)
+            The precursor mass and charge state.
+        """
+        spec, mz, charge = list(zip(*batch))
+        charge = torch.tensor(charge)
+        mass = (torch.tensor(mz) - 1.007276) * charge
+        precursors = torch.vstack([mass, charge]).T.float()
+        spec = torch.nn.utils.rnn.pad_sequence(
+            spec,
+            batch_first=True,
+        )
+        return spec, precursors
 
 
 class PairedSpectrumDataset(SpectrumDataset):
@@ -441,7 +470,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         return spec, prec_mz, prec_charge, pep
 
     @staticmethod
-    def prepare_batch(batch):
+    def collate_fn(batch):
         """This is the collate function for an AnnotatedSpectrumDataset.
 
         The mass spectra must be padded so that they fit nicely as a tensor.
@@ -468,4 +497,4 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         mass = (torch.tensor(mz) - 1.007276) * charge
         precursors = torch.vstack([mass, charge]).T.float()
         spec = torch.nn.utils.rnn.pad_sequence(spec, batch_first=True)
-        return spec, precursors, seq
+        return spec, precursors, np.array(seq)

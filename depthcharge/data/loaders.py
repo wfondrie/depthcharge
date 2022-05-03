@@ -1,23 +1,24 @@
 """pytorch-lightning LightningDataModules for various tasks."""
-from functools import partial
+import os
 
 import torch
 import numpy as np
 from pytorch_lightning import LightningDataModule
 
-from . import AnnotatedSpectrumDataset
+from .hdf5 import SpectrumIndex, AnnotatedSpectrumIndex
+from .datasets import SpectrumDataset, AnnotatedSpectrumDataset
 
 
-class AnnotatedSpectrumDataModule(LightningDataModule):
-    """Prepare data for a SiameseSpectrumEncoder.
+class SpectrumDataModule(LightningDataModule):
+    """Data loaders for mass spectrometry data.
 
     Parameters
     ----------
-    train_index : AnnotatedSpectrumIndex
+    train_index : SpectrumIndex or AnnotatedSpectrumIndex
         The spectrum index file for training.
-    valid_index : AnnotatedSpectrumIndex
+    valid_index : SpectrumIndex or AnnotatedSpectrumIndex
         The spectrum index file for validation.
-    test_index : AnnotatedSpectrumIndex
+    test_index : SpectrumIndex or AnnotatedSpectrumIndex
         The spectrum index file for testing.
     batch_size : int, optional
         The batch size to use for training and evaluations
@@ -72,25 +73,47 @@ class AnnotatedSpectrumDataModule(LightningDataModule):
             The stage indicating which Datasets to prepare. All are prepared
             by default.
         """
-        make_dataset = partial(
-            AnnotatedSpectrumDataset,
-            n_peaks=self.n_peaks,
-            min_mz=self.min_mz,
-        )
-
         if stage in (None, "fit", "validate"):
             if self.train_index is not None:
-                self.train_dataset = make_dataset(
+                self.train_dataset = self._make_dataset(
                     self.train_index,
                     random_state=self.rng,
                 )
 
             if self.valid_index is not None:
-                self.valid_dataset = make_dataset(self.valid_index)
+                self.valid_dataset = self._make_dataset(self.valid_index)
 
         if stage in (None, "test"):
             if self.test_index is not None:
-                self.test_dataset = make_dataset(self.test_index)
+                self.test_dataset = self._make_dataset(self.test_index)
+
+    def _make_dataset(self, index, random_state=None):
+        """Create a PyTorch Dataset.
+
+        Parameters
+        ----------
+        index : SpectrumIndex or AnnotatedSpectrumIndex
+
+        Returns
+        -------
+        SpectrumDataset or AnnotatedSpectrumDataset
+            The instantiated dataset.
+        """
+        if isinstance(index, AnnotatedSpectrumIndex):
+            dataset_class = AnnotatedSpectrumDataset
+        elif isinstance(index, SpectrumIndex):
+            dataset_class = SpectrumDataset
+        else:
+            raise ValueError(
+                "index must be a SpectrumIndex or AnnotatedSpectrumIndex."
+            )
+
+        return dataset_class(
+            index,
+            n_peaks=self.n_peaks,
+            min_mz=self.min_mz,
+            random_state=random_state,
+        )
 
     def _make_loader(self, dataset):
         """Create a PyTorch DataLoader.
@@ -108,7 +131,7 @@ class AnnotatedSpectrumDataModule(LightningDataModule):
         return torch.utils.data.DataLoader(
             dataset,
             batch_size=self.batch_size,
-            collate_fn=dataset.prepare_batch,
+            collate_fn=dataset.collate_fn,
             pin_memory=True,
             num_workers=self.num_workers,
         )
