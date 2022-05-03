@@ -99,7 +99,7 @@ class SpectrumDataset(Dataset):
             int_array = int_array[keep]
 
         if len(int_array) > self.n_peaks:
-            top_p = np.argpartition(int_array, -self.n_peaks)[-self.n_peaks :]
+            top_p = np.argpartition(int_array, -self.n_peaks)[-self.n_peaks, :]
             top_p = np.sort(top_p)
             mz_array = mz_array[top_p]
             int_array = int_array[top_p]
@@ -107,7 +107,7 @@ class SpectrumDataset(Dataset):
         mz_array = torch.tensor(mz_array)
         int_array = np.sqrt(int_array)
         int_array = torch.tensor(int_array / np.linalg.norm(int_array))
-        return torch.hstack([mz_array, int_array]).float()
+        return torch.vstack([mz_array, int_array]).T.float()
 
     @property
     def n_spectra(self):

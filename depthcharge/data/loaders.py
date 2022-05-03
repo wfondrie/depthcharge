@@ -16,7 +16,7 @@ class SpectrumDataModule(LightningDataModule):
     ----------
     train_index : SpectrumIndex or AnnotatedSpectrumIndex
         The spectrum index file for training.
-    valid_index : SpectrumIndex or AnnotatedSpectrumIndex
+    val_index : SpectrumIndex or AnnotatedSpectrumIndex
         The spectrum index file for validation.
     test_index : SpectrumIndex or AnnotatedSpectrumIndex
         The spectrum index file for testing.
@@ -39,7 +39,7 @@ class SpectrumDataModule(LightningDataModule):
     def __init__(
         self,
         train_index=None,
-        valid_index=None,
+        val_index=None,
         test_index=None,
         batch_size=128,
         n_peaks=200,
@@ -50,7 +50,7 @@ class SpectrumDataModule(LightningDataModule):
         """Initialize the PairedSpectrumDataModule."""
         super().__init__()
         self.train_index = train_index
-        self.valid_index = valid_index
+        self.val_index = val_index
         self.test_index = test_index
         self.batch_size = batch_size
         self.n_peaks = n_peaks
@@ -80,8 +80,8 @@ class SpectrumDataModule(LightningDataModule):
                     random_state=self.rng,
                 )
 
-            if self.valid_index is not None:
-                self.valid_dataset = self._make_dataset(self.valid_index)
+            if self.val_index is not None:
+                self.val_dataset = self._make_dataset(self.val_index)
 
         if stage in (None, "test"):
             if self.test_index is not None:
@@ -142,7 +142,7 @@ class SpectrumDataModule(LightningDataModule):
 
     def val_dataloader(self):
         """Get the validation DataLoader."""
-        return self._make_loader(self.valid_dataset)
+        return self._make_loader(self.val_dataset)
 
     def test_dataloader(self):
         """Get the test DataLoader."""
