@@ -1,8 +1,4 @@
 """Test PyTorch DataLoaders and PyTorch-Lightning LightningDataModules"""
-import gc
-import os
-import psutil
-
 from depthcharge.data import (
     SpectrumDataModule,
     SpectrumIndex,
