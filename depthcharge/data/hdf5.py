@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 import h5py
+import torch
 import numpy as np
 
 from .. import utils
@@ -247,7 +248,7 @@ class SpectrumIndex:
         ]
 
         if self.annotated:
-            out += [precursor["annotations"].decode()]
+            out.append(precursor["annotations"].decode())
 
         return tuple(out)
 
@@ -386,7 +387,7 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
                 annotations=True,
             )
 
-        raise ValueError(f"Only MGF files are supported.")
+        raise ValueError("Only MGF files are supported.")
 
     def _assemble_metadata(self, parser):
         """Assemble the metadata.
