@@ -99,7 +99,7 @@ class SpectrumDataset(Dataset):
             int_array = int_array[keep]
 
         if len(int_array) > self.n_peaks:
-            top_p = np.argpartition(int_array, -self.n_peaks)[-self.n_peaks, :]
+            top_p = np.argpartition(int_array, -self.n_peaks)[-self.n_peaks :]
             top_p = np.sort(top_p)
             mz_array = mz_array[top_p]
             int_array = int_array[top_p]
