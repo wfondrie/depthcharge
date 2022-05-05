@@ -1,27 +1,24 @@
-"""Data loaders for the de novo sequencing task.
-
-This module also ensure consistent train, validation, and test splits.
-"""
+"""pytorch-lightning LightningDataModules for various tasks."""
 import os
-from functools import partial
 
 import torch
 import numpy as np
-import pytorch_lightning as pl
+from pytorch_lightning import LightningDataModule
 
-from ...data import AnnotatedSpectrumDataset
+from .hdf5 import SpectrumIndex, AnnotatedSpectrumIndex
+from .datasets import SpectrumDataset, AnnotatedSpectrumDataset
 
 
-class Spec2PepDataModule(pl.LightningDataModule):
-    """Prepare data for a SiameseSpectrumEncoder.
+class SpectrumDataModule(LightningDataModule):
+    """Data loaders for mass spectrometry data.
 
     Parameters
     ----------
-    train_index : AnnotatedSpectrumIndex
+    train_index : SpectrumIndex or AnnotatedSpectrumIndex
         The spectrum index file for training.
-    valid_index : AnnotatedSpectrumIndex
+    val_index : SpectrumIndex or AnnotatedSpectrumIndex
         The spectrum index file for validation.
-    test_index : AnnotatedSpectrumIndex
+    test_index : SpectrumIndex or AnnotatedSpectrumIndex
         The spectrum index file for testing.
     batch_size : int, optional
         The batch size to use for training and evaluations
@@ -42,7 +39,7 @@ class Spec2PepDataModule(pl.LightningDataModule):
     def __init__(
         self,
         train_index=None,
-        valid_index=None,
+        val_index=None,
         test_index=None,
         batch_size=128,
         n_peaks=200,
@@ -53,7 +50,7 @@ class Spec2PepDataModule(pl.LightningDataModule):
         """Initialize the PairedSpectrumDataModule."""
         super().__init__()
         self.train_index = train_index
-        self.valid_index = valid_index
+        self.val_index = val_index
         self.test_index = test_index
         self.batch_size = batch_size
         self.n_peaks = n_peaks
@@ -76,25 +73,47 @@ class Spec2PepDataModule(pl.LightningDataModule):
             The stage indicating which Datasets to prepare. All are prepared
             by default.
         """
-        make_dataset = partial(
-            AnnotatedSpectrumDataset,
-            n_peaks=self.n_peaks,
-            min_mz=self.min_mz,
-        )
-
         if stage in (None, "fit", "validate"):
             if self.train_index is not None:
-                self.train_dataset = make_dataset(
+                self.train_dataset = self._make_dataset(
                     self.train_index,
                     random_state=self.rng,
                 )
 
-            if self.valid_index is not None:
-                self.valid_dataset = make_dataset(self.valid_index)
+            if self.val_index is not None:
+                self.val_dataset = self._make_dataset(self.val_index)
 
         if stage in (None, "test"):
             if self.test_index is not None:
-                self.test_dataset = make_dataset(self.test_index)
+                self.test_dataset = self._make_dataset(self.test_index)
+
+    def _make_dataset(self, index, random_state=None):
+        """Create a PyTorch Dataset.
+
+        Parameters
+        ----------
+        index : SpectrumIndex or AnnotatedSpectrumIndex
+
+        Returns
+        -------
+        SpectrumDataset or AnnotatedSpectrumDataset
+            The instantiated dataset.
+        """
+        if isinstance(index, AnnotatedSpectrumIndex):
+            dataset_class = AnnotatedSpectrumDataset
+        elif isinstance(index, SpectrumIndex):
+            dataset_class = SpectrumDataset
+        else:
+            raise ValueError(
+                "index must be a SpectrumIndex or AnnotatedSpectrumIndex."
+            )
+
+        return dataset_class(
+            index,
+            n_peaks=self.n_peaks,
+            min_mz=self.min_mz,
+            random_state=random_state,
+        )
 
     def _make_loader(self, dataset):
         """Create a PyTorch DataLoader.
@@ -112,7 +131,7 @@ class Spec2PepDataModule(pl.LightningDataModule):
         return torch.utils.data.DataLoader(
             dataset,
             batch_size=self.batch_size,
-            collate_fn=prepare_batch,
+            collate_fn=dataset.collate_fn,
             pin_memory=True,
             num_workers=self.num_workers,
         )
@@ -123,37 +142,8 @@ class Spec2PepDataModule(pl.LightningDataModule):
 
     def val_dataloader(self):
         """Get the validation DataLoader."""
-        return self._make_loader(self.valid_dataset)
+        return self._make_loader(self.val_dataset)
 
     def test_dataloader(self):
         """Get the test DataLoader."""
         return self._make_loader(self.test_dataset)
-
-
-def prepare_batch(batch):
-    """This is the collate function
-
-    The mass spectra must be padded so that they fit nicely as a tensor.
-    However, the padded elements are ignored during the subsequent steps.
-
-    Parameters
-    ----------
-    batch : tuple of tuple of torch.Tensor
-        A batch of data from an AnnotatedSpectrumDataset.
-
-    Returns
-    -------
-    spectra : torch.Tensor of shape (batch_size, n_peaks, 2)
-        The mass spectra to sequence, where ``X[:, :, 0]`` are the m/z values
-        and ``X[:, :, 1]`` are their associated intensities.
-    precursors : torch.Tensor of shape (batch_size, 2)
-        The precursor mass and charge state.
-    sequence : list of str
-        The peptide sequence annotations.
-    """
-    spec, mz, charge, seq = list(zip(*batch))
-    charge = torch.tensor(charge)
-    mass = (torch.tensor(mz) - 1.007276) * charge
-    precursors = torch.vstack([mass, charge]).T.float()
-    spec = torch.nn.utils.rnn.pad_sequence(spec, batch_first=True)
-    return spec, precursors, seq
