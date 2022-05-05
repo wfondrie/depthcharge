@@ -1,4 +1,6 @@
 """The Pytorch Datasets"""
+from . import preprocessing
+
 from .datasets import (
     SpectrumDataset,
     PairedSpectrumDataset,
