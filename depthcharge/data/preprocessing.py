@@ -36,7 +36,6 @@ def sqrt_and_norm(
     int_array : torch.Tensor of shape (n_peaks,)
         The intensity values of the peaks in the spectrum.
     """
-    print(int_array)
     int_array = torch.sqrt(int_array)
     int_array /= torch.linalg.norm(int_array)
     return mz_array, int_array
