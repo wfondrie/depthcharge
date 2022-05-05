@@ -3,6 +3,8 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset, IterableDataset
 
+from . import preprocessing
+from .. import utils
 from .. import similarity
 
 
@@ -19,6 +21,10 @@ class SpectrumDataset(Dataset):
     min_mz : float, optional
         The minimum m/z to include. The default is 140 m/z, in order to
         exclude TMT and iTRAQ reporter ions.
+    preprocessing_fn: Callable or list of Callable, optional
+        The function(s) used to preprocess the mass spectra. See the
+        preprocessing module for details. ``None``, the default, square root
+        transforms the intensities and scales them to unit norm.
     random_state : int or RandomState, optional.
         The numpy random state. ``None`` leaves mass spectra in the order
         they were parsed.
@@ -39,12 +45,14 @@ class SpectrumDataset(Dataset):
         spectrum_index,
         n_peaks=200,
         min_mz=140,
+        preprocessing_fn=None,
         random_state=None,
     ):
         """Initialize a SpectrumDataset"""
         super().__init__()
         self.n_peaks = n_peaks
         self.min_mz = min_mz
+        self.preprocessing_fn = preprocessing_fn
         self.rng = np.random.default_rng(random_state)
         self._index = spectrum_index
 
@@ -70,15 +78,21 @@ class SpectrumDataset(Dataset):
         precursor_charge : int
             The charge of the precursor.
         """
-        mz_array, int_array, prec_mz, prec_charge = self.index[idx]
-        spec = self._process_peaks(mz_array, int_array)
+        batch = self.index[idx]
+        spec = self._process_peaks(*batch)
         if not spec.sum():
             spec = torch.tensor([[0, 1]]).float()
 
-        return spec, prec_mz, prec_charge
+        return spec, batch[2], batch[3]
 
-    def _process_peaks(self, mz_array, int_array):
-        """Choose the top n peaks and normalize the spectrum intensities.
+    def _process_peaks(
+        self,
+        mz_array,
+        int_array,
+        precursor_mz,
+        precursor_charge,
+    ):
+        """Process each mass spectrum.
 
         Parameters
         ----------
@@ -86,12 +100,16 @@ class SpectrumDataset(Dataset):
             The m/z values of the peaks in the spectrum.
         int_array : numpy.ndarray of shape (n_peaks,)
             The intensity values of the peaks in the spectrum.
+        precursor_mz : float
+            The precursor m/z.
+        precursor_charge : int
+            The precursor charge.
 
         Returns
         -------
         torch.Tensor of shape (n_peaks, 2)
-            The mass spectrum where ``spectrum[:, 0]`` are the m/z values and
-            ``spectrum[:, 1]`` are their associated intensities.
+            The mass spectrum where column 0 are the m/z values and
+            column 1 are their associated intensities.
         """
         if self.min_mz is not None:
             keep = mz_array >= self.min_mz
@@ -105,8 +123,15 @@ class SpectrumDataset(Dataset):
             int_array = int_array[top_p]
 
         mz_array = torch.tensor(mz_array)
-        int_array = np.sqrt(int_array)
-        int_array = torch.tensor(int_array / np.linalg.norm(int_array))
+        int_array = torch.tensor(int_array)
+        for func in self.preprocessing_fn:
+            mz_array, int_array = func(
+                mz_array=mz_array,
+                int_array=int_array,
+                precursor_mz=precursor_mz,
+                precursor_charge=precursor_charge,
+            )
+
         return torch.vstack([mz_array, int_array]).T.float()
 
     @property
@@ -118,6 +143,19 @@ class SpectrumDataset(Dataset):
     def index(self):
         """The underyling SpectrumIndex."""
         return self._index
+
+    @property
+    def preprocessing_fn(self):
+        """The functions to preprocess each mass spectrum."""
+        return self._preprocessing_fn
+
+    @preprocessing_fn.setter
+    def preprocessing_fn(self, funcs):
+        """Set the preprocessing_fn"""
+        if funcs is None:
+            funcs = preprocessing.sqrt_and_norm
+
+        self._preprocessing_fn = utils.listify(funcs)
 
     @property
     def rng(self):
@@ -415,6 +453,10 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     min_mz : float, optional
         The minimum m/z to include. The default is 140 m/z, in order to
         exclude TMT and iTRAQ reporter ions.
+    preprocessing_fn: Callable or list of Callable, optional
+        The function(s) used to preprocess the mass spectra. See the
+        preprocessing module for details. ``None``, the default, square root
+        transforms the intensities and scales them to unit norm.
     random_state : int or RandomState, optional.
         The numpy random state. ``None`` leaves mass spectra in the order
         they were parsed.
@@ -435,6 +477,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         annotated_spectrum_index,
         n_peaks=200,
         min_mz=140,
+        preprocessing_fn=None,
         random_state=None,
     ):
         """Initialize an AnnotatedSpectrumDataset"""
@@ -442,6 +485,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             annotated_spectrum_index,
             n_peaks=n_peaks,
             min_mz=min_mz,
+            preprocessing_fn=preprocessing_fn,
             random_state=random_state,
         )
 
@@ -465,9 +509,9 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         annotation : str
             The annotation for the mass spectrum.
         """
-        mz_array, int_array, prec_mz, prec_charge, pep = self.index[idx]
-        spec = self._process_peaks(mz_array, int_array)
-        return spec, prec_mz, prec_charge, pep
+        *batch, pep = self.index[idx]
+        spec = self._process_peaks(*batch)
+        return spec, batch[2], batch[3], pep
 
     @staticmethod
     def collate_fn(batch):
