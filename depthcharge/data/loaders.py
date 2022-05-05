@@ -44,6 +44,7 @@ class SpectrumDataModule(LightningDataModule):
         batch_size=128,
         n_peaks=200,
         min_mz=140,
+        preprocessing_fn=None,
         num_workers=None,
         random_state=None,
     ):
@@ -55,6 +56,7 @@ class SpectrumDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.n_peaks = n_peaks
         self.min_mz = min_mz
+        self.preprocessing_fn = preprocessing_fn
         self.num_workers = num_workers
         self.rng = np.random.default_rng(random_state)
         self.train_dataset = None
@@ -112,6 +114,7 @@ class SpectrumDataModule(LightningDataModule):
             index,
             n_peaks=self.n_peaks,
             min_mz=self.min_mz,
+            preprocessing_fn=self.preprocessing_fn,
             random_state=random_state,
         )
 

@@ -72,3 +72,50 @@ def test_ann_spectrum_index_init(mgf_small, tmp_path):
     assert batch[0].shape[2] == 2
     assert batch[1].shape == (1, 2)
     assert batch[2].shape == (1,)
+
+
+def test_preprocessing_fn(mgf_small, tmp_path):
+    """Test preprocessing functions."""
+    index = SpectrumIndex(tmp_path / "index.hdf5", mgf_small)
+    data_module = SpectrumDataModule(
+        train_index=index,
+        val_index=index,
+        test_index=index,
+        batch_size=1,
+        num_workers=0,
+    )
+
+    data_module.setup()
+    spec, *_ = next(iter(data_module.train_dataloader()))
+    assert (spec[:, :, 1] < 1).all()
+
+    data_module = SpectrumDataModule(
+        train_index=index,
+        val_index=index,
+        test_index=index,
+        batch_size=1,
+        preprocessing_fn=[],
+        num_workers=0,
+    )
+
+    data_module.setup()
+    spec, *_ = next(iter(data_module.train_dataloader()))
+    assert (spec[:, :, 1] == 1).all()
+
+    def my_func(mz_array, int_array, precursor_mz, precursor_charge):
+        """A simple test function"""
+        int_array[:] = 2.0
+        return mz_array, int_array
+
+    data_module = SpectrumDataModule(
+        train_index=index,
+        val_index=index,
+        test_index=index,
+        batch_size=1,
+        preprocessing_fn=my_func,
+        num_workers=0,
+    )
+
+    data_module.setup()
+    spec, *_ = next(iter(data_module.train_dataloader()))
+    assert (spec[:, :, 1] == 2).all()
