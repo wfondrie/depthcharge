@@ -1,13 +1,13 @@
-# Here are some cool things
+# Model Building Blocks
 
 ## Transformer Encoders and Decoders
-::: depthcharge.components.transformers
+ depthcharge.components.transformers
 
 ## Basic Encoders
-::: depthcharge.components.encoders
+ depthcharge.components.encoders
 
 ## Feed Forward Networks
-::: depthcharge.components.feedforward
+ depthcharge.components.feedforward
 
 ## Class Mixins
-::: depthcharge.components.mixins
+ depthcharge.components.mixins

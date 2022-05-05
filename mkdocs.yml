@@ -25,10 +25,11 @@ plugins:
           selection:
             docstring_style: numpy
           rendering:
-            show_bases: false
+            show_root_heading: true
             heading_level: 3
             docstring_section_style: spacy
             show_source: false
+            merge_init_into_class: true
 
 markdown_extensions:
   - attr_list

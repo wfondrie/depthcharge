@@ -28,8 +28,6 @@ class SpectrumIndex:
         The mzML to include in this collection.
     ms_level : int, optional
         The level of tandem mass spectra to use.
-    metadata : dict or list of dict, optional
-        Additional metadata to store with the files.
     overwite : bool, optional
         Overwrite previously indexed files? If ``False`` and new files are
         provided, they will be appended to the collection.
@@ -345,8 +343,6 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
         The MGF to include in this collection.
     ms_level : int, optional
         The level of tandem mass spectra to use.
-    metadata : dict or list of dict, optional
-        Additional metadata to store with the files.
     overwite : bool
         Overwrite previously indexed files? If ``False`` and new files are
         provided, they will be appended to the collection.
