@@ -15,10 +15,10 @@ class BaseParser(ABC):
         """Initialize the BaseParser"""
         self.path = Path(ms_data_file)
         self.ms_level = ms_level
-
         self.offset = None
         self.precursor_mz = []
         self.precursor_charge = []
+        self.scan_id = []
         self.mz_arrays = []
         self.intensity_arrays = []
 
@@ -48,6 +48,10 @@ class BaseParser(ABC):
         self.precursor_charge = np.array(
             self.precursor_charge,
             dtype=np.uint8,
+        )
+        self.scan_id = np.array(
+            self.scan_id,
+            dtype=np.uint64,
         )
 
         # Build the index
@@ -149,9 +153,11 @@ class MgfParser(BaseParser):
         if self.ms_level > 1:
             self.precursor_mz.append(spectrum["params"]["pepmass"][0])
             self.precursor_charge.append(spectrum["params"]["charge"][0])
+            self.scan_id.append(spectrum["params"]["scans"])
         else:
             self.precursor_mz.append(None)
             self.precursor_charge.append(None)
+            self.scan_id.append(None)
 
         if self.annotations is not None:
             self.annotations.append(spectrum["params"]["seq"])
