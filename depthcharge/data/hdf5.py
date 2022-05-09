@@ -144,12 +144,14 @@ class SpectrumIndex:
             ("precursor_mz", np.float32),
             ("precursor_charge", np.uint8),
             ("offset", np.uint64),
+            ("scan_id", np.uint64),
         ]
 
         metadata = np.empty(parser.n_spectra, dtype=meta_types)
         metadata["precursor_mz"] = parser.precursor_mz
         metadata["precursor_charge"] = parser.precursor_charge
         metadata["offset"] = parser.offset
+        metadata["scan_id"] = parser.scan_id
         return metadata
 
     def add_file(self, ms_data_file):
@@ -245,6 +247,7 @@ class SpectrumIndex:
             spectrum["intensity_array"],
             precursor["precursor_mz"],
             precursor["precursor_charge"],
+            precursor["scan_id"]
         ]
 
         if self.annotated:
@@ -407,6 +410,7 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
             ("precursor_charge", np.uint8),
             ("offset", np.uint64),
             ("annotations", h5py.string_dtype()),
+            ("scan_id", np.uint64)
         ]
 
         metadata = np.empty(parser.n_spectra, dtype=meta_types)
@@ -414,4 +418,5 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
         metadata["precursor_charge"] = parser.precursor_charge
         metadata["offset"] = parser.offset
         metadata["annotations"] = parser.annotations
+        metadata["scan_id"] = parser.scan_id
         return metadata

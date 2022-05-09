@@ -509,9 +509,9 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         annotation : str
             The annotation for the mass spectrum.
         """
-        *batch, pep = self.index[idx]
+        *batch, pep, scan_id = self.index[idx]
         spec = self._process_peaks(*batch)
-        return spec, batch[2], batch[3], pep
+        return spec, batch[2], batch[3], pep, scan_id
 
     @staticmethod
     def collate_fn(batch):
@@ -536,9 +536,9 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             The peptide sequence annotations.
 
         """
-        spec, mz, charge, seq = list(zip(*batch))
+        spec, mz, charge, seq, index = list(zip(*batch))
         charge = torch.tensor(charge)
         mass = (torch.tensor(mz) - 1.007276) * charge
         precursors = torch.vstack([mass, charge]).T.float()
         spec = torch.nn.utils.rnn.pad_sequence(spec, batch_first=True)
-        return spec, precursors, np.array(seq)
+        return spec, precursors, np.array(seq), index
