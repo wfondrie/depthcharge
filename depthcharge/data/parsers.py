@@ -155,12 +155,8 @@ class MgfParser(BaseParser):
 
         if self.annotations is not None:
             self.annotations.append(spectrum["params"]["seq"])
+        else:
+            self.annotations.append("")
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
-
-    def read(self):
-        """Read the ms data file"""
-        super().read()
-        if self.annotations is not None:
-            self.annotations = np.array(self.annotations)
