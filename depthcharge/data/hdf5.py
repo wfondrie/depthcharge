@@ -44,8 +44,6 @@ class SpectrumIndex:
     n_peaks : int
     """
 
-    annotated = False
-
     def __init__(
         self,
         index_path,
@@ -204,6 +202,15 @@ class SpectrumIndex:
                 data=spectra,
             )
 
+            try:
+                group.create_dataset(
+                    "annotations",
+                    data=parser.annotations,
+                    dtype=h5py.string_dtype(),
+                )
+            except KeyError:
+                pass
+
             self._file_map[str(ms_data_file)] = group_index
             end_offset = self._file_offsets[-1] + parser.n_spectra
             self._file_offsets = np.append(self._file_offsets, [end_offset])
@@ -222,7 +229,7 @@ class SpectrumIndex:
         -------
         tuple of numpy.ndarray
             The m/z values, intensity values, precurosr m/z, precurosr charge,
-            and the annotation (if available).
+            and the spectrum annotation.
         """
         if self._handle is None:
             raise RuntimeError("Use the context manager for access.")
@@ -240,17 +247,14 @@ class SpectrumIndex:
 
         spectrum = spectra[start_offset:stop_offset]
         precursor = metadata[spectrum_index]
-        out = [
+        out = (
             spectrum["mz_array"],
             spectrum["intensity_array"],
             precursor["precursor_mz"],
             precursor["precursor_charge"],
-        ]
+        )
 
-        if self.annotated:
-            out.append(precursor["annotations"].decode())
-
-        return tuple(out)
+        return out
 
     def __getitem__(self, idx):
         """Access a mass spectrum.
@@ -361,8 +365,6 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
     n_peaks : int
     """
 
-    annotated = True
-
     def __init__(
         self,
         index_path,
@@ -389,29 +391,24 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
 
         raise ValueError("Only MGF files are supported.")
 
-    def _assemble_metadata(self, parser):
-        """Assemble the metadata.
+    def get_spectrum(self, file_index, spectrum_index):
+        """Access a mass spectrum.
 
         Parameters
         ----------
-        parser : MzmlParser or MgfParser
-            The parser to use.
+        file_index : int
+            The group index of the MS data file.
+        spectrum_index : int
+            The index of the mass spectrum within the file.
 
         Returns
         -------
-        numpy.ndarray of shape (n_spectra,)
-            The file metadata.
+        tuple of numpy.ndarray
+            The m/z values, intensity values, precurosr m/z, precurosr charge,
+            and the spectrum annotation.
         """
-        meta_types = [
-            ("precursor_mz", np.float32),
-            ("precursor_charge", np.uint8),
-            ("offset", np.uint64),
-            ("annotations", h5py.string_dtype()),
-        ]
-
-        metadata = np.empty(parser.n_spectra, dtype=meta_types)
-        metadata["precursor_mz"] = parser.precursor_mz
-        metadata["precursor_charge"] = parser.precursor_charge
-        metadata["offset"] = parser.offset
-        metadata["annotations"] = parser.annotations
-        return metadata
+        spec_info = super().get_spectrum(file_index, spectrum_index)
+        grp = self._handle[str(file_index)]
+        annotations = grp["annotations"]
+        spec_ann = annotations[spectrum_index].decode()
+        return *spec_info, spec_ann
