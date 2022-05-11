@@ -411,4 +411,4 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
         grp = self._handle[str(file_index)]
         annotations = grp["annotations"]
         spec_ann = annotations[spectrum_index].decode()
-        return *spec_info, spec_ann
+        return (*spec_info, spec_ann)
