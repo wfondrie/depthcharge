@@ -343,7 +343,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         torch.Tensor
             The loss.
         """
-        spectra, precursors, sequences = batch
+        spectra, precursors, spectrum_ids, sequences = batch
         pred, truth = self._step(spectra, precursors, sequences)
         pred = pred[:, :-1, :].reshape(-1, self.decoder.vocab_size + 1)
         loss = self.celoss(pred, truth.flatten())
@@ -374,7 +374,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
         torch.Tensor
             The loss.
         """
-        spectra, precursors, sequences = batch
+        spectra, precursors, spectrum_ids, sequences = batch
         pred, truth = self._step(spectra, precursors, sequences)
         pred = pred[:, :-1, :].reshape(-1, self.decoder.vocab_size + 1)
         loss = self.celoss(pred, truth.flatten())
@@ -437,3 +437,4 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
             The intialized Adam optimizer.
         """
         return torch.optim.Adam(self.parameters(), **self.opt_kwargs)
+

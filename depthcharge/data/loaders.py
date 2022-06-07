@@ -34,6 +34,8 @@ class SpectrumDataModule(LightningDataModule):
     random_state : int or Generator, optional.
         The numpy random state. ``None`` leaves mass spectra in the order
         they were parsed.
+    shuffle : Boolean
+        Whether the batches are shuffled or not
     """
 
     def __init__(
@@ -47,6 +49,7 @@ class SpectrumDataModule(LightningDataModule):
         preprocessing_fn=None,
         num_workers=None,
         random_state=None,
+        shuffle=False,
     ):
         """Initialize the PairedSpectrumDataModule."""
         super().__init__()
@@ -62,6 +65,7 @@ class SpectrumDataModule(LightningDataModule):
         self.train_dataset = None
         self.valid_dataset = None
         self.test_dataset = None
+        self.shuffle = shuffle
 
         if self.num_workers is None:
             self.num_workers = os.cpu_count()
@@ -137,6 +141,7 @@ class SpectrumDataModule(LightningDataModule):
             collate_fn=dataset.collate_fn,
             pin_memory=True,
             num_workers=self.num_workers,
+            shuffle = self.shuffle,
         )
 
     def train_dataloader(self):
@@ -150,3 +155,4 @@ class SpectrumDataModule(LightningDataModule):
     def test_dataloader(self):
         """Get the test DataLoader."""
         return self._make_loader(self.test_dataset)
+

@@ -19,6 +19,7 @@ class BaseParser(ABC):
         self.offset = None
         self.precursor_mz = []
         self.precursor_charge = []
+        self.scan_id = []
         self.mz_arrays = []
         self.intensity_arrays = []
 
@@ -41,13 +42,18 @@ class BaseParser(ABC):
     def read(self):
         """Read the ms data file"""
         with self.open() as spectra:
-            for spectrum in tqdm(spectra, desc=str(self.path), unit="spectra"):
-                self.parse_spectrum(spectrum)
+            for spectrum_index, spectrum in enumerate(tqdm(spectra, desc=str(self.path), unit="spectra")):
+                self.parse_spectrum(spectrum, spectrum_index)
 
         self.precursor_mz = np.array(self.precursor_mz, dtype=np.float64)
         self.precursor_charge = np.array(
             self.precursor_charge,
             dtype=np.uint8,
+        )
+
+        self.scan_id = np.array(
+            self.scan_id,
+            dtype=np.uint64,
         )
 
         # Build the index
@@ -114,8 +120,13 @@ class MzmlParser(BaseParser):
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
-
-
+        
+        if "scans" in spectrum["params"].keys():
+            self.scan_id.append(spectrum["params"]["scans"])
+        else:
+            self.scan_id.append(spectrum_index)
+        
+        
 class MgfParser(BaseParser):
     """Parse mass spectra from an mzML file.
 
@@ -138,7 +149,7 @@ class MgfParser(BaseParser):
         """Open the mzML file for reading"""
         return MGF(str(self.path))
 
-    def parse_spectrum(self, spectrum):
+    def parse_spectrum(self, spectrum, spectrum_index):
         """Parse a single spectrum.
 
         Parameters
@@ -158,3 +169,10 @@ class MgfParser(BaseParser):
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
+        
+        if "scans" in spectrum["params"].keys():
+            self.scan_id.append(spectrum["params"]["scans"])
+        else:
+            self.scan_id.append(spectrum_index)
+        
+        
