@@ -119,4 +119,3 @@ def test_preprocessing_fn(mgf_small, tmp_path):
     data_module.setup()
     spec, *_ = next(iter(data_module.train_dataloader()))
     assert (spec[:, :, 1] == 2).all()
-

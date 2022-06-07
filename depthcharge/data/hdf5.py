@@ -254,7 +254,7 @@ class SpectrumIndex:
             spectrum["intensity_array"],
             precursor["precursor_mz"],
             precursor["precursor_charge"],
-            precursor["scan_id"]
+            precursor["scan_id"],
         )
 
         return out
@@ -415,4 +415,3 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
         annotations = grp["annotations"]
         spec_ann = annotations[spectrum_index].decode()
         return (*spec_info, spec_ann)
-

@@ -141,7 +141,7 @@ class SpectrumDataModule(LightningDataModule):
             collate_fn=dataset.collate_fn,
             pin_memory=True,
             num_workers=self.num_workers,
-            shuffle = self.shuffle,
+            shuffle=self.shuffle,
         )
 
     def train_dataloader(self):
@@ -155,4 +155,3 @@ class SpectrumDataModule(LightningDataModule):
     def test_dataloader(self):
         """Get the test DataLoader."""
         return self._make_loader(self.test_dataset)
-

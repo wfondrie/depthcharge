@@ -543,4 +543,3 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         precursors = torch.vstack([mass, charge]).T.float()
         spec = torch.nn.utils.rnn.pad_sequence(spec, batch_first=True)
         return spec, precursors, np.array(seq), scan_id
-

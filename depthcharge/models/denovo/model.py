@@ -437,4 +437,3 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
             The intialized Adam optimizer.
         """
         return torch.optim.Adam(self.parameters(), **self.opt_kwargs)
-
