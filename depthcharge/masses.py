@@ -91,7 +91,6 @@ class PeptideMass:
         """
         if isinstance(seq, str):
             seq = re.split(r"(?<=.)(?=[A-Z])", seq)
-            print(seq)
 
         calc_mass = sum([self.masses[aa] for aa in seq]) + self.h2o
         if charge is not None:
