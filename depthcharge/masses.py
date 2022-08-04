@@ -74,7 +74,24 @@ class PeptideMass:
         return len(self.masses)
 
     def mass(self, seq, charge=None):
-        """Calculate a peptide's mass"""
+        """Calculate a peptide's mass or m/z.
+
+        Parameters
+        ----------
+        seq : list or str
+            The peptide sequence, using tokens defined in ``self.residues``.
+        charge : int, optional
+            The charge used to compute m/z. Otherwise the neutral peptide mass
+            is calculated
+
+        Returns
+        -------
+        float
+            The computed mass or m/z.
+        """
+        if isinstance(seq, str):
+            seq = re.split(r"(?<=.)(?=[A-Z])", seq)
+
         calc_mass = sum([self.masses[aa] for aa in seq]) + self.h2o
         if charge is not None:
             calc_mass = (calc_mass / charge) + self.proton
