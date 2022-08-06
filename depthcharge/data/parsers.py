@@ -117,12 +117,12 @@ class MzmlParser(BaseParser):
 
 
 class MgfParser(BaseParser):
-    """Parse mass spectra from an mzML file.
+    """Parse mass spectra from an MGF file.
 
     Parameters
     ----------
     ms_data_file : str or Path
-        The mzML file to parse.
+        The MGF file to parse.
     ms_level : int
         The MS level of the spectra to parse.
     annotations : bool
@@ -130,12 +130,12 @@ class MgfParser(BaseParser):
     """
 
     def __init__(self, ms_data_file, ms_level=2, annotations=False):
-        """Initialize the MzmlParser."""
+        """Initialize the MgfParser."""
         super().__init__(ms_data_file, ms_level=ms_level)
         self.annotations = [] if annotations else None
 
     def open(self):
-        """Open the mzML file for reading"""
+        """Open the MGF file for reading"""
         return MGF(str(self.path))
 
     def parse_spectrum(self, spectrum):
@@ -144,7 +144,7 @@ class MgfParser(BaseParser):
         Parameters
         ----------
         spectrum : dict
-            The dictionary defining the spectrum in mzML format.
+            The dictionary defining the spectrum in MGF format.
         """
         if self.ms_level > 1:
             self.precursor_mz.append(spectrum["params"]["pepmass"][0])
