@@ -3,11 +3,10 @@ import logging
 from pathlib import Path
 
 import h5py
-import torch
 import numpy as np
 
 from .. import utils
-from .parsers import MzmlParser, MgfParser
+from .parsers import MzmlParser, MzxmlParser, MgfParser
 
 LOGGER = logging.getLogger(__name__)
 
@@ -120,10 +119,13 @@ class SpectrumIndex:
         if ms_data_file.suffix.lower() == ".mzml":
             return MzmlParser(ms_data_file, ms_level=self.ms_level)
 
+        if ms_data_file.suffix.lower() == ".mzxml":
+            return MzxmlParser(ms_data_file, ms_level=self.ms_level)
+
         if ms_data_file.suffix.lower() == ".mgf":
             return MgfParser(ms_data_file, ms_level=self.ms_level)
 
-        raise ValueError(f"Only mzML and MGF files are supported.")
+        raise ValueError("Only mzML, mzXML, and MGF files are supported.")
 
     def _assemble_metadata(self, parser):
         """Assemble the metadata.
