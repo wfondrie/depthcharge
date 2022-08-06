@@ -208,7 +208,7 @@ class SpectrumIndex:
                     data=parser.annotations,
                     dtype=h5py.string_dtype(),
                 )
-            except KeyError:
+            except (KeyError, AttributeError):
                 pass
 
             self._file_map[str(ms_data_file)] = group_index
