@@ -84,7 +84,9 @@ def test_spectrum_index_reuse(mgf_small, tmp_path):
     assert index.n_peaks == index2.n_peaks
     assert index.n_spectra == index2.n_spectra
 
-    index = AnnotatedSpectrumIndex(tmp_path / "annotated_index.hdf5", mgf_small)
+    index = AnnotatedSpectrumIndex(
+        tmp_path / "annotated_index.hdf5", mgf_small
+    )
     index2 = AnnotatedSpectrumIndex(tmp_path / "annotated_index.hdf5")
     assert index.ms_level == index2.ms_level
     assert index.annotated == index2.annotated
