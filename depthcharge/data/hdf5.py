@@ -73,7 +73,7 @@ class SpectrumIndex:
                 index.attrs["ms_level"] = self.ms_level
                 index.attrs["n_spectra"] = 0
                 index.attrs["n_peaks"] = 0
-                index.attrs["annotated"] = False
+                index.attrs["annotated"] = self.annotated
 
         # Else, verify that the previous index uses the same ms_level.
         else:
