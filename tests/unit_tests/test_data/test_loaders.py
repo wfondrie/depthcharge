@@ -74,6 +74,25 @@ def test_ann_spectrum_index_init(mgf_small, tmp_path):
     assert batch[2].shape == (1,)
 
 
+def test_spectrum_index_reuse(mgf_small, tmp_path):
+    """Reuse a previously created (annotated) spectrum index."""
+    index = SpectrumIndex(tmp_path / "index.hdf5", mgf_small)
+    index2 = SpectrumIndex(tmp_path / "index.hdf5")
+    assert index.ms_level == index2.ms_level
+    assert index.annotated == index2.annotated
+    assert not index2.annotated
+    assert index.n_peaks == index2.n_peaks
+    assert index.n_spectra == index2.n_spectra
+
+    index = AnnotatedSpectrumIndex(tmp_path / "annotated_index.hdf5", mgf_small)
+    index2 = AnnotatedSpectrumIndex(tmp_path / "annotated_index.hdf5")
+    assert index.ms_level == index2.ms_level
+    assert index.annotated == index2.annotated
+    assert index2.annotated
+    assert index.n_peaks == index2.n_peaks
+    assert index.n_spectra == index2.n_spectra
+
+
 def test_preprocessing_fn(mgf_small, tmp_path):
     """Test preprocessing functions."""
     index = SpectrumIndex(tmp_path / "index.hdf5", mgf_small)
