@@ -28,8 +28,8 @@ class SpectrumIndex:
         The mzML to include in this collection.
     ms_level : int, optional
         The level of tandem mass spectra to use.
-    metadata : dict or list of dict, optional
-        Additional metadata to store with the files.
+    annotated : bool, optional
+        Whether or not the index contains spectrum annotations.
     overwite : bool, optional
         Overwrite previously indexed files? If ``False`` and new files are
         provided, they will be appended to the collection.
@@ -39,6 +39,7 @@ class SpectrumIndex:
     ms_files : list of str
     path : Path
     ms_level : int
+    annotated : bool
     overwrite : bool
     n_spectra : int
     n_peaks : int
@@ -49,6 +50,7 @@ class SpectrumIndex:
         index_path,
         ms_data_files=None,
         ms_level=2,
+        annotated=False,
         overwrite=False,
     ):
         """Initialize a SpectrumIndex"""
@@ -59,6 +61,7 @@ class SpectrumIndex:
         # Set attributes and check parameters:
         self._path = index_path
         self._ms_level = utils.check_positive_int(ms_level, "ms_level")
+        self._annotated = bool(annotated)
         self._overwrite = bool(overwrite)
         self._handle = None
         self._file_offsets = np.array([0])
@@ -70,7 +73,7 @@ class SpectrumIndex:
                 index.attrs["ms_level"] = self.ms_level
                 index.attrs["n_spectra"] = 0
                 index.attrs["n_peaks"] = 0
-                index.attrs["annotated"] = False
+                index.attrs["annotated"] = self.annotated
 
         # Else, verify that the previous index uses the same ms_level.
         else:
@@ -310,6 +313,11 @@ class SpectrumIndex:
         return self._ms_level
 
     @property
+    def annotated(self):
+        """Whether or not the index contains spectrum annotations."""
+        return self._annotated
+
+    @property
     def overwrite(self):
         """Overwrite a previous index?"""
         return self._overwrite
@@ -377,6 +385,7 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
             index_path=index_path,
             ms_data_files=ms_data_files,
             ms_level=ms_level,
+            annotated=True,
             overwrite=overwrite,
         )
 
