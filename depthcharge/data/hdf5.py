@@ -3,11 +3,10 @@ import logging
 from pathlib import Path
 
 import h5py
-import torch
 import numpy as np
 
 from .. import utils
-from .parsers import MzmlParser, MgfParser
+from .parsers import MzmlParser, MzxmlParser, MgfParser
 
 LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +27,8 @@ class SpectrumIndex:
         The mzML to include in this collection.
     ms_level : int, optional
         The level of tandem mass spectra to use.
+    annotated : bool, optional
+        Whether or not the index contains spectrum annotations.
     overwite : bool, optional
         Overwrite previously indexed files? If ``False`` and new files are
         provided, they will be appended to the collection.
@@ -37,18 +38,18 @@ class SpectrumIndex:
     ms_files : list of str
     path : Path
     ms_level : int
+    annotated : bool
     overwrite : bool
     n_spectra : int
     n_peaks : int
     """
-
-    annotated = False
 
     def __init__(
         self,
         index_path,
         ms_data_files=None,
         ms_level=2,
+        annotated=False,
         overwrite=False,
     ):
         """Initialize a SpectrumIndex"""
@@ -59,6 +60,7 @@ class SpectrumIndex:
         # Set attributes and check parameters:
         self._path = index_path
         self._ms_level = utils.check_positive_int(ms_level, "ms_level")
+        self._annotated = bool(annotated)
         self._overwrite = bool(overwrite)
         self._handle = None
         self._file_offsets = np.array([0])
@@ -70,7 +72,7 @@ class SpectrumIndex:
                 index.attrs["ms_level"] = self.ms_level
                 index.attrs["n_spectra"] = 0
                 index.attrs["n_peaks"] = 0
-                index.attrs["annotated"] = False
+                index.attrs["annotated"] = self.annotated
 
         # Else, verify that the previous index uses the same ms_level.
         else:
@@ -120,10 +122,13 @@ class SpectrumIndex:
         if ms_data_file.suffix.lower() == ".mzml":
             return MzmlParser(ms_data_file, ms_level=self.ms_level)
 
+        if ms_data_file.suffix.lower() == ".mzxml":
+            return MzxmlParser(ms_data_file, ms_level=self.ms_level)
+
         if ms_data_file.suffix.lower() == ".mgf":
             return MgfParser(ms_data_file, ms_level=self.ms_level)
 
-        raise ValueError(f"Only mzML and MGF files are supported.")
+        raise ValueError("Only mzML, mzXML, and MGF files are supported.")
 
     def _assemble_metadata(self, parser):
         """Assemble the metadata.
@@ -202,6 +207,15 @@ class SpectrumIndex:
                 data=spectra,
             )
 
+            try:
+                group.create_dataset(
+                    "annotations",
+                    data=parser.annotations,
+                    dtype=h5py.string_dtype(),
+                )
+            except (KeyError, AttributeError):
+                pass
+
             self._file_map[str(ms_data_file)] = group_index
             end_offset = self._file_offsets[-1] + parser.n_spectra
             self._file_offsets = np.append(self._file_offsets, [end_offset])
@@ -220,7 +234,7 @@ class SpectrumIndex:
         -------
         tuple of numpy.ndarray
             The m/z values, intensity values, precurosr m/z, precurosr charge,
-            and the annotation (if available).
+            and the spectrum annotation.
         """
         if self._handle is None:
             raise RuntimeError("Use the context manager for access.")
@@ -238,17 +252,14 @@ class SpectrumIndex:
 
         spectrum = spectra[start_offset:stop_offset]
         precursor = metadata[spectrum_index]
-        out = [
+        out = (
             spectrum["mz_array"],
             spectrum["intensity_array"],
             precursor["precursor_mz"],
             precursor["precursor_charge"],
-        ]
+        )
 
-        if self.annotated:
-            out.append(precursor["annotations"].decode())
-
-        return tuple(out)
+        return out
 
     def __getitem__(self, idx):
         """Access a mass spectrum.
@@ -304,6 +315,11 @@ class SpectrumIndex:
         return self._ms_level
 
     @property
+    def annotated(self):
+        """Whether or not the index contains spectrum annotations."""
+        return self._annotated
+
+    @property
     def overwrite(self):
         """Overwrite a previous index?"""
         return self._overwrite
@@ -357,8 +373,6 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
     n_peaks : int
     """
 
-    annotated = True
-
     def __init__(
         self,
         index_path,
@@ -371,6 +385,7 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
             index_path=index_path,
             ms_data_files=ms_data_files,
             ms_level=ms_level,
+            annotated=True,
             overwrite=overwrite,
         )
 
@@ -385,29 +400,24 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
 
         raise ValueError("Only MGF files are supported.")
 
-    def _assemble_metadata(self, parser):
-        """Assemble the metadata.
+    def get_spectrum(self, file_index, spectrum_index):
+        """Access a mass spectrum.
 
         Parameters
         ----------
-        parser : MzmlParser or MgfParser
-            The parser to use.
+        file_index : int
+            The group index of the MS data file.
+        spectrum_index : int
+            The index of the mass spectrum within the file.
 
         Returns
         -------
-        numpy.ndarray of shape (n_spectra,)
-            The file metadata.
+        tuple of numpy.ndarray
+            The m/z values, intensity values, precurosr m/z, precurosr charge,
+            and the spectrum annotation.
         """
-        meta_types = [
-            ("precursor_mz", np.float32),
-            ("precursor_charge", np.uint8),
-            ("offset", np.uint64),
-            ("annotations", h5py.string_dtype()),
-        ]
-
-        metadata = np.empty(parser.n_spectra, dtype=meta_types)
-        metadata["precursor_mz"] = parser.precursor_mz
-        metadata["precursor_charge"] = parser.precursor_charge
-        metadata["offset"] = parser.offset
-        metadata["annotations"] = parser.annotations
-        return metadata
+        spec_info = super().get_spectrum(file_index, spectrum_index)
+        grp = self._handle[str(file_index)]
+        annotations = grp["annotations"]
+        spec_ann = annotations[spectrum_index].decode()
+        return (*spec_info, spec_ann)
