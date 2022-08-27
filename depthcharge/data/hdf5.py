@@ -3,11 +3,10 @@ import logging
 from pathlib import Path
 
 import h5py
-import torch
 import numpy as np
 
 from .. import utils
-from .parsers import MzmlParser, MgfParser
+from .parsers import MzmlParser, MzxmlParser, MgfParser
 
 LOGGER = logging.getLogger(__name__)
 
@@ -28,8 +27,8 @@ class SpectrumIndex:
         The mzML to include in this collection.
     ms_level : int, optional
         The level of tandem mass spectra to use.
-    metadata : dict or list of dict, optional
-        Additional metadata to store with the files.
+    annotated : bool, optional
+        Whether or not the index contains spectrum annotations.
     overwite : bool, optional
         Overwrite previously indexed files? If ``False`` and new files are
         provided, they will be appended to the collection.
@@ -39,6 +38,7 @@ class SpectrumIndex:
     ms_files : list of str
     path : Path
     ms_level : int
+    annotated : bool
     overwrite : bool
     n_spectra : int
     n_peaks : int
@@ -49,6 +49,7 @@ class SpectrumIndex:
         index_path,
         ms_data_files=None,
         ms_level=2,
+        annotated=False,
         overwrite=False,
     ):
         """Initialize a SpectrumIndex"""
@@ -59,6 +60,7 @@ class SpectrumIndex:
         # Set attributes and check parameters:
         self._path = index_path
         self._ms_level = utils.check_positive_int(ms_level, "ms_level")
+        self._annotated = bool(annotated)
         self._overwrite = bool(overwrite)
         self._handle = None
         self._file_offsets = np.array([0])
@@ -70,7 +72,7 @@ class SpectrumIndex:
                 index.attrs["ms_level"] = self.ms_level
                 index.attrs["n_spectra"] = 0
                 index.attrs["n_peaks"] = 0
-                index.attrs["annotated"] = False
+                index.attrs["annotated"] = self.annotated
 
         # Else, verify that the previous index uses the same ms_level.
         else:
@@ -120,10 +122,13 @@ class SpectrumIndex:
         if ms_data_file.suffix.lower() == ".mzml":
             return MzmlParser(ms_data_file, ms_level=self.ms_level)
 
+        if ms_data_file.suffix.lower() == ".mzxml":
+            return MzxmlParser(ms_data_file, ms_level=self.ms_level)
+
         if ms_data_file.suffix.lower() == ".mgf":
             return MgfParser(ms_data_file, ms_level=self.ms_level)
 
-        raise ValueError(f"Only mzML and MGF files are supported.")
+        raise ValueError("Only mzML, mzXML, and MGF files are supported.")
 
     def _assemble_metadata(self, parser):
         """Assemble the metadata.
@@ -210,7 +215,7 @@ class SpectrumIndex:
                     data=parser.annotations,
                     dtype=h5py.string_dtype(),
                 )
-            except KeyError:
+            except (KeyError, AttributeError):
                 pass
 
             self._file_map[str(ms_data_file)] = group_index
@@ -313,6 +318,11 @@ class SpectrumIndex:
         return self._ms_level
 
     @property
+    def annotated(self):
+        """Whether or not the index contains spectrum annotations."""
+        return self._annotated
+
+    @property
     def overwrite(self):
         """Overwrite a previous index?"""
         return self._overwrite
@@ -352,8 +362,6 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
         The MGF to include in this collection.
     ms_level : int, optional
         The level of tandem mass spectra to use.
-    metadata : dict or list of dict, optional
-        Additional metadata to store with the files.
     overwite : bool
         Overwrite previously indexed files? If ``False`` and new files are
         provided, they will be appended to the collection.
@@ -380,6 +388,7 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
             index_path=index_path,
             ms_data_files=ms_data_files,
             ms_level=ms_level,
+            annotated=True,
             overwrite=overwrite,
         )
 
