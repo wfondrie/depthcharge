@@ -1,0 +1,47 @@
+site_name: depthcharge
+repo_url: https://github.com/wfondrie/depthcharge
+nav:
+  - Home: "README.md"
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+  logo: static/icon.svg
+  favicon: static/icon.svg
+  font:
+    text: Roboto
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          selection:
+            docstring_style: numpy
+          rendering:
+            show_root_heading: true
+            heading_level: 3
+            docstring_section_style: spacy
+            show_source: false
+            merge_init_into_class: true
+
+markdown_extensions:
+  - attr_list
+  - smarty
+  - footnotes
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+extra:
+  social:
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/wfondrie
