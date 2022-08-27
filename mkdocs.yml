@@ -1,8 +1,16 @@
 site_name: depthcharge
 repo_url: https://github.com/wfondrie/depthcharge
+nav:
+  - Home: "README.md"
 
 theme:
   name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+  logo: static/icon.svg
+  favicon: static/icon.svg
   font:
     text: Roboto
 

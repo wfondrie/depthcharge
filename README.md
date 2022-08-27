@@ -1,17 +1,17 @@
 ![depthcharge logo](./static/logo-dark.png#gh-dark-mode-only)
 ![depthcharge logo](./static/logo-light.png#gh-light-mode-only)
 
-Depthcharge is a deep learning toolkit for building state-of-the-art models for analyzing mass spectra.
+Depthcharge is a deep learning toolkit for building state-of-the-art models to analyze mass spectra generated from peptides other and molecules.
 
 ## About
 
 Many deep learning tools have been developed for the analysis of mass spectra, particularly for proteomics and metabolomics data (Prosit, MS2Pip, DeepNovo, pNovo, etc.). However, each one has had to reinvent the wheel. 
 Depthcharge aims to be a general framework for creating state-of-the-art deep learning models for mass spectrometry data, empowering developers and researchers to spend more time on innovating rather than recreating the layers needed for handling mass spectra and peptides/other molecules. 
-Think of Depthcharge as a set of building blocks to get you stared on a new deep learning project focused around mass spectrometry data. 
+Think of depthcharge as a set of building blocks to get you stared on a new deep learning project focused around mass spectrometry data. 
 Depthcharge delivers these building blocks mostly in the form of PyTorch modules, which can be readily used to assemble customized deep learning models for your task.
 
-Currently, Depthcharge focuses on Transformer layers, a type of model that has been revolutionary for natural language processing (NLP) and computer vision tasks.
-We've found Transformers to be particularly well-suited for mass spectra and our *de novo* peptide sequencing tool, [Casanovo](https://github.com/Noble-Lab/casanovo), is built upon Depthcharge.
+Currently, depthcharge focuses on Transformer layers, a type of model that has been revolutionary for natural language processing (NLP) and computer vision tasks.
+We've found Transformers to be particularly well-suited for mass spectra and our *de novo* peptide sequencing tool, [Casanovo](https://github.com/Noble-Lab/casanovo), is built upon depthcharge.
 
 
 ## Installation
@@ -65,3 +65,12 @@ Conda installations is not yet available, but will eventually be possible using 
 
 ---
 More documentation coming soon!
+
+<style>
+  .md-typeset h1 {
+    visibility: hidden;
+    font-size: 2px; 
+    margin: 0px;
+  }
+</style>
+
