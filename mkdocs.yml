@@ -1,13 +1,5 @@
 site_name: depthcharge
 repo_url: https://github.com/wfondrie/depthcharge
-nav:
-  - Getting Started: 'index.md'
-  - Building Blocks:
-    - 'building-blocks/index.md'
-    - Model Components: 'building-blocks/components.md'
-    - Data Components: 'building-blocks/data.md'
-    - Building a Model: 'building-blocks/new-model.md'
-  - End-to-End Models: 'models.md'
 
 theme:
   name: material
