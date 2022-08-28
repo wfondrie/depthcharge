@@ -147,7 +147,7 @@ class SpectrumIndex:
             ("precursor_mz", np.float32),
             ("precursor_charge", np.uint8),
             ("offset", np.uint64),
-            ("scan_id", np.uint64),
+            ("scan_id", h5py.string_dtype()),
         ]
 
         metadata = np.empty(parser.n_spectra, dtype=meta_types)
@@ -222,15 +222,13 @@ class SpectrumIndex:
             end_offset = self._file_offsets[-1] + parser.n_spectra
             self._file_offsets = np.append(self._file_offsets, [end_offset])
 
-    def get_spectrum(self, file_index, spectrum_index):
+    def get_spectrum(self, idx):
         """Access a mass spectrum.
 
         Parameters
         ----------
-        file_index : int
-            The group index of the MS data file.
-        spectrum_index : int
-            The index of the mass spectrum within the file.
+        idx : int
+            The index of the index of the mass spectrum to look-up.
 
         Returns
         -------
@@ -238,13 +236,14 @@ class SpectrumIndex:
             The m/z values, intensity values, precurosr m/z, precurosr charge,
             and the spectrum annotation.
         """
+        group_index, row_index = self._get_subindex(idx)
         if self._handle is None:
             raise RuntimeError("Use the context manager for access.")
 
-        grp = self._handle[str(file_index)]
+        grp = self._handle[str(group_index)]
         metadata = grp["metadata"]
         spectra = grp["spectra"]
-        offsets = metadata["offset"][spectrum_index : spectrum_index + 2]
+        offsets = metadata["offset"][row_index : row_index + 2]
 
         start_offset = offsets[0]
         if offsets.shape[0] == 2:
@@ -253,16 +252,61 @@ class SpectrumIndex:
             stop_offset = spectra.shape[0]
 
         spectrum = spectra[start_offset:stop_offset]
-        precursor = metadata[spectrum_index]
+        precursor = metadata[row_index]
         out = (
             spectrum["mz_array"],
             spectrum["intensity_array"],
             precursor["precursor_mz"],
             precursor["precursor_charge"],
-            precursor["scan_id"],
         )
 
         return out
+
+    def get_spectrum_id(self, idx):
+        """Get the identifier for a mass spectrum.
+
+        Parameters
+        ----------
+        idx : int
+            The index of the mass spectrum in the SpectrumIndex.
+
+        Returns
+        -------
+        ms_data_file : str
+            The mass spectrometry data file from which the mass spectrum was
+            originally parsed.
+        identifier : str
+            The mass spectrum identifier, per PSI recommendations.
+        """
+        group_index, row_index = self._get_subindex(idx)
+        if self._handle is None:
+            raise RuntimeError("Use the context manager for access.")
+
+        grp = self._handle[str(group_index)]
+        ms_data_file = grp.attrs["path"]
+        identifier = grp["metadata"][row_index]["scan_id"].decode()
+        return ms_data_file, identifier
+
+    def _get_subindex(self, idx):
+        """Get the subindices to find a mass spectrum.
+
+        Parameters
+        ----------
+        idx : int
+            The overall index of the mass spectrum to retrieve.
+
+        Returns
+        -------
+        group_index : int
+            The group index of the HDF5 dataset in which to look.
+        row_index : int
+            The row within the dataset to find the mass spectrum.
+        """
+        group_index = np.searchsorted(
+            self._file_offsets[1:], idx, side="right"
+        )
+        row_index = idx - self._file_offsets[group_index]
+        return group_index, row_index
 
     def __getitem__(self, idx):
         """Access a mass spectrum.
@@ -278,14 +322,11 @@ class SpectrumIndex:
             The m/z values, intensity values, precurosr m/z, precurosr charge,
             and the annotation (if available).
         """
-        file_index = np.searchsorted(self._file_offsets[1:], idx, side="right")
-        spectrum_index = idx - self._file_offsets[file_index]
-
         if self._handle is None:
             with self:
-                return self.get_spectrum(file_index, spectrum_index)
+                return self.get_spectrum(idx)
 
-        return self.get_spectrum(file_index, spectrum_index)
+        return self.get_spectrum(idx)
 
     def __enter__(self):
         """Open the index file for reading."""
@@ -403,15 +444,13 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
 
         raise ValueError("Only MGF files are supported.")
 
-    def get_spectrum(self, file_index, spectrum_index):
+    def get_spectrum(self, idx):
         """Access a mass spectrum.
 
         Parameters
         ----------
-        file_index : int
-            The group index of the MS data file.
-        spectrum_index : int
-            The index of the mass spectrum within the file.
+        idx : int
+            The index of the mass spectrum in the AnnotatedSpectrumIndex.
 
         Returns
         -------
@@ -419,9 +458,9 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
             The m/z values, intensity values, precurosr m/z, precurosr charge,
             and the spectrum annotation.
         """
-        spec_info = list(super().get_spectrum(file_index, spectrum_index))
-        grp = self._handle[str(file_index)]
+        spec_info = super().get_spectrum(idx)
+        group_index, row_index = self._get_subindex(idx)
+        grp = self._handle[str(group_index)]
         annotations = grp["annotations"]
-        spec_ann = annotations[spectrum_index].decode()
-        spec_info.insert(-1, spec_ann)
-        return tuple(spec_info)
+        spec_ann = annotations[row_index].decode()
+        return (*spec_info, spec_ann)

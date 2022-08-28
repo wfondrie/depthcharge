@@ -54,10 +54,7 @@ class BaseParser(ABC):
             dtype=np.uint8,
         )
 
-        self.scan_id = np.array(
-            self.scan_id,
-            dtype=np.uint64,
-        )
+        self.scan_id = np.array(self.scan_id)
 
         # Build the index
         sizes = np.array([0] + [s.shape[0] for s in self.mz_arrays])
@@ -166,7 +163,7 @@ class MzxmlParser(BaseParser):
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
-        self.scan_id.append(spectrum["num"])
+        self.scan_id.append(f"scan={spectrum['num']}")
 
 
 class MgfParser(BaseParser):
@@ -212,5 +209,5 @@ class MgfParser(BaseParser):
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
-        self.scan_id.append(self._counter)
+        self.scan_id.append(f"index={self._counter}")
         self._counter += 1

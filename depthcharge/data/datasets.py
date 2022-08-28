@@ -71,14 +71,14 @@ class SpectrumDataset(Dataset):
         precursor_charge : int
             The charge of the precursor.
         """
-        *batch, _ = self.index[idx]
+        batch = self.index[idx]
         spec = self._process_peaks(*batch)
         if not spec.sum():
             spec = torch.tensor([[0, 1]]).float()
 
         return spec, batch[2], batch[3]
 
-    def scan_id(idx):
+    def spectrum_id(idx):
         """Return the identifier for a single mass spectrum.
 
         Parameters
@@ -259,7 +259,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         annotation : str
             The annotation for the mass spectrum.
         """
-        *batch, seq, _ = self.index[idx]
+        *batch, seq = self.index[idx]
         spec = self._process_peaks(*batch)
         if not spec.sum():
             spec = torch.tensor([[0, 1]]).float()
