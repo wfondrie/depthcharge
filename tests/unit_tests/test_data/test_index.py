@@ -17,5 +17,20 @@ def test_mgf_index(mgf_small, tmp_path):
     assert index.n_spectra == 4
     assert index.n_peaks == 92
 
-    with index as myidx:
-        assert myidx.get_spectrum_id(0) == (str(mgf_small), "index=0")
+    with index:
+        assert index.get_spectrum_id(0) == (str(mgf_small), "index=0")
+        assert index.get_spectrum_id(3) == (str(mgf_small2), "index=1")
+
+    index = AnnotatedSpectrumIndex(
+        tmp_path / "index2.hdf5", [mgf_small, mgf_small2]
+    )
+    assert index.ms_files == [str(mgf_small), str(mgf_small2)]
+    assert index.ms_level == 2
+    assert index.annotated
+    assert not index.overwrite
+    assert index.n_spectra == 4
+    assert index.n_peaks == 92
+
+    with index:
+        assert index.get_spectrum_id(0) == (str(mgf_small), "index=0")
+        assert index.get_spectrum_id(3) == (str(mgf_small2), "index=1")

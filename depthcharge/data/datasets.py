@@ -78,20 +78,24 @@ class SpectrumDataset(Dataset):
 
         return spec, batch[2], batch[3]
 
-    def spectrum_id(idx):
+    def get_spectrum_id(self, idx):
         """Return the identifier for a single mass spectrum.
 
         Parameters
         ----------
         idx : int
-            The index within the SpectrumIndex to look-up.
+            The index of a mass spectrum within the SpectrumIndex.
 
         Returns
         -------
-        str
-            The spectrum identifier.
+        ms_data_file : str
+            The mass spectrometry data file from which the mass spectrum was
+            originally parsed.
+        identifier : str
+            The mass spectrum identifier, per PSI recommendations.
         """
-        return self.index[idx][-1]
+        with self.index:
+            return self.index.get_spectrum_id(idx)
 
     def _process_peaks(
         self,
