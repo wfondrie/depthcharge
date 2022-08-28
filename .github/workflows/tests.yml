@@ -33,7 +33,7 @@ jobs:
 
     - name: Run unit and system tests
       run: |
-        pytest --cov=ppx tests/
+        pytest --cov=depthcharge tests/
 
     - name: Upload coverage to codecov
       uses: codecov/codecov-action@v1
