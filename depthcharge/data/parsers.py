@@ -1,4 +1,5 @@
 """Mass spectrometry data parsers"""
+import functools
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -43,10 +44,9 @@ class BaseParser(ABC):
     def read(self):
         """Read the ms data file"""
         with self.open() as spectra:
-            for spectrum_index, spectrum in enumerate(
-                tqdm(spectra, desc=str(self.path), unit="spectra")
-            ):
-                self.parse_spectrum(spectrum, spectrum_index)
+            pbar = functools.partial(tqdm, desc=str(self.path), unit="spectra")
+            for spectrum_index, spectrum in enumerate(pbar(spectra)):
+                self.parse_spectrum(spectrum)
 
         self.precursor_mz = np.array(self.precursor_mz, dtype=np.float64)
         self.precursor_charge = np.array(
@@ -123,11 +123,7 @@ class MzmlParser(BaseParser):
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
-
-        if "scans" in spectrum["params"].keys():
-            self.scan_id.append(spectrum["params"]["scans"])
-        else:
-            self.scan_id.append(spectrum_index)
+        self.scan_id.append(spectrum["id"])
 
 
 class MzxmlParser(BaseParser):
@@ -170,6 +166,7 @@ class MzxmlParser(BaseParser):
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
+        self.scan_id.append(spectrum["num"])
 
 
 class MgfParser(BaseParser):
@@ -189,12 +186,13 @@ class MgfParser(BaseParser):
         """Initialize the MgfParser."""
         super().__init__(ms_data_file, ms_level=ms_level)
         self.annotations = [] if annotations else None
+        self._counter = 0
 
     def open(self):
         """Open the MGF file for reading"""
         return MGF(str(self.path))
 
-    def parse_spectrum(self, spectrum, spectrum_index):
+    def parse_spectrum(self, spectrum):
         """Parse a single spectrum.
 
         Parameters
@@ -214,8 +212,5 @@ class MgfParser(BaseParser):
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
-
-        if "scans" in spectrum["params"].keys():
-            self.scan_id.append(spectrum["params"]["scans"])
-        else:
-            self.scan_id.append(spectrum_index)
+        self.scan_id.append(self._counter)
+        self._counter += 1

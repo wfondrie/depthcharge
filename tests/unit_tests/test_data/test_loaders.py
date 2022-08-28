@@ -67,7 +67,8 @@ def test_ann_spectrum_index_init(mgf_small, tmp_path):
     assert data_module.test_dataloader is not None
 
     batch = next(iter(data_module.train_dataloader()))
-    assert len(batch) == 4
+    print(batch)
+    assert len(batch) == 3
     assert batch[0].shape[0] == 1
     assert batch[0].shape[2] == 2
     assert batch[1].shape == (1, 2)

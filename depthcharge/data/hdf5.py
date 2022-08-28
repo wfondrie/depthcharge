@@ -116,7 +116,7 @@ class SpectrumIndex:
 
         Returns
         -------
-        MzmlParser or MgfParser
+        MzmlParser, MzxmlParser, or MgfParser
             The appropriate parser for the file.
         """
         if ms_data_file.suffix.lower() == ".mzml":
@@ -164,7 +164,7 @@ class SpectrumIndex:
         ----------
         ms_data_file : str or Path
             The mass spectrometry data file to add. It must be in an mzML or
-            MGF file format and use an ``.mzML`` or ``.mgf`` file extension.
+            MGF file format and use an ``.mzML``, ``.mzXML``, or ``.mgf`` file extension.
         """
         ms_data_file = Path(ms_data_file)
         if str(ms_data_file) in self._file_map:
@@ -419,8 +419,9 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
             The m/z values, intensity values, precurosr m/z, precurosr charge,
             and the spectrum annotation.
         """
-        spec_info = super().get_spectrum(file_index, spectrum_index)
+        spec_info = list(super().get_spectrum(file_index, spectrum_index))
         grp = self._handle[str(file_index)]
         annotations = grp["annotations"]
         spec_ann = annotations[spectrum_index].decode()
-        return (*spec_info, spec_ann)
+        spec_info.insert(-1, spec_ann)
+        return tuple(spec_info)

@@ -3,8 +3,6 @@ from . import preprocessing
 
 from .datasets import (
     SpectrumDataset,
-    PairedSpectrumDataset,
-    PairedSpectrumStreamer,
     AnnotatedSpectrumDataset,
 )
 

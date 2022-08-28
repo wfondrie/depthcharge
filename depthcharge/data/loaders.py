@@ -31,11 +31,8 @@ class SpectrumDataModule(LightningDataModule):
     num_workers : int, optional
         The number of workers to use for data loading. By default, the number
         of available CPU cores on the current machine is used.
-    random_state : int or Generator, optional.
-        The numpy random state. ``None`` leaves mass spectra in the order
-        they were parsed.
     shuffle : Boolean
-        Whether the batches are shuffled or not
+        Whether the batches are shuffled or not.
     """
 
     def __init__(
@@ -48,8 +45,7 @@ class SpectrumDataModule(LightningDataModule):
         min_mz=140,
         preprocessing_fn=None,
         num_workers=None,
-        random_state=None,
-        shuffle=False,
+        shuffle=True,
     ):
         """Initialize the PairedSpectrumDataModule."""
         super().__init__()
@@ -61,7 +57,6 @@ class SpectrumDataModule(LightningDataModule):
         self.min_mz = min_mz
         self.preprocessing_fn = preprocessing_fn
         self.num_workers = num_workers
-        self.rng = np.random.default_rng(random_state)
         self.train_dataset = None
         self.valid_dataset = None
         self.test_dataset = None
@@ -81,10 +76,7 @@ class SpectrumDataModule(LightningDataModule):
         """
         if stage in (None, "fit", "validate"):
             if self.train_index is not None:
-                self.train_dataset = self._make_dataset(
-                    self.train_index,
-                    random_state=self.rng,
-                )
+                self.train_dataset = self._make_dataset(self.train_index)
 
             if self.val_index is not None:
                 self.val_dataset = self._make_dataset(self.val_index)
@@ -119,16 +111,17 @@ class SpectrumDataModule(LightningDataModule):
             n_peaks=self.n_peaks,
             min_mz=self.min_mz,
             preprocessing_fn=self.preprocessing_fn,
-            random_state=random_state,
         )
 
-    def _make_loader(self, dataset):
+    def _make_loader(self, dataset, shuffle=False):
         """Create a PyTorch DataLoader.
 
         Parameters
         ----------
         dataset : torch.utils.data.Dataset
             A PyTorch Dataset.
+        shuffle : bool, optional
+            Shuffle the batches?
 
         Returns
         -------
@@ -141,12 +134,12 @@ class SpectrumDataModule(LightningDataModule):
             collate_fn=dataset.collate_fn,
             pin_memory=True,
             num_workers=self.num_workers,
-            shuffle=self.shuffle,
+            shuffle=shuffle,
         )
 
     def train_dataloader(self):
         """Get the training DataLoader."""
-        return self._make_loader(self.train_dataset)
+        return self._make_loader(self.train_dataset, self.shuffle)
 
     def val_dataloader(self):
         """Get the validation DataLoader."""
