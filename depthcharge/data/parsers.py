@@ -94,9 +94,11 @@ class MzmlParser(BaseParser):
         The MS level of the spectra to parse.
     """
 
-    def __init__(self, ms_data_file, ms_level=2):
+    def __init__(self, ms_data_file, ms_level=2, valid_charge=None):
         """Initialize the MzmlParser."""
-        super().__init__(ms_data_file, ms_level=ms_level)
+        super().__init__(
+            ms_data_file, ms_level=ms_level, valid_charge=valid_charge
+        )
 
     def open(self):
         """Open the mzML file for reading"""
@@ -144,9 +146,11 @@ class MzxmlParser(BaseParser):
         The MS level of the spectra to parse.
     """
 
-    def __init__(self, ms_data_file, ms_level=2):
+    def __init__(self, ms_data_file, ms_level=2, valid_charge=None):
         """Initialize the MzxmlParser."""
-        super().__init__(ms_data_file, ms_level=ms_level)
+        super().__init__(
+            ms_data_file, ms_level=ms_level, valid_charge=valid_charge
+        )
 
     def open(self):
         """Open the mzXML file for reading"""
@@ -190,9 +194,13 @@ class MgfParser(BaseParser):
         Include peptide annotations.
     """
 
-    def __init__(self, ms_data_file, ms_level=2, annotations=False):
+    def __init__(
+            self, ms_data_file, ms_level=2, valid_charge=None, annotations=False
+    ):
         """Initialize the MgfParser."""
-        super().__init__(ms_data_file, ms_level=ms_level)
+        super().__init__(
+            ms_data_file, ms_level=ms_level, valid_charge=valid_charge
+        )
         self.annotations = [] if annotations else None
 
     def open(self):
