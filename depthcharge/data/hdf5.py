@@ -27,6 +27,9 @@ class SpectrumIndex:
         The mzML to include in this collection.
     ms_level : int, optional
         The level of tandem mass spectra to use.
+    valid_charge : Iterable[int], optional
+        Only consider spectra with the specified precursor charges. If `None`,
+        any precursor charge is accepted.
     annotated : bool, optional
         Whether or not the index contains spectrum annotations.
     overwite : bool, optional
@@ -38,6 +41,7 @@ class SpectrumIndex:
     ms_files : list of str
     path : Path
     ms_level : int
+    valid_charge : Optional[Iterable[int]]
     annotated : bool
     overwrite : bool
     n_spectra : int
@@ -49,6 +53,7 @@ class SpectrumIndex:
         index_path,
         ms_data_files=None,
         ms_level=2,
+        valid_charge=None,
         annotated=False,
         overwrite=False,
     ):
@@ -60,6 +65,7 @@ class SpectrumIndex:
         # Set attributes and check parameters:
         self._path = index_path
         self._ms_level = utils.check_positive_int(ms_level, "ms_level")
+        self._valid_charge = valid_charge
         self._annotated = bool(annotated)
         self._overwrite = bool(overwrite)
         self._handle = None
@@ -119,14 +125,16 @@ class SpectrumIndex:
         MzmlParser or MgfParser
             The appropriate parser for the file.
         """
+        kw_args = dict(ms_level=self.ms_level, valid_charge=self.valid_charge)
+
         if ms_data_file.suffix.lower() == ".mzml":
-            return MzmlParser(ms_data_file, ms_level=self.ms_level)
+            return MzmlParser(ms_data_file, **kw_args)
 
         if ms_data_file.suffix.lower() == ".mzxml":
-            return MzxmlParser(ms_data_file, ms_level=self.ms_level)
+            return MzxmlParser(ms_data_file, **kw_args)
 
         if ms_data_file.suffix.lower() == ".mgf":
-            return MgfParser(ms_data_file, ms_level=self.ms_level)
+            return MgfParser(ms_data_file, **kw_args)
 
         raise ValueError("Only mzML, mzXML, and MGF files are supported.")
 
@@ -315,6 +323,11 @@ class SpectrumIndex:
         return self._ms_level
 
     @property
+    def valid_charge(self):
+        """Valid precursor charges for spectra to be included."""
+        return self._valid_charge
+
+    @property
     def annotated(self):
         """Whether or not the index contains spectrum annotations."""
         return self._annotated
@@ -359,6 +372,9 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
         The MGF to include in this collection.
     ms_level : int, optional
         The level of tandem mass spectra to use.
+    valid_charge : Iterable[int], optional
+        Only consider spectra with the specified precursor charges. If `None`,
+        any precursor charge is accepted.
     overwite : bool
         Overwrite previously indexed files? If ``False`` and new files are
         provided, they will be appended to the collection.
@@ -368,6 +384,7 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
     ms_files : list of str
     path : Path
     ms_level : int
+    valid_charge : Optional[Iterable[int]]
     overwrite : bool
     n_spectra : int
     n_peaks : int
@@ -378,6 +395,7 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
         index_path,
         ms_data_files=None,
         ms_level=2,
+        valid_charge=None,
         overwrite=False,
     ):
         """Initialize an AnnotatedSpectrumIndex"""
@@ -385,6 +403,7 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
             index_path=index_path,
             ms_data_files=ms_data_files,
             ms_level=ms_level,
+            valid_charge=valid_charge,
             annotated=True,
             overwrite=overwrite,
         )
