@@ -195,7 +195,7 @@ class MgfParser(BaseParser):
     """
 
     def __init__(
-            self, ms_data_file, ms_level=2, valid_charge=None, annotations=False
+        self, ms_data_file, ms_level=2, valid_charge=None, annotations=False
     ):
         """Initialize the MgfParser."""
         super().__init__(
