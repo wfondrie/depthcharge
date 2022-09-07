@@ -1,4 +1,5 @@
 """Mass spectrometry data parsers"""
+import logging
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -7,6 +8,9 @@ from tqdm.auto import tqdm
 from pyteomics.mzml import MzML
 from pyteomics.mzxml import MzXML
 from pyteomics.mgf import MGF
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class BaseParser(ABC):
@@ -41,9 +45,15 @@ class BaseParser(ABC):
 
     def read(self):
         """Read the ms data file"""
+        n_skipped = 0
         with self.open() as spectra:
             for spectrum in tqdm(spectra, desc=str(self.path), unit="spectra"):
-                self.parse_spectrum(spectrum)
+                try:
+                    self.parse_spectrum(spectrum)
+                except (KeyError, ValueError):
+                    n_skipped += 1
+        if n_skipped > 0:
+            LOGGER.warning("Skipped %d invalid spectra", n_skipped)
 
         self.precursor_mz = np.array(self.precursor_mz, dtype=np.float64)
         self.precursor_charge = np.array(
@@ -101,20 +111,22 @@ class MzmlParser(BaseParser):
             return
 
         if self.ms_level > 1:
-            data = (
-                spectrum.get("precursorList")
-                .get("precursor")[0]
-                .get("selectedIonList")
-                .get("selectedIon")[0]
-            )
-            self.precursor_mz.append(data["selected ion m/z"])
-            self.precursor_charge.append(data.get("charge state", 0))
+            precursor = spectrum["precursorList"]["precursor"][0]
+            precursor_ion = precursor["selectedIonList"]["selectedIon"][0]
+            precursor_mz = precursor_ion["selected ion m/z"]
+            if "charge state" in precursor_ion:
+                precursor_charge = int(precursor_ion["charge state"])
+            elif "possible charge state" in precursor_ion:
+                precursor_charge = int(precursor_ion["possible charge state"])
+            else:
+                precursor_charge = 0
         else:
-            self.precursor_mz.append(None)
-            self.precursor_charge.append(None)
+            precursor_mz, precursor_charge = None, None
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
+        self.precursor_mz.append(precursor_mz)
+        self.precursor_charge.append(precursor_charge)
 
 
 class MzxmlParser(BaseParser):
@@ -148,15 +160,16 @@ class MzxmlParser(BaseParser):
             return
 
         if self.ms_level > 1:
-            data = spectrum["precursorMz"][0]
-            self.precursor_mz.append(data["precursorMz"])
-            self.precursor_charge.append(data.get("precursorCharge", 0))
+            precursor = spectrum["precursorMz"][0]
+            precursor_mz = precursor["precursorMz"]
+            precursor_charge = precursor.get("precursorCharge", 0)
         else:
-            self.precursor_mz.append(None)
-            self.precursor_charge.append(None)
+            precursor_mz, precursor_charge = None, None
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
+        self.precursor_mz.append(precursor_mz)
+        self.precursor_charge.append(precursor_charge)
 
 
 class MgfParser(BaseParser):
@@ -190,14 +203,15 @@ class MgfParser(BaseParser):
             The dictionary defining the spectrum in MGF format.
         """
         if self.ms_level > 1:
-            self.precursor_mz.append(spectrum["params"]["pepmass"][0])
-            self.precursor_charge.append(spectrum["params"]["charge"][0])
+            precursor_mz = spectrum["params"]["pepmass"][0]
+            precursor_charge = spectrum["params"].get("charge", [0])[0]
         else:
-            self.precursor_mz.append(None)
-            self.precursor_charge.append(None)
+            precursor_mz, precursor_charge = None, None
 
         if self.annotations is not None:
-            self.annotations.append(spectrum["params"]["seq"])
+            self.annotations.append(spectrum["params"].get("seq"))
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
+        self.precursor_mz.append(precursor_mz)
+        self.precursor_charge.append(precursor_charge)
