@@ -16,10 +16,11 @@ LOGGER = logging.getLogger(__name__)
 class BaseParser(ABC):
     """A base parser class to inherit from."""
 
-    def __init__(self, ms_data_file, ms_level):
+    def __init__(self, ms_data_file, ms_level, valid_charge=None):
         """Initialize the BaseParser"""
         self.path = Path(ms_data_file)
         self.ms_level = ms_level
+        self.valid_charge = None if valid_charge is None else set(valid_charge)
 
         self.offset = None
         self.precursor_mz = []
@@ -50,10 +51,12 @@ class BaseParser(ABC):
             for spectrum in tqdm(spectra, desc=str(self.path), unit="spectra"):
                 try:
                     self.parse_spectrum(spectrum)
-                except (KeyError, ValueError):
+                except (IndexError, KeyError, ValueError):
                     n_skipped += 1
         if n_skipped > 0:
-            LOGGER.warning("Skipped %d invalid spectra", n_skipped)
+            LOGGER.warning(
+                "Skipped %d spectra with invalid precursor info", n_skipped
+            )
 
         self.precursor_mz = np.array(self.precursor_mz, dtype=np.float64)
         self.precursor_charge = np.array(
@@ -113,7 +116,7 @@ class MzmlParser(BaseParser):
         if self.ms_level > 1:
             precursor = spectrum["precursorList"]["precursor"][0]
             precursor_ion = precursor["selectedIonList"]["selectedIon"][0]
-            precursor_mz = precursor_ion["selected ion m/z"]
+            precursor_mz = float(precursor_ion["selected ion m/z"])
             if "charge state" in precursor_ion:
                 precursor_charge = int(precursor_ion["charge state"])
             elif "possible charge state" in precursor_ion:
@@ -123,10 +126,11 @@ class MzmlParser(BaseParser):
         else:
             precursor_mz, precursor_charge = None, None
 
-        self.mz_arrays.append(spectrum["m/z array"])
-        self.intensity_arrays.append(spectrum["intensity array"])
-        self.precursor_mz.append(precursor_mz)
-        self.precursor_charge.append(precursor_charge)
+        if self.valid_charge is None or precursor_charge in self.valid_charge:
+            self.mz_arrays.append(spectrum["m/z array"])
+            self.intensity_arrays.append(spectrum["intensity array"])
+            self.precursor_mz.append(precursor_mz)
+            self.precursor_charge.append(precursor_charge)
 
 
 class MzxmlParser(BaseParser):
@@ -161,15 +165,16 @@ class MzxmlParser(BaseParser):
 
         if self.ms_level > 1:
             precursor = spectrum["precursorMz"][0]
-            precursor_mz = precursor["precursorMz"]
-            precursor_charge = precursor.get("precursorCharge", 0)
+            precursor_mz = float(precursor["precursorMz"])
+            precursor_charge = int(precursor.get("precursorCharge", 0))
         else:
             precursor_mz, precursor_charge = None, None
 
-        self.mz_arrays.append(spectrum["m/z array"])
-        self.intensity_arrays.append(spectrum["intensity array"])
-        self.precursor_mz.append(precursor_mz)
-        self.precursor_charge.append(precursor_charge)
+        if self.valid_charge is None or precursor_charge in self.valid_charge:
+            self.mz_arrays.append(spectrum["m/z array"])
+            self.intensity_arrays.append(spectrum["intensity array"])
+            self.precursor_mz.append(precursor_mz)
+            self.precursor_charge.append(precursor_charge)
 
 
 class MgfParser(BaseParser):
@@ -203,15 +208,16 @@ class MgfParser(BaseParser):
             The dictionary defining the spectrum in MGF format.
         """
         if self.ms_level > 1:
-            precursor_mz = spectrum["params"]["pepmass"][0]
-            precursor_charge = spectrum["params"].get("charge", [0])[0]
+            precursor_mz = float(spectrum["params"]["pepmass"][0])
+            precursor_charge = int(spectrum["params"].get("charge", [0])[0])
         else:
             precursor_mz, precursor_charge = None, None
 
         if self.annotations is not None:
             self.annotations.append(spectrum["params"].get("seq"))
 
-        self.mz_arrays.append(spectrum["m/z array"])
-        self.intensity_arrays.append(spectrum["intensity array"])
-        self.precursor_mz.append(precursor_mz)
-        self.precursor_charge.append(precursor_charge)
+        if self.valid_charge is None or precursor_charge in self.valid_charge:
+            self.mz_arrays.append(spectrum["m/z array"])
+            self.intensity_arrays.append(spectrum["intensity array"])
+            self.precursor_mz.append(precursor_mz)
+            self.precursor_charge.append(precursor_charge)
