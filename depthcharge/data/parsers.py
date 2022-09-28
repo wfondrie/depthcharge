@@ -246,7 +246,7 @@ def _parse_scan_id(scan_str):
         return int(scan_str)
     except ValueError:
         try:
-            return int(spectrum_id[spectrum_id.find("scan=") + len("scan=") :])
+            return int(scan_str[scan_str.find("scan=") + len("scan=") :])
         except ValueError:
             pass
 
