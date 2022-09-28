@@ -127,7 +127,7 @@ class MzmlParser(BaseParser):
             self.precursor_charge.append(data.get("charge state", 0))
         else:
             self.precursor_mz.append(None)
-            self.precursor_charge.append(None)
+            self.precursor_charge.append(0)
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
@@ -170,7 +170,7 @@ class MzxmlParser(BaseParser):
             self.precursor_charge.append(data.get("precursorCharge", 0))
         else:
             self.precursor_mz.append(None)
-            self.precursor_charge.append(None)
+            self.precursor_charge.append(0)
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
