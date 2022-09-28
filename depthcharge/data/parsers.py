@@ -11,13 +11,24 @@ from pyteomics.mgf import MGF
 
 
 class BaseParser(ABC):
-    """A base parser class to inherit from."""
+    """A base parser class to inherit from.
 
-    def __init__(self, ms_data_file, ms_level):
+    Parameters
+    ----------
+    ms_data_file : str or Path
+        The mzML file to parse.
+    ms_level : int
+        The MS level of the spectra to parse.
+    id_type : str, optional
+        The Hupo-PSI prefix for the spectrum identifier.
+    """
+
+    def __init__(self, ms_data_file, ms_level, id_type="scan"):
         """Initialize the BaseParser"""
         self.path = Path(ms_data_file)
         self.ms_level = ms_level
 
+        self.id_type = id_type
         self.offset = None
         self.precursor_mz = []
         self.precursor_charge = []
@@ -120,7 +131,7 @@ class MzmlParser(BaseParser):
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
-        self.scan_id.append(spectrum["id"])
+        self.scan_id.append(_parse_scan_id(spectrum["id"]))
 
 
 class MzxmlParser(BaseParser):
@@ -163,7 +174,7 @@ class MzxmlParser(BaseParser):
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
-        self.scan_id.append(f"scan={spectrum['num']}")
+        self.scan_id.append(_parse_scan_id(spectrum["id"]))
 
 
 class MgfParser(BaseParser):
@@ -181,7 +192,7 @@ class MgfParser(BaseParser):
 
     def __init__(self, ms_data_file, ms_level=2, annotations=False):
         """Initialize the MgfParser."""
-        super().__init__(ms_data_file, ms_level=ms_level)
+        super().__init__(ms_data_file, ms_level=ms_level, id_type="index")
         self.annotations = [] if annotations else None
         self._counter = 0
 
@@ -209,5 +220,34 @@ class MgfParser(BaseParser):
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
-        self.scan_id.append(f"index={self._counter}")
+        self.scan_id.append(self._counter)
         self._counter += 1
+
+
+def _parse_scan_id(scan_str):
+    """Remove the string prefix from the scan ID.
+
+    Adapted from:
+    https://github.com/bittremieux/GLEAMS/blob/
+    8831ad6b7a5fc391f8d3b79dec976b51a2279306/gleams/
+    ms_io/mzml_io.py#L82-L85
+
+    Parameters
+    ----------
+    scan_str : str
+        The scan ID string.
+
+    Returns
+    -------
+    int
+        The scan ID number.
+    """
+    try:
+        return int(scan_str)
+    except ValueError:
+        try:
+            return int(spectrum_id[spectrum_id.find("scan=") + len("scan=") :])
+        except ValueError:
+            pass
+
+    raise ValueError(f"Failed to parse scan number")

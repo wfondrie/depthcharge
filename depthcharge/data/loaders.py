@@ -32,7 +32,8 @@ class SpectrumDataModule(LightningDataModule):
         The number of workers to use for data loading. By default, the number
         of available CPU cores on the current machine is used.
     shuffle : Boolean
-        Whether the batches are shuffled or not.
+        Whether the batches are shuffled or not for training. The batches are
+        not shuffled for validation or testing.
     """
 
     def __init__(
@@ -113,14 +114,14 @@ class SpectrumDataModule(LightningDataModule):
             preprocessing_fn=self.preprocessing_fn,
         )
 
-    def _make_loader(self, dataset, shuffle=False):
+    def _make_loader(self, dataset, shuffle):
         """Create a PyTorch DataLoader.
 
         Parameters
         ----------
         dataset : torch.utils.data.Dataset
             A PyTorch Dataset.
-        shuffle : bool, optional
+        shuffle : bool
             Shuffle the batches?
 
         Returns
@@ -143,8 +144,8 @@ class SpectrumDataModule(LightningDataModule):
 
     def val_dataloader(self):
         """Get the validation DataLoader."""
-        return self._make_loader(self.val_dataset)
+        return self._make_loader(self.val_dataset, False)
 
     def test_dataloader(self):
         """Get the test DataLoader."""
-        return self._make_loader(self.test_dataset)
+        return self._make_loader(self.test_dataset, False)
