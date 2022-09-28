@@ -110,9 +110,7 @@ class SpectrumIndex:
         # Build a map of 1D indices to 2D locations:
         grp_idx = 0
         for lin_idx in range(offsets[-1]):
-            if lin_idx >= offsets[grp_idx]:
-                grp_idx += 1
-
+            grp_idx += lin_idx >= offsets[grp_idx]
             row_idx = lin_idx - offsets[grp_idx - 1]
             self._locs[lin_idx] = (grp_idx, row_idx)
 
