@@ -1,7 +1,29 @@
 """Pytest fixtures"""
+from pathlib import Path
+
 import pytest
 import numpy as np
 from pyteomics.mass import calculate_mass
+
+DATA_DIR = Path(__file__).parent / ".." / "data"
+
+
+@pytest.fixture
+def real_mzml():
+    """Get a real mzML file."""
+    return DATA_DIR / "TMT10-Trial-8.mzML"
+
+
+@pytest.fixture
+def real_mzxml():
+    """Get a real mzXML file."""
+    return DATA_DIR / "TMT10-Trial-8.mzXML"
+
+
+@pytest.fixture
+def real_mgf():
+    """Get a real MGF file."""
+    return Path(__file__).parent / "../data/TMT10-Trial-8.mgf"
 
 
 @pytest.fixture

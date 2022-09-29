@@ -1,4 +1,5 @@
 """Mass spectrometry data parsers"""
+import functools
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -10,16 +11,28 @@ from pyteomics.mgf import MGF
 
 
 class BaseParser(ABC):
-    """A base parser class to inherit from."""
+    """A base parser class to inherit from.
 
-    def __init__(self, ms_data_file, ms_level):
+    Parameters
+    ----------
+    ms_data_file : str or Path
+        The mzML file to parse.
+    ms_level : int
+        The MS level of the spectra to parse.
+    id_type : str, optional
+        The Hupo-PSI prefix for the spectrum identifier.
+    """
+
+    def __init__(self, ms_data_file, ms_level, id_type="scan"):
         """Initialize the BaseParser"""
         self.path = Path(ms_data_file)
         self.ms_level = ms_level
 
+        self.id_type = id_type
         self.offset = None
         self.precursor_mz = []
         self.precursor_charge = []
+        self.scan_id = []
         self.mz_arrays = []
         self.intensity_arrays = []
 
@@ -42,7 +55,8 @@ class BaseParser(ABC):
     def read(self):
         """Read the ms data file"""
         with self.open() as spectra:
-            for spectrum in tqdm(spectra, desc=str(self.path), unit="spectra"):
+            pbar = functools.partial(tqdm, desc=str(self.path), unit="spectra")
+            for spectrum_index, spectrum in enumerate(pbar(spectra)):
                 self.parse_spectrum(spectrum)
 
         self.precursor_mz = np.array(self.precursor_mz, dtype=np.float64)
@@ -50,6 +64,8 @@ class BaseParser(ABC):
             self.precursor_charge,
             dtype=np.uint8,
         )
+
+        self.scan_id = np.array(self.scan_id)
 
         # Build the index
         sizes = np.array([0] + [s.shape[0] for s in self.mz_arrays])
@@ -111,10 +127,11 @@ class MzmlParser(BaseParser):
             self.precursor_charge.append(data.get("charge state", 0))
         else:
             self.precursor_mz.append(None)
-            self.precursor_charge.append(None)
+            self.precursor_charge.append(0)
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
+        self.scan_id.append(_parse_scan_id(spectrum["id"]))
 
 
 class MzxmlParser(BaseParser):
@@ -153,10 +170,11 @@ class MzxmlParser(BaseParser):
             self.precursor_charge.append(data.get("precursorCharge", 0))
         else:
             self.precursor_mz.append(None)
-            self.precursor_charge.append(None)
+            self.precursor_charge.append(0)
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
+        self.scan_id.append(_parse_scan_id(spectrum["id"]))
 
 
 class MgfParser(BaseParser):
@@ -174,8 +192,9 @@ class MgfParser(BaseParser):
 
     def __init__(self, ms_data_file, ms_level=2, annotations=False):
         """Initialize the MgfParser."""
-        super().__init__(ms_data_file, ms_level=ms_level)
+        super().__init__(ms_data_file, ms_level=ms_level, id_type="index")
         self.annotations = [] if annotations else None
+        self._counter = 0
 
     def open(self):
         """Open the MGF file for reading"""
@@ -201,3 +220,34 @@ class MgfParser(BaseParser):
 
         self.mz_arrays.append(spectrum["m/z array"])
         self.intensity_arrays.append(spectrum["intensity array"])
+        self.scan_id.append(self._counter)
+        self._counter += 1
+
+
+def _parse_scan_id(scan_str):
+    """Remove the string prefix from the scan ID.
+
+    Adapted from:
+    https://github.com/bittremieux/GLEAMS/blob/
+    8831ad6b7a5fc391f8d3b79dec976b51a2279306/gleams/
+    ms_io/mzml_io.py#L82-L85
+
+    Parameters
+    ----------
+    scan_str : str
+        The scan ID string.
+
+    Returns
+    -------
+    int
+        The scan ID number.
+    """
+    try:
+        return int(scan_str)
+    except ValueError:
+        try:
+            return int(scan_str[scan_str.find("scan=") + len("scan=") :])
+        except ValueError:
+            pass
+
+    raise ValueError(f"Failed to parse scan number")

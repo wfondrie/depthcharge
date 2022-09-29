@@ -6,7 +6,6 @@ import einops
 import numpy as np
 import pytorch_lightning as pl
 
-from ..embed import PairedSpectrumEncoder
 from ...components import SpectrumEncoder, PeptideDecoder, ModelMixin
 
 LOGGER = logging.getLogger(__name__)
@@ -84,10 +83,7 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
 
         # Build the model
         if custom_encoder is not None:
-            if isinstance(custom_encoder, PairedSpectrumEncoder):
-                self.encoder = custom_encoder.encoder
-            else:
-                self.encoder = custom_encoder
+            self.encoder = custom_encoder
         else:
             self.encoder = SpectrumEncoder(
                 dim_model=dim_model,
@@ -408,22 +404,6 @@ class Spec2Pep(pl.LightningModule, ModelMixin):
 
         valid_loss = self.trainer.callback_metrics["CELoss"]["valid"].item()
         self._history[-1]["valid"] = valid_loss
-
-    def on_epoch_end(self):
-        """Print log to console, if requested."""
-        if len(self._history) == 1:
-            LOGGER.info("---------------------------------------")
-            LOGGER.info("  Epoch |   Train Loss  |  Valid Loss  ")
-            LOGGER.info("---------------------------------------")
-
-        metrics = self._history[-1]
-        if not metrics["epoch"] % self.n_log:
-            LOGGER.info(
-                "  %5i | %13.6f | %13.6f ",
-                metrics["epoch"],
-                metrics.get("train", np.nan),
-                metrics.get("valid", np.nan),
-            )
 
     def configure_optimizers(self):
         """Initialize the optimizer.
