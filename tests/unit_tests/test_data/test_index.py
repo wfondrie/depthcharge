@@ -38,7 +38,7 @@ def test_mgf_index(mgf_small, tmp_path):
     assert not index.annotated
     assert not index.overwrite
     assert index.n_spectra == 4
-    assert index.n_peaks == 124
+    assert index.n_peaks == 92
 
     with index:
         assert index.get_spectrum_id(0) == (str(mgf_small), "index=0")
@@ -52,7 +52,7 @@ def test_mgf_index(mgf_small, tmp_path):
     assert index.annotated
     assert not index.overwrite
     assert index.n_spectra == 4
-    assert index.n_peaks == 124
+    assert index.n_peaks == 92
 
     with index:
         assert index.get_spectrum_id(0) == (str(mgf_small), "index=0")
