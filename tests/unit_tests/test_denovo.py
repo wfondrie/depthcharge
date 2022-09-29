@@ -8,7 +8,9 @@ def test_denovo_model(tmp_path, mgf_small):
     """Test de novo model overfitting"""
     pl.seed_everything(42)
     index = AnnotatedSpectrumIndex(tmp_path / "test.hdf5", mgf_small)
-    loaders = SpectrumDataModule(index, num_workers=0, batch_size=2)
+    loaders = SpectrumDataModule(
+        index, num_workers=0, batch_size=2, shuffle=False
+    )
     loaders.setup()
 
     # Create the model

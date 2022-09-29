@@ -29,8 +29,8 @@ jobs:
 
       - name: Check for debugging print statements
         run: |
-          if grep -rq "print(" ppx; then
+          if grep -rq "print(" depthcharge; then
               echo "Found the following print statements:"
-              grep -r "print(" ppx
+              grep -r "print(" deptchcharge
               exit 1
           fi
