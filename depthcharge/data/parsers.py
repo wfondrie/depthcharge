@@ -1,6 +1,5 @@
 """Mass spectrometry data parsers"""
 import logging
-import functools
 from pathlib import Path
 from abc import ABC, abstractmethod
 
