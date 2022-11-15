@@ -184,12 +184,15 @@ class _PeptideTransformer(torch.nn.Module):
         tokens = torch.tensor(tokens, device=self.device)
         return tokens
 
-    def detokenize(self, tokens):
+    def detokenize(self, tokens, pep_as_str=True):
         """Transform tokens back into a peptide sequence
 
         Parameters
         ----------
         tokens : torch.Tensor of shape (n_amino_acids)
+        pep_as_str: bool, optional
+            Return peptide sequence in str format by default.
+            If "False", returns a list of amino acids.
         """
         sequence = [self._idx2aa.get(i.item(), "") for i in tokens]
         if "$" in sequence:
@@ -199,7 +202,7 @@ class _PeptideTransformer(torch.nn.Module):
         if self.reverse:
             sequence = list(reversed(sequence))
 
-        return "".join(sequence)
+        return "".join(sequence) if pep_as_str else sequence
 
     @property
     def vocab_size(self):
