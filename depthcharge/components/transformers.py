@@ -185,11 +185,17 @@ class _PeptideTransformer(torch.nn.Module):
         return tokens
 
     def detokenize(self, tokens):
-        """Transform tokens back into a peptide sequence
+        """Transform tokens back into a peptide sequence.
 
         Parameters
         ----------
-        tokens : torch.Tensor of shape (n_amino_acids)
+        tokens : torch.Tensor of shape (n_amino_acids,)
+            The token for each amino acid in the peptide sequence.
+
+        Returns
+        -------
+        list of str
+            The amino acids in the peptide sequence.
         """
         sequence = [self._idx2aa.get(i.item(), "") for i in tokens]
         if "$" in sequence:
