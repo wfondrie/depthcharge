@@ -26,4 +26,4 @@ def test_denovo_model(tmp_path, mgf_small):
 
     # Predict
     pred = trainer.predict(model, loaders.train_dataloader())
-    assert pred[0][0][0][0] == "$LESLLEK"
+    assert "".join(pred[0][0][0][0]) == "$LESLLEK"
