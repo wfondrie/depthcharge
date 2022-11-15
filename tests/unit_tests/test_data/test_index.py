@@ -1,7 +1,30 @@
 """Test that the MS data file indices work correctly"""
 import shutil
+import functools
 
 from depthcharge.data import AnnotatedSpectrumIndex, SpectrumIndex
+
+
+def test_valid_charge(mgf_medium, tmp_path):
+    """Test that the valid_charge argument works"""
+    mkindex = functools.partial(
+        SpectrumIndex,
+        index_path=tmp_path / "index.hdf5",
+        ms_data_files=mgf_medium,
+        overwrite=True,
+    )
+
+    index = mkindex()
+    assert index.n_spectra == 100
+
+    index = mkindex(valid_charge=[0, 2, 3, 4])
+    assert index.n_spectra == 100
+
+    index = mkindex(valid_charge=[2, 3, 4])
+    assert index.n_spectra == 99
+
+    index = mkindex(valid_charge=[2, 3])
+    assert index.n_spectra == 98
 
 
 def test_mgf_index(mgf_small, tmp_path):

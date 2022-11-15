@@ -1,5 +1,5 @@
 """Mass spectrometry data parsers"""
-import functools
+import logging
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -8,6 +8,9 @@ from tqdm.auto import tqdm
 from pyteomics.mzml import MzML
 from pyteomics.mzxml import MzXML
 from pyteomics.mgf import MGF
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class BaseParser(ABC):
@@ -19,15 +22,24 @@ class BaseParser(ABC):
         The mzML file to parse.
     ms_level : int
         The MS level of the spectra to parse.
+    valid_charge : Iterable[int], optional
+        Only consider spectra with the specified precursor charges. If `None`,
+        any precursor charge is accepted.
     id_type : str, optional
         The Hupo-PSI prefix for the spectrum identifier.
     """
 
-    def __init__(self, ms_data_file, ms_level, id_type="scan"):
+    def __init__(
+        self,
+        ms_data_file,
+        ms_level,
+        valid_charge=None,
+        id_type="scan",
+    ):
         """Initialize the BaseParser"""
         self.path = Path(ms_data_file)
         self.ms_level = ms_level
-
+        self.valid_charge = None if valid_charge is None else set(valid_charge)
         self.id_type = id_type
         self.offset = None
         self.precursor_mz = []
@@ -54,10 +66,18 @@ class BaseParser(ABC):
 
     def read(self):
         """Read the ms data file"""
+        n_skipped = 0
         with self.open() as spectra:
-            pbar = functools.partial(tqdm, desc=str(self.path), unit="spectra")
-            for spectrum_index, spectrum in enumerate(pbar(spectra)):
-                self.parse_spectrum(spectrum)
+            for spectrum in tqdm(spectra, desc=str(self.path), unit="spectra"):
+                try:
+                    self.parse_spectrum(spectrum)
+                except (IndexError, KeyError, ValueError):
+                    n_skipped += 1
+
+        if n_skipped:
+            LOGGER.warning(
+                "Skipped %d spectra with invalid precursor info", n_skipped
+            )
 
         self.precursor_mz = np.array(self.precursor_mz, dtype=np.float64)
         self.precursor_charge = np.array(
@@ -95,11 +115,18 @@ class MzmlParser(BaseParser):
         The mzML file to parse.
     ms_level : int
         The MS level of the spectra to parse.
+    valid_charge : Iterable[int], optional
+        Only consider spectra with the specified precursor charges. If `None`,
+        any precursor charge is accepted.
     """
 
-    def __init__(self, ms_data_file, ms_level=2):
+    def __init__(self, ms_data_file, ms_level=2, valid_charge=None):
         """Initialize the MzmlParser."""
-        super().__init__(ms_data_file, ms_level=ms_level)
+        super().__init__(
+            ms_data_file,
+            ms_level=ms_level,
+            valid_charge=valid_charge,
+        )
 
     def open(self):
         """Open the mzML file for reading"""
@@ -117,21 +144,24 @@ class MzmlParser(BaseParser):
             return
 
         if self.ms_level > 1:
-            data = (
-                spectrum.get("precursorList")
-                .get("precursor")[0]
-                .get("selectedIonList")
-                .get("selectedIon")[0]
-            )
-            self.precursor_mz.append(data["selected ion m/z"])
-            self.precursor_charge.append(data.get("charge state", 0))
+            precursor = spectrum["precursorList"]["precursor"][0]
+            precursor_ion = precursor["selectedIonList"]["selectedIon"][0]
+            precursor_mz = float(precursor_ion["selected ion m/z"])
+            if "charge state" in precursor_ion:
+                precursor_charge = int(precursor_ion["charge state"])
+            elif "possible charge state" in precursor_ion:
+                precursor_charge = int(precursor_ion["possible charge state"])
+            else:
+                precursor_charge = 0
         else:
-            self.precursor_mz.append(None)
-            self.precursor_charge.append(0)
+            precursor_mz, precursor_charge = None, 0
 
-        self.mz_arrays.append(spectrum["m/z array"])
-        self.intensity_arrays.append(spectrum["intensity array"])
-        self.scan_id.append(_parse_scan_id(spectrum["id"]))
+        if self.valid_charge is None or precursor_charge in self.valid_charge:
+            self.mz_arrays.append(spectrum["m/z array"])
+            self.intensity_arrays.append(spectrum["intensity array"])
+            self.precursor_mz.append(precursor_mz)
+            self.precursor_charge.append(precursor_charge)
+            self.scan_id.append(_parse_scan_id(spectrum["id"]))
 
 
 class MzxmlParser(BaseParser):
@@ -143,11 +173,18 @@ class MzxmlParser(BaseParser):
         The mzXML file to parse.
     ms_level : int
         The MS level of the spectra to parse.
+    valid_charge : Iterable[int], optional
+        Only consider spectra with the specified precursor charges. If `None`,
+        any precursor charge is accepted.
     """
 
-    def __init__(self, ms_data_file, ms_level=2):
+    def __init__(self, ms_data_file, ms_level=2, valid_charge=None):
         """Initialize the MzxmlParser."""
-        super().__init__(ms_data_file, ms_level=ms_level)
+        super().__init__(
+            ms_data_file,
+            ms_level=ms_level,
+            valid_charge=valid_charge,
+        )
 
     def open(self):
         """Open the mzXML file for reading"""
@@ -165,16 +202,18 @@ class MzxmlParser(BaseParser):
             return
 
         if self.ms_level > 1:
-            data = spectrum["precursorMz"][0]
-            self.precursor_mz.append(data["precursorMz"])
-            self.precursor_charge.append(data.get("precursorCharge", 0))
+            precursor = spectrum["precursorMz"][0]
+            precursor_mz = float(precursor["precursorMz"])
+            precursor_charge = int(precursor.get("precursorCharge", 0))
         else:
-            self.precursor_mz.append(None)
-            self.precursor_charge.append(0)
+            precursor_mz, precursor_charge = None, 0
 
-        self.mz_arrays.append(spectrum["m/z array"])
-        self.intensity_arrays.append(spectrum["intensity array"])
-        self.scan_id.append(_parse_scan_id(spectrum["id"]))
+        if self.valid_charge is None or precursor_charge in self.valid_charge:
+            self.mz_arrays.append(spectrum["m/z array"])
+            self.intensity_arrays.append(spectrum["intensity array"])
+            self.precursor_mz.append(precursor_mz)
+            self.precursor_charge.append(precursor_charge)
+            self.scan_id.append(_parse_scan_id(spectrum["id"]))
 
 
 class MgfParser(BaseParser):
@@ -186,13 +225,27 @@ class MgfParser(BaseParser):
         The MGF file to parse.
     ms_level : int
         The MS level of the spectra to parse.
+    valid_charge : Iterable[int], optional
+        Only consider spectra with the specified precursor charges. If `None`,
+        any precursor charge is accepted.
     annotations : bool
         Include peptide annotations.
     """
 
-    def __init__(self, ms_data_file, ms_level=2, annotations=False):
+    def __init__(
+        self,
+        ms_data_file,
+        ms_level=2,
+        valid_charge=None,
+        annotations=False,
+    ):
         """Initialize the MgfParser."""
-        super().__init__(ms_data_file, ms_level=ms_level, id_type="index")
+        super().__init__(
+            ms_data_file,
+            ms_level=ms_level,
+            valid_charge=valid_charge,
+            id_type="index",
+        )
         self.annotations = [] if annotations else None
         self._counter = 0
 
@@ -209,18 +262,21 @@ class MgfParser(BaseParser):
             The dictionary defining the spectrum in MGF format.
         """
         if self.ms_level > 1:
-            self.precursor_mz.append(spectrum["params"]["pepmass"][0])
-            self.precursor_charge.append(spectrum["params"]["charge"][0])
+            precursor_mz = float(spectrum["params"]["pepmass"][0])
+            precursor_charge = int(spectrum["params"].get("charge", [0])[0])
         else:
-            self.precursor_mz.append(None)
-            self.precursor_charge.append(None)
+            precursor_mz, precursor_charge = None, 0
 
         if self.annotations is not None:
-            self.annotations.append(spectrum["params"]["seq"])
+            self.annotations.append(spectrum["params"].get("seq"))
 
-        self.mz_arrays.append(spectrum["m/z array"])
-        self.intensity_arrays.append(spectrum["intensity array"])
-        self.scan_id.append(self._counter)
+        if self.valid_charge is None or precursor_charge in self.valid_charge:
+            self.mz_arrays.append(spectrum["m/z array"])
+            self.intensity_arrays.append(spectrum["intensity array"])
+            self.precursor_mz.append(precursor_mz)
+            self.precursor_charge.append(precursor_charge)
+            self.scan_id.append(self._counter)
+
         self._counter += 1
 
 

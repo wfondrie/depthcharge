@@ -28,9 +28,9 @@ def real_mgf():
 
 @pytest.fixture
 def mgf_medium(tmp_path):
-    """An MGF file with 100 random annotated spectra."""
+    """An MGF file with 100 random annotated spectra (+1 invalid)."""
     mgf_file = tmp_path / "medium.mgf"
-    return _create_mgf(_random_peptides(100), mgf_file)
+    return _create_mgf(_random_peptides(100), mgf_file, add_problems=True)
 
 
 @pytest.fixture
@@ -57,6 +57,8 @@ def _create_mgf_entry(peptide, charge=2):
     str
         The PSM entry in an MGF file format.
     """
+    missing = not charge
+    charge = 2 if not charge else charge
     mz = calculate_mass(peptide, charge=int(charge))
     frags = []
     for idx in range(len(peptide)):
@@ -81,10 +83,14 @@ def _create_mgf_entry(peptide, charge=2):
         f"{frag_string}",
         "END IONS",
     ]
+
+    if missing:
+        del mgf[3]
+
     return "\n".join(mgf)
 
 
-def _create_mgf(peptides, mgf_file, random_state=42):
+def _create_mgf(peptides, mgf_file, add_problems=False, random_state=42):
     """Create a fake MGF file from one or more peptides.
 
     Parameters
@@ -93,6 +99,8 @@ def _create_mgf(peptides, mgf_file, random_state=42):
         The peptides for which to create spectra.
     mgf_file : Path
         The MGF file to create.
+    add_problems : bool
+        Add weird charge states and invalid spectra.
     random_state : int or numpy.random.Generator, optional
         The random seed. The charge states are chosen to be
         2 or 3 randomly.
@@ -101,7 +109,22 @@ def _create_mgf(peptides, mgf_file, random_state=42):
     -------
     """
     rng = np.random.default_rng(random_state)
+    peptides = list(peptides)
     entries = [_create_mgf_entry(p, rng.choice([2, 3])) for p in peptides]
+
+    if add_problems:
+        entries[-2] = _create_mgf_entry(peptides[-2], 0)
+        entries[-1] = _create_mgf_entry(peptides[-1], 4)
+
+        invalid_entry = [
+            "BEGIN IONS",
+            f"CHARGE=2+",
+            f"1 1",
+            "END IONS",
+        ]
+
+        entries.append("\n".join(invalid_entry))
+
     with mgf_file.open("w+") as mgf_ref:
         mgf_ref.write("\n".join(entries))
 
