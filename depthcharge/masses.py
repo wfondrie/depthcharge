@@ -94,6 +94,6 @@ class PeptideMass:
 
         calc_mass = sum([self.masses[aa] for aa in seq]) + self.h2o
         if charge is not None:
-            calc_mass = (calc_mass / charge) + self.proton
+            calc_mass = (calc_mass + charge * self.proton) / charge
 
         return calc_mass
