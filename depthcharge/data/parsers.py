@@ -306,4 +306,4 @@ def _parse_scan_id(scan_str):
         except ValueError:
             pass
 
-    raise ValueError(f"Failed to parse scan number")
+    raise ValueError("Failed to parse scan number")
