@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- pre-commit hooks and linting Ruff
+- pre-commit hooks and linting with Ruff.
 
 ### Changed
 - Tensorboard is now an optional dependency.
