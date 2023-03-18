@@ -1,8 +1,12 @@
 """Common utility functions"""
 import pandas as pd
-from tensorboard.backend.event_processing.event_accumulator import (
-    EventAccumulator,
-)
+
+try:
+    from tensorboard.backend.event_processing.event_accumulator import (
+        EventAccumulator,
+    )
+except ImportError:
+    EventAccumulator = None
 
 
 def read_tensorboard_scalars(path):
@@ -18,6 +22,12 @@ def read_tensorboard_scalars(path):
     pandas.DataFrame
         A dataframe containing the scalar values.
     """
+    if EventAccumulator is None:
+        raise ImportError(
+            "Install the 'tensorboard' optional dependency to "
+            "use this function. https://www.tensorflow.org/tensorboard"
+        )
+
     event = EventAccumulator(path)
     event.Reload()
     data = []
