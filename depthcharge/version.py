@@ -1,4 +1,5 @@
 """Get the package version"""
+from importlib.metadata import version, PackageNotFoundError
 
 
 def _get_version():
@@ -14,19 +15,6 @@ def _get_version():
         The package version number. If not version is found, returns None.
     """
     try:
-        # Fast, but only works in Python 3.8+
-        from importlib.metadata import version, PackageNotFoundError
-
-        try:
-            return version("ganbit")
-        except PackageNotFoundError:
-            return None
-
-    except ImportError:
-        # Slow, but works for all Python 3+
-        from pkg_resources import get_distribution, DistributionNotFound
-
-        try:
-            return get_distribution("ganbit").version
-        except DistributionNotFound:
-            return None
+        return version("depthcharge")
+    except PackageNotFoundError:
+        return None
