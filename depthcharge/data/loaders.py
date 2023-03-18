@@ -2,7 +2,6 @@
 import os
 
 import torch
-import numpy as np
 from pytorch_lightning import LightningDataModule
 
 from .hdf5 import SpectrumIndex, AnnotatedSpectrumIndex

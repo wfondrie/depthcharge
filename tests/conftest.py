@@ -118,8 +118,8 @@ def _create_mgf(peptides, mgf_file, add_problems=False, random_state=42):
 
         invalid_entry = [
             "BEGIN IONS",
-            f"CHARGE=2+",
-            f"1 1",
+            "CHARGE=2+",
+            "1 1",
             "END IONS",
         ]
 

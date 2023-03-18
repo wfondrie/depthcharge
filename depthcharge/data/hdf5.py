@@ -180,7 +180,8 @@ class SpectrumIndex:
         ----------
         ms_data_file : str or Path
             The mass spectrometry data file to add. It must be in an mzML or
-            MGF file format and use an ``.mzML``, ``.mzXML``, or ``.mgf`` file extension.
+            MGF file format and use an ``.mzML``, ``.mzXML``, or ``.mgf`` file
+            extension.
         """
         ms_data_file = Path(ms_data_file)
         if str(ms_data_file) in self._file_map:
