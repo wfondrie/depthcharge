@@ -7,5 +7,3 @@ from .datasets import (
 )
 
 from .hdf5 import SpectrumIndex, AnnotatedSpectrumIndex
-
-from .loaders import SpectrumDataModule
