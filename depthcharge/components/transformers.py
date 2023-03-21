@@ -425,7 +425,7 @@ class PeptideDecoder(_PeptideTransformer):
             tokens = torch.tensor([[]]).to(self.device)
 
         # Prepare mass and charge
-        masses = self.mass_encoder(precursors[:, None, [0]])
+        masses = self.mass_encoder(precursors[:, None, 0])
         charges = self.charge_encoder(precursors[:, 1].int() - 1)
         precursors = masses + charges[:, None, :]
 
