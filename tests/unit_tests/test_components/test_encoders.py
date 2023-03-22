@@ -1,4 +1,5 @@
 """Test the encoders"""
+import pytest
 import torch
 import numpy as np
 
@@ -55,6 +56,15 @@ def test_float_encoder():
     # Check for things in-between the expected period:
     assert Y[0, 3, :].min() > -0.99
     assert Y[0, 3, :].max() < 0.99
+
+
+def test_invalid_float_encoder():
+    """Test that errors are raised."""
+    with pytest.raises(ValueError):
+        FloatEncoder(8, 0, 10)
+
+    with pytest.raises(ValueError):
+        FloatEncoder(8, 10, 0)
 
 
 def test_default_peak_encoder():
