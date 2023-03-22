@@ -4,14 +4,14 @@ import numpy as np
 
 from depthcharge.components.encoders import (
     PositionalEncoder,
-    MassEncoder,
+    FloatEncoder,
     PeakEncoder,
 )
 
 
 def test_positional_encoder():
     """Test the positional encoder"""
-    enc = PositionalEncoder(8, 8)
+    enc = PositionalEncoder(8, 1, 8)
     X = torch.zeros(1, 9, 8)
     Y = enc(X)
 
@@ -40,14 +40,16 @@ def test_positional_encoder():
     torch.testing.assert_close(Y2[0, 0, :], period + 1)
 
 
-def test_mass_encoder():
-    """Test the mass encodings"""
-    enc = MassEncoder(8, 0.1, 10)
+def test_float_encoder():
+    """Test the float encodings"""
+    enc = FloatEncoder(8, 0.1, 10)
     X = torch.tensor([[0, 0.1, 10, 0.256]])
     Y = enc(X)
     period = torch.cat([torch.zeros(4), torch.ones(4)], axis=0)
     torch.testing.assert_close(Y[0, 0, :], period)
     torch.testing.assert_close(Y[0, 1, (0, 4)], torch.tensor([0.0, 1]))
+
+    print(Y[0, 2])
     torch.testing.assert_close(Y[0, 2, (3, 7)], torch.tensor([0.0, 1]))
 
     # Check for things in-between the expected period:
@@ -78,7 +80,7 @@ def test_both_sinusoid():
     Y = enc(X)
 
     assert Y.shape == (1, 2, 8)
-    assert isinstance(enc.int_encoder, MassEncoder)
+    assert isinstance(enc.int_encoder, FloatEncoder)
 
 
 def test_split_dims():

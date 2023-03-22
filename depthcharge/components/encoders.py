@@ -1,10 +1,12 @@
 """Simple encoders for input into Transformers and the like."""
+import math
+
 import torch
 import einops
 import numpy as np
 
 
-class MassEncoder(torch.nn.Module):
+class FloatEncoder(torch.nn.Module):
     """Encode floating point values using sine and cosine waves.
 
     Parameters
@@ -21,22 +23,25 @@ class MassEncoder(torch.nn.Module):
         """Initialize the MassEncoder"""
         super().__init__()
 
-        n_sin = int(dim_model / 2)
-        n_cos = dim_model - n_sin
+        # Error checking:
+        if min_wavelength <= 0:
+            raise ValueError("'min_wavelength' must be greater than 0.")
 
-        if min_wavelength:
-            base = min_wavelength / (2 * np.pi)
-            scale = max_wavelength / min_wavelength
-        else:
-            base = 1 / (2 * np.pi)
-            scale = max_wavelength
+        if max_wavelength <= 0:
+            raise ValueError("'max_wavelength' must be greater than 0.")
 
-        sin_term = base * (
-            scale ** (torch.arange(0, n_sin).float() / (n_sin - 1))
+        # Get dimensions for equations:
+        d_sin = math.ceil(dim_model / 2)
+        d_cos = dim_model - d_sin
+
+        base = min_wavelength / (2 * np.pi)
+        scale = max_wavelength / min_wavelength
+        sin_exp = torch.arange(0, d_sin).float() / (d_sin - 1)
+        cos_exp = (torch.arange(d_sin, dim_model).float() - d_sin) / (
+            d_cos - 1
         )
-        cos_term = base * (
-            scale ** (torch.arange(0, n_cos).float() / (n_cos - 1))
-        )
+        sin_term = base * (scale**sin_exp)
+        cos_term = base * (scale**cos_exp)
 
         self.register_buffer("sin_term", sin_term)
         self.register_buffer("cos_term", cos_term)
@@ -103,7 +108,7 @@ class PeakEncoder(torch.nn.Module):
         else:
             self.dim_intensity = dim_model
 
-        self.mz_encoder = MassEncoder(
+        self.mz_encoder = FloatEncoder(
             dim_model=self.dim_mz,
             min_wavelength=min_wavelength,
             max_wavelength=max_wavelength,
@@ -114,9 +119,9 @@ class PeakEncoder(torch.nn.Module):
                 1, self.dim_intensity, bias=False
             )
         else:
-            self.int_encoder = MassEncoder(
+            self.int_encoder = FloatEncoder(
                 dim_model=self.dim_intensity,
-                min_wavelength=0,
+                min_wavelength=1e-6,
                 max_wavelength=1,
             )
 
@@ -154,34 +159,26 @@ class PeakEncoder(torch.nn.Module):
         return torch.cat([encoded, intensity], dim=2)
 
 
-class PositionalEncoder(torch.nn.Module):
+class PositionalEncoder(FloatEncoder):
     """The positional encoder for sequences.
 
     Parameters
     ----------
     dim_model : int
         The number of features to output.
-    max_wavelength : float
+    min_wavelength : float, optional
+        The shortest wavelength in the geometric progression.
+    max_wavelength : float, optional
         The longest wavelength in the geometric progression.
     """
 
-    def __init__(self, dim_model, max_wavelength=10000):
+    def __init__(self, dim_model, min_wavelength=1, max_wavelength=10000):
         """Initialize the MzEncoder"""
-        super().__init__()
-
-        n_sin = int(dim_model / 2)
-        n_cos = dim_model - n_sin
-        scale = max_wavelength
-        base = 1 / (2 * np.pi)
-
-        sin_term = base * scale ** (
-            torch.arange(0, n_sin).float() / (n_sin - 1)
+        super().__init__(
+            dim_model=dim_model,
+            min_wavelength=min_wavelength,
+            max_wavelength=max_wavelength,
         )
-        cos_term = base * scale ** (
-            torch.arange(0, n_cos).float() / (n_cos - 1)
-        )
-        self.register_buffer("sin_term", sin_term)
-        self.register_buffer("cos_term", cos_term)
 
     def forward(self, X):
         """Encode positions in a sequence.
