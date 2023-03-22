@@ -107,3 +107,6 @@ def test_split_dims():
     assert Y.shape == (1, 2, 8)
     torch.testing.assert_close(Y[0, 1, 4:], torch.ones(4) * 5)
     assert (Y[0, 1, :4] <= 1).all()
+
+    with pytest.raises(ValueError):
+        PeakEncoder(8, 9)
