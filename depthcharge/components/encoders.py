@@ -81,7 +81,7 @@ class PeakEncoder(torch.nn.Module):
     learned_intensity_encoding : bool, optional
         Use a learned intensity encoding as opposed to a sinusoidal encoding.
         Note that for the sinusoidal encoding, this encoder expects values
-        betwen [0, 1].
+        between [0, 1].
     """
 
     def __init__(
