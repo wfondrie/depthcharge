@@ -68,7 +68,6 @@ def test_mgf_and_base(mgf_small):
         parser.offset,
         np.array([0, 14]),
     )
-
     np.testing.assert_allclose(
         parser.mz_arrays,
         np.array(SMALL_MGF_MZS),
@@ -78,6 +77,16 @@ def test_mgf_and_base(mgf_small):
 
     parser = MgfParser(mgf_small, valid_charge=[2]).read()
     assert parser.precursor_charge.shape == (1,)
+
+    parser = MgfParser(mgf_small, ms_level=1).read()
+    np.testing.assert_equal(
+        parser.precursor_charge,
+        np.array([0, 0]),
+    )
+    np.testing.assert_equal(
+        parser.precursor_mz,
+        np.array([np.nan, np.nan]),
+    )
 
 
 def test_mzml(real_mzml):
