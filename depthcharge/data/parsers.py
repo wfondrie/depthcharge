@@ -65,7 +65,12 @@ class BaseParser(ABC):
         pass
 
     def read(self):
-        """Read the ms data file"""
+        """Read the ms data file.
+
+        Returns
+        -------
+        Self
+        """
         n_skipped = 0
         with self.open() as spectra:
             for spectrum in tqdm(spectra, desc=str(self.path), unit="spectra"):
@@ -94,6 +99,7 @@ class BaseParser(ABC):
         self.intensity_arrays = np.concatenate(self.intensity_arrays).astype(
             np.float32
         )
+        return self
 
     @property
     def n_spectra(self):
