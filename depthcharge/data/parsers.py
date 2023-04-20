@@ -162,6 +162,8 @@ class MzmlParser(BaseParser):
             self.precursor_mz.append(precursor_mz)
             self.precursor_charge.append(precursor_charge)
             self.scan_id.append(_parse_scan_id(spectrum["id"]))
+        else:
+            raise ValueError("Invalid precursor charge")
 
 
 class MzxmlParser(BaseParser):
@@ -214,6 +216,8 @@ class MzxmlParser(BaseParser):
             self.precursor_mz.append(precursor_mz)
             self.precursor_charge.append(precursor_charge)
             self.scan_id.append(_parse_scan_id(spectrum["id"]))
+        else:
+            raise ValueError("Invalid precursor charge")
 
 
 class MgfParser(BaseParser):
@@ -247,7 +251,7 @@ class MgfParser(BaseParser):
             id_type="index",
         )
         self.annotations = [] if annotations else None
-        self._counter = 0
+        self._counter = -1
 
     def open(self):
         """Open the MGF file for reading"""
@@ -261,6 +265,8 @@ class MgfParser(BaseParser):
         spectrum : dict
             The dictionary defining the spectrum in MGF format.
         """
+        self._counter += 1
+
         if self.ms_level > 1:
             precursor_mz = float(spectrum["params"]["pepmass"][0])
             precursor_charge = int(spectrum["params"].get("charge", [0])[0])
@@ -276,8 +282,8 @@ class MgfParser(BaseParser):
             self.precursor_mz.append(precursor_mz)
             self.precursor_charge.append(precursor_charge)
             self.scan_id.append(self._counter)
-
-        self._counter += 1
+        else:
+            raise ValueError("Invalid precursor charge")
 
 
 def _parse_scan_id(scan_str):
