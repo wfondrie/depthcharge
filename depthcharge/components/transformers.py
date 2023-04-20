@@ -3,7 +3,7 @@ import re
 
 import torch
 
-from .encoders import MassEncoder, PeakEncoder, PositionalEncoder
+from .encoders import FloatEncoder, PeakEncoder, PositionalEncoder
 from ..masses import PeptideMass
 from .. import utils
 
@@ -372,7 +372,7 @@ class PeptideDecoder(_PeptideTransformer):
         self.reverse = reverse
 
         # Additional model components
-        self.mass_encoder = MassEncoder(dim_model)
+        self.mass_encoder = FloatEncoder(dim_model)
         layer = torch.nn.TransformerDecoderLayer(
             d_model=dim_model,
             nhead=n_head,
@@ -425,7 +425,7 @@ class PeptideDecoder(_PeptideTransformer):
             tokens = torch.tensor([[]]).to(self.device)
 
         # Prepare mass and charge
-        masses = self.mass_encoder(precursors[:, None, [0]])
+        masses = self.mass_encoder(precursors[:, None, 0])
         charges = self.charge_encoder(precursors[:, 1].int() - 1)
         precursors = masses + charges[:, None, :]
 

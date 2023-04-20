@@ -1,48 +1,39 @@
-"""Test PyTorch DataLoaders and PyTorch-Lightning LightningDataModules"""
+"""Test PyTorch DataLoaders"""
+import torch
 from depthcharge.data import (
-    SpectrumDataModule,
     SpectrumIndex,
     AnnotatedSpectrumIndex,
+    SpectrumDataset,
+    AnnotatedSpectrumDataset,
 )
 
 
 def test_spectrum_index_init(mgf_small, tmp_path):
     """Test initialization of with a SpectrumIndex"""
     index = SpectrumIndex(tmp_path / "index.hdf5", mgf_small)
-    data_module = SpectrumDataModule(
-        train_index=index,
-        val_index=index,
-        test_index=index,
+    dset = SpectrumDataset(index)
+    loader = torch.utils.data.DataLoader(
+        dset,
         batch_size=1,
+        collate_fn=dset.collate_fn,
         num_workers=0,
     )
 
-    data_module.setup()
-    assert data_module.train_dataloader is not None
-    assert data_module.val_dataloader is not None
-    assert data_module.test_dataloader is not None
-
-    batch = next(iter(data_module.train_dataloader()))
+    batch = next(iter(loader))
     assert len(batch) == 2
     assert batch[0].shape[0] == 1
     assert batch[0].shape[2] == 2
     assert batch[1].shape == (1, 2)
 
-    data_module = SpectrumDataModule(
-        train_index=index,
-        val_index=index,
-        test_index=index,
+    dset = SpectrumDataset(index, n_peaks=3)
+    loader = torch.utils.data.DataLoader(
+        dset,
         batch_size=1,
+        collate_fn=dset.collate_fn,
         num_workers=0,
-        n_peaks=3,
     )
 
-    data_module.setup()
-    assert data_module.train_dataloader is not None
-    assert data_module.val_dataloader is not None
-    assert data_module.test_dataloader is not None
-
-    batch = next(iter(data_module.train_dataloader()))
+    batch = next(iter(loader))
     assert len(batch) == 2
     assert batch[0].shape[0] == 1
     assert batch[0].shape[1] == 3
@@ -53,20 +44,15 @@ def test_spectrum_index_init(mgf_small, tmp_path):
 def test_ann_spectrum_index_init(mgf_small, tmp_path):
     """Test initialization of with a SpectrumIndex"""
     index = AnnotatedSpectrumIndex(tmp_path / "index.hdf5", mgf_small)
-    data_module = SpectrumDataModule(
-        train_index=index,
-        val_index=index,
-        test_index=index,
+    dset = AnnotatedSpectrumDataset(index)
+    loader = torch.utils.data.DataLoader(
+        dset,
         batch_size=1,
         num_workers=0,
+        collate_fn=dset.collate_fn,
     )
 
-    data_module.setup()
-    assert data_module.train_dataloader is not None
-    assert data_module.val_dataloader is not None
-    assert data_module.test_dataloader is not None
-
-    batch = next(iter(data_module.train_dataloader()))
+    batch = next(iter(loader))
     assert len(batch) == 3
     assert batch[0].shape[0] == 1
     assert batch[0].shape[2] == 2
@@ -98,29 +84,26 @@ def test_spectrum_index_reuse(mgf_small, tmp_path):
 def test_preprocessing_fn(mgf_small, tmp_path):
     """Test preprocessing functions."""
     index = SpectrumIndex(tmp_path / "index.hdf5", mgf_small)
-    data_module = SpectrumDataModule(
-        train_index=index,
-        val_index=index,
-        test_index=index,
+    dset = SpectrumDataset(index)
+    loader = torch.utils.data.DataLoader(
+        dset,
         batch_size=1,
+        collate_fn=dset.collate_fn,
         num_workers=0,
     )
 
-    data_module.setup()
-    spec, *_ = next(iter(data_module.train_dataloader()))
+    spec, *_ = next(iter(loader))
     assert (spec[:, :, 1] < 1).all()
 
-    data_module = SpectrumDataModule(
-        train_index=index,
-        val_index=index,
-        test_index=index,
+    dset = SpectrumDataset(index, preprocessing_fn=[])
+    loader = torch.utils.data.DataLoader(
+        dset,
         batch_size=1,
-        preprocessing_fn=[],
+        collate_fn=dset.collate_fn,
         num_workers=0,
     )
 
-    data_module.setup()
-    spec, *_ = next(iter(data_module.train_dataloader()))
+    spec, *_ = next(iter(loader))
     assert (spec[:, :, 1] == 1).all()
 
     def my_func(mz_array, int_array, precursor_mz, precursor_charge):
@@ -128,15 +111,13 @@ def test_preprocessing_fn(mgf_small, tmp_path):
         int_array[:] = 2.0
         return mz_array, int_array
 
-    data_module = SpectrumDataModule(
-        train_index=index,
-        val_index=index,
-        test_index=index,
+    dset = SpectrumDataset(index, preprocessing_fn=my_func)
+    loader = torch.utils.data.DataLoader(
+        dset,
         batch_size=1,
-        preprocessing_fn=my_func,
+        collate_fn=dset.collate_fn,
         num_workers=0,
     )
 
-    data_module.setup()
-    spec, *_ = next(iter(data_module.train_dataloader()))
+    spec, *_ = next(iter(loader))
     assert (spec[:, :, 1] == 2).all()
