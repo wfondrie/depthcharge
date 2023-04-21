@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
+- Change target mask from float to boolean.
 - Log the number spectra that are skipped due to an invalid precursor charge.
 
 ## [0.2.0] - 2023-03-06
