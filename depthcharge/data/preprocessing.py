@@ -90,7 +90,7 @@ def remove_precursor_peak(
     precursor_mz: float,
     tol: float = 1.5,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Square root the intensities and scale to unit norm.
+    """Remove peaks near the precursor m/z.
 
     Parameters
     ----------
