@@ -449,22 +449,11 @@ class PeptideDecoder(_PeptideTransformer):
 
 
 def generate_tgt_mask(sz):
-    """Generate a square mask for the sequence. The masked positions
-    are filled with float('-inf'). Unmasked positions are filled with
-    float(0.0).
-
-    This function is a slight modification of the version in the PyTorch
-    repository.
+    """Generate a square mask for the sequence.
 
     Parameters
     ----------
     sz : int
         The length of the target sequence.
     """
-    mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-    mask = (
-        mask.float()
-        .masked_fill(mask == 0, float("-inf"))
-        .masked_fill(mask == 1, float(0.0))
-    )
-    return mask
+    return ~torch.triu(torch.ones(sz, sz, dtype=torch.bool)).transpose(0, 1)
