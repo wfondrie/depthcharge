@@ -271,8 +271,8 @@ class MzmlParser(BaseParser):
             precursor_mz, precursor_charge = None, 0
 
         if (
-                self.valid_charge is not None
-                and precursor_charge not in self.valid_charge
+            self.valid_charge is not None
+            and precursor_charge not in self.valid_charge
         ):
             raise ValueError("Unsupported precursor charge")
 
@@ -281,7 +281,7 @@ class MzmlParser(BaseParser):
             precursor_mz,
             precursor_charge,
             spectrum["m/z array"],
-            spectrum["intensity array"]
+            spectrum["intensity array"],
         )
 
 
@@ -367,8 +367,8 @@ class MzxmlParser(BaseParser):
             precursor_mz, precursor_charge = None, 0
 
         if (
-                self.valid_charge is not None
-                and precursor_charge not in self.valid_charge
+            self.valid_charge is not None
+            and precursor_charge not in self.valid_charge
         ):
             raise ValueError("Unsupported precursor charge")
 
@@ -377,7 +377,7 @@ class MzxmlParser(BaseParser):
             precursor_mz,
             precursor_charge,
             spectrum["m/z array"],
-            spectrum["intensity array"]
+            spectrum["intensity array"],
         )
 
 
@@ -457,8 +457,8 @@ class MgfParser(BaseParser):
             precursor_mz, precursor_charge = None, 0
 
         if (
-                self.valid_charge is not None
-                and precursor_charge not in self.valid_charge
+            self.valid_charge is not None
+            and precursor_charge not in self.valid_charge
         ):
             raise ValueError("Unsupported precursor charge")
 
@@ -470,7 +470,7 @@ class MgfParser(BaseParser):
             precursor_mz,
             precursor_charge,
             spectrum["m/z array"],
-            spectrum["intensity array"]
+            spectrum["intensity array"],
         )
 
 
