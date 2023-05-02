@@ -42,6 +42,11 @@ class SpectrumIndex:
     path : Path
     ms_level : int
     valid_charge : Optional[Iterable[int]]
+    min_mz : Optional[float]
+    max_mz : Optional[float]
+    min_intensity : Optional[float]
+    max_n_peaks : Optional[int]
+    remove_precursor_tol : Optional[float]
     annotated : bool
     overwrite : bool
     n_spectra : int
@@ -54,6 +59,11 @@ class SpectrumIndex:
         ms_data_files=None,
         ms_level=2,
         valid_charge=None,
+        min_mz=None,
+        max_mz=None,
+        min_intensity=None,
+        max_n_peaks=None,
+        remove_precursor_tol=None,
         annotated=False,
         overwrite=False,
     ):
@@ -66,6 +76,11 @@ class SpectrumIndex:
         self._path = index_path
         self._ms_level = utils.check_positive_int(ms_level, "ms_level")
         self._valid_charge = valid_charge
+        self._min_mz = min_mz
+        self._max_mz = max_mz
+        self._min_intensity = min_intensity
+        self._max_n_peaks = max_n_peaks
+        self._remove_precursor_tol = remove_precursor_tol
         self._annotated = bool(annotated)
         self._overwrite = bool(overwrite)
         self._handle = None
@@ -133,7 +148,15 @@ class SpectrumIndex:
         MzmlParser, MzxmlParser, or MgfParser
             The appropriate parser for the file.
         """
-        kw_args = dict(ms_level=self.ms_level, valid_charge=self.valid_charge)
+        kw_args = dict(
+            ms_level=self.ms_level,
+            valid_charge=self.valid_charge,
+            min_mz=self.min_mz,
+            max_mz=self.max_mz,
+            min_intensity=self.min_intensity,
+            max_n_peaks=self.max_n_peaks,
+            remove_precursor_tol=self.remove_precursor_tol,
+        )
 
         if ms_data_file.suffix.lower() == ".mzml":
             return MzmlParser(ms_data_file, **kw_args)
@@ -179,9 +202,9 @@ class SpectrumIndex:
         Parameters
         ----------
         ms_data_file : str or Path
-            The mass spectrometry data file to add. It must be in an mzML or
-            MGF file format and use an ``.mzML``, ``.mzXML``, or ``.mgf`` file
-            extension.
+            The mass spectrometry data file to add. It must be in an mzML,
+            mzXML, or MGF file format and use an ``.mzML``, ``.mzXML``, or
+            ``.mgf`` file extension.
         """
         ms_data_file = Path(ms_data_file)
         if str(ms_data_file) in self._file_map:
@@ -372,6 +395,32 @@ class SpectrumIndex:
         return self._valid_charge
 
     @property
+    def min_mz(self):
+        """Valid minimum m/z for peaks in the spectra."""
+        return self._min_mz
+
+    @property
+    def max_mz(self):
+        """Valid maximum m/z for peaks in the spectra."""
+        return self._max_mz
+
+    @property
+    def min_intensity(self):
+        """Valid relative minimum intensity for peaks in the spectra."""
+        return self._min_intensity
+
+    @property
+    def max_n_peaks(self):
+        """The maximum number of most intense peaks retained in each
+        spectrum."""
+        return self._max_n_peaks
+
+    @property
+    def remove_precursor_tol(self):
+        """M/z tolerance to remove peaks around the precursor m/z."""
+        return self._remove_precursor_tol
+
+    @property
     def annotated(self):
         """Whether or not the index contains spectrum annotations."""
         return self._annotated
@@ -440,6 +489,11 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
         ms_data_files=None,
         ms_level=2,
         valid_charge=None,
+        min_mz=None,
+        max_mz=None,
+        min_intensity=None,
+        max_n_peaks=None,
+        remove_precursor_tol=None,
         overwrite=False,
     ):
         """Initialize an AnnotatedSpectrumIndex"""
@@ -448,6 +502,11 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
             ms_data_files=ms_data_files,
             ms_level=ms_level,
             valid_charge=valid_charge,
+            min_mz=min_mz,
+            max_mz=max_mz,
+            min_intensity=min_intensity,
+            max_n_peaks=max_n_peaks,
+            remove_precursor_tol=remove_precursor_tol,
             annotated=True,
             overwrite=overwrite,
         )
@@ -458,6 +517,12 @@ class AnnotatedSpectrumIndex(SpectrumIndex):
             return MgfParser(
                 ms_data_file,
                 ms_level=self.ms_level,
+                valid_charge=self.valid_charge,
+                min_mz=self.min_mz,
+                max_mz=self.max_mz,
+                min_intensity=self.min_intensity,
+                max_n_peaks=self.max_n_peaks,
+                remove_precursor_tol=self.remove_precursor_tol,
                 annotations=True,
             )
 
