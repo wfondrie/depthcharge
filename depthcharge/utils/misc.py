@@ -1,4 +1,4 @@
-"""Common utility functions"""
+"""Common utility functions."""
 import pandas as pd
 
 try:

@@ -1,9 +1,9 @@
-"""Amino acid masses and other useful mass spectrometry calculations"""
+"""Amino acid masses and other useful mass spectrometry calculations."""
 import re
 
 
 class PeptideMass:
-    """A simple class for calculating peptide masses
+    """A simple class for calculating peptide masses.
 
     Parameters
     ----------
@@ -59,8 +59,8 @@ class PeptideMass:
     h2o = 2 * hydrogen + oxygen
     proton = 1.00727646688
 
-    def __init__(self, residues="canonical"):
-        """Initialize the PeptideMass object"""
+    def __init__(self, residues="canonical") -> None:
+        """Initialize the PeptideMass object."""
         if residues == "canonical":
             self.masses = self.canonical
         elif residues == "massivekb":
@@ -70,7 +70,7 @@ class PeptideMass:
             self.masses = residues
 
     def __len__(self):
-        """Return the length of the residue dictionary"""
+        """Return the length of the residue dictionary."""
         return len(self.masses)
 
     def mass(self, seq, charge=None):
