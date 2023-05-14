@@ -15,6 +15,6 @@ def _get_version():
         The package version number. If not version is found, returns None.
     """
     try:
-        return version("depthcharge")
+        return version("depthcharge-ms")
     except PackageNotFoundError:
         return None
