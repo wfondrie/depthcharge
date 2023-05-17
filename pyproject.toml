@@ -24,6 +24,8 @@ dependencies = [
     "h5py>=3.7.0",
     "einops>=0.4.1",
     "tqdm>=4.65.0",
+    "lark",
+    "selfies",
 ]
 dynamic = ["version"]
 
