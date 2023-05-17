@@ -184,6 +184,9 @@ class Molecule:
         if self._mol is None:
             raise ValueError("The SMILES was invalid.")
 
+        # Canonnicalize the SMILES string:
+        self.smiles = Chem.MolToSmiles(self._mol)
+
     def show(self, **kwargs: dict) -> PngImageFile:
         """Show the molecule in 2D.
 
@@ -237,14 +240,14 @@ class MassSpectrum:
 
     mzs: torch.tensor
     intensities: torch.tensor
-    precursor: Precursor | None
+    precursor: Precursor | None = None
 
     def __post_init__(self) -> None:
         """Validate the parameters."""
-        if not isinstance(self.mzs, torch.tensor):
+        if not isinstance(self.mzs, torch.Tensor):
             self.mzs = torch.tensor(self.mzs)
 
-        if not isinstance(self.intensities, torch.tensor):
+        if not isinstance(self.intensities, torch.Tensor):
             self.intensities = torch.tensor(self.intensities)
 
         if not self.mzs.shape == self.intensities.shape:

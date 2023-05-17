@@ -1,9 +1,14 @@
 """Test that our fundamental dataclasses work."""
+import numpy as np
 import pytest
+import torch
 from lark.exceptions import UnexpectedCharacters
 
 from depthcharge.base.dataclasses import (
+    MassSpectrum,
+    Molecule,
     Peptide,
+    Precursor,
 )
 
 
@@ -72,4 +77,37 @@ def test_peptide_from_massivekb():
 
 def test_molecule_init():
     """Test that molecule initialize correctly."""
-    pass
+    etoh1 = Molecule("CCO")
+    etoh2 = Molecule("C(O)C")
+    assert etoh1.smiles == etoh2.smiles
+    assert etoh1.to_selfies() == etoh2.to_selfies()
+
+    shown = etoh1.show()
+    assert shown is not None
+
+    etoh1_selfie = etoh1.to_selfies()
+    assert Molecule.from_selfies(etoh1_selfie) == etoh1
+
+    with pytest.raises(ValueError):
+        Molecule("not a smiles string")
+
+
+def test_mass_spectrum():
+    """Test that the mass spectrum is created correctly."""
+    mzs = np.arange(10)
+    intensities = np.arange(10) + 100
+
+    MassSpectrum(torch.tensor(mzs), torch.tensor(intensities))
+    MassSpectrum(mzs, intensities, Precursor(10.0, 2))
+    spec = MassSpectrum(mzs, intensities)
+    assert spec.to_tensor().shape == (10, 2)
+
+    with pytest.raises(ValueError):
+        MassSpectrum(mzs, np.arange(9))
+
+
+def test_precursor():
+    """Test precursor initialization."""
+    Precursor(10.0)
+    Precursor((2, 3))
+    Precursor((1, 2), 3)
