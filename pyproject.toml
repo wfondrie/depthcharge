@@ -26,6 +26,7 @@ dependencies = [
     "tqdm>=4.65.0",
     "lark",
     "selfies",
+    "sortedcontainers",
 ]
 dynamic = ["version"]
 

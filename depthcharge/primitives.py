@@ -1,4 +1,4 @@
-"""A class for peptides."""
+"""Fundamental dataclasses for depthcharge."""
 from __future__ import annotations
 
 import re
@@ -54,6 +54,8 @@ class Peptide:
                     "'modifications' must be two elements longer than "
                     "'sequences' to account for terminal modifications."
                 )
+
+        self.proforma = "".join(self.split())
 
     def split(self) -> list[str]:
         """Split the modified peptide for tokenization."""
@@ -136,7 +138,7 @@ class Peptide:
 
         MassIVE-KB includes N-term carbamylation, NH3-loss, acetylation,
         as well as M oxidation, and deamidation of N and Q, in a
-        manner that does not comply with ProForma.
+        manner that does not comply with the ProForma standard.
 
         Parameters
         ----------
@@ -151,16 +153,42 @@ class Peptide:
             The parsed MassIVE peptide after conversion to a ProForma
             format.
         """
-        seq = "".join(
+        sequence = cls.massivekb_to_proforma(sequence, charge)
+        return cls.from_proforma(sequence)
+
+    @classmethod
+    def massivekb_to_proforma(
+        cls, sequence: str, charge: int | None = None
+    ) -> str:
+        """Convert a MassIVE-KB peptide sequence to ProForma.
+
+        MassIVE-KB includes N-term carbamylation, NH3-loss, acetylation,
+        as well as M oxidation, and deamidation of N and Q, in a
+        manner that does not comply with ProForma.
+
+        Parameters
+        ----------
+        sequence : str
+            The peptide sequence from MassIVE-KB
+        charge : int, optional
+            The charge state of the peptide.
+
+        Returns
+        -------
+        str
+            The parsed MassIVE peptide after conversion to a ProForma
+            format.
+        """
+        sequence = "".join(
             [
                 MSKB_TO_UNIMOD.get(aa, aa)
                 for aa in re.split(r"(?<=.)(?=[A-Z])", sequence)
             ]
         )
         if charge is not None:
-            seq += f"/{charge}"
+            sequence += f"/{charge}"
 
-        return cls.from_proforma(seq)
+        return sequence
 
 
 @dataclass
