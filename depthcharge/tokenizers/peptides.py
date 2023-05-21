@@ -1,7 +1,7 @@
 """Tokenizers for peptides."""
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 import numba as nb
 import numpy as np
@@ -9,8 +9,8 @@ import torch
 from spectrum_utils import proforma
 
 from .. import utils
-from ..constants import PROTON, H2O, C13
-from ..primitives import Peptide, MSKB_TO_UNIMOD
+from ..constants import C13, H2O, PROTON
+from ..primitives import MSKB_TO_UNIMOD, Peptide
 from .tokenizer import Tokenizer
 
 
@@ -41,6 +41,7 @@ class PeptideTokenizer(Tokenizer):
     stop_token : str
         The stop token.
     """
+
     residues = nb.typed.Dict.empty(
         nb.types.unicode_type,
         nb.types.float64,
@@ -68,13 +69,16 @@ class PeptideTokenizer(Tokenizer):
         W=186.079312980,
     )
 
+    # The peptide parsing function:
+    _parse_peptide = Peptide.from_proforma
+
     def __init__(
         self,
         residues: dict[str, float] | None = None,
         replace_isoleucine_with_leucine: bool = True,
         reverse: bool = True,
     ) -> None:
-        """Initialize a PeptideTokenizer"""
+        """Initialize a PeptideTokenizer."""
         self.replace_isoleucine_with_leucine = replace_isoleucine_with_leucine
         self.reverse = reverse
         self.residues = self.residues.copy()
@@ -82,13 +86,21 @@ class PeptideTokenizer(Tokenizer):
             self.residues.update(residues)
 
         if self.replace_isoleucine_with_leucine:
-            del residues["I"]
+            del self.residues["I"]
 
         super().__init__(list(self.residues.keys()))
 
     def split(self, sequence: str) -> list[str]:
-        """Split a ProForma peptide sequence"""
-        return Peptide.from_proforma(sequence).split()
+        """Split a ProForma peptide sequence."""
+        pep = self._parse_peptide(sequence)
+        if self.replace_isoleucine_with_leucine:
+            pep.sequence = pep.sequence.replace("I", "L")
+
+        pep = pep.split()
+        if self.reverse:
+            pep.reverse()
+
+        return pep
 
     def precursor_mz(
         self,
@@ -149,7 +161,7 @@ class PeptideTokenizer(Tokenizer):
     def fragment_mz(
         self,
         sequences: Iterable[str],
-        charges: Iterable[int | None] | None = 1,
+        max_charge: Iterable[int | None] | int | None = 1,
     ) -> list[torch.Tensor[float]]:
         """Calculate the precursor m/z for peptide sequences.
 
@@ -157,7 +169,7 @@ class PeptideTokenizer(Tokenizer):
         ----------
         sequences : Iterable[str],
             The peptide sequences.
-        charges : Iterable[int | None] | None = None, optional
+        max_charge : Iterable[int | None] | int | None, optional
             The charge states. If ``None`` then charge states are
             expected to be found in the peptide string.
         n_isotopes : int, optional
@@ -170,12 +182,17 @@ class PeptideTokenizer(Tokenizer):
             A tensor containing the fragment m/z values.
         """
         sequences = utils.listify(sequences)
-        if charges is None:
-            charges = [None] * len(sequences)
+        try:
+            iter(max_charge)
+        except TypeError:
+            max_charge = [max_charge] * len(sequences)
 
         out = []
-        for seq, charge in zip(sequences, charges):
+        for seq, charge in zip(sequences, max_charge):
             if isinstance(seq, str):
+                if self.replace_isoleucine_with_leucine:
+                    seq = seq.replace("I", "L")
+
                 try:
                     pep = Peptide.from_proforma(seq)
                 except ValueError:
@@ -183,7 +200,7 @@ class PeptideTokenizer(Tokenizer):
 
                 tokens = pep.split()
                 if charge is None:
-                    charge = pep.charge
+                    charge = max(pep.charge - 1, 1)
             else:
                 tokens = seq
 
@@ -193,7 +210,7 @@ class PeptideTokenizer(Tokenizer):
                 )
 
             frags = _calc_fragment_masses(
-                tokens,
+                nb.typed.List(tokens),
                 charge,
                 self.residues,
             )
@@ -205,7 +222,7 @@ class PeptideTokenizer(Tokenizer):
     @classmethod
     def from_proforma(
         cls,
-        peptides: Iterable[str],
+        sequences: Iterable[str],
         replace_isoleucine_with_leucine: bool = True,
         reverse: bool = True,
     ) -> PeptideTokenizer:
@@ -216,7 +233,7 @@ class PeptideTokenizer(Tokenizer):
 
         Parameters
         ----------
-        peptides : Iterable[str]
+        sequences : Iterable[str]
             The peptides from which to parse modifications.
         replace_isoleucine_with_leucine : bool
             Replace I with L residues, because they are isobaric and often
@@ -230,7 +247,7 @@ class PeptideTokenizer(Tokenizer):
             A tokenizer for peptides with the observed modifications.
         """
         new_res = cls.residues.copy()
-        for peptide in peptides:
+        for peptide in sequences:
             parsed = proforma.parse(peptide)[0]
             if parsed.modifications is None:
                 continue
@@ -247,8 +264,8 @@ class PeptideTokenizer(Tokenizer):
                 elif loc == "C-term":
                     modstr = "-" + modstr
                 else:
-                    res = parsed.sequence[loc].keys()
-                    if res not in cls.residues:
+                    res = parsed.sequence[loc]
+                    if res not in cls.residues.keys():
                         raise ValueError(f"Unknown amino acid {res}.")
 
                     modstr = res + modstr
@@ -280,8 +297,8 @@ class PeptideTokenizer(Tokenizer):
         MskbPeptideTokenizer
             A tokenizer for peptides with the observed modifications.
         """
-        MskbPeptideTokenizer.from_proforma(
-            MSKB_TO_UNIMOD.values(),
+        return MskbPeptideTokenizer.from_proforma(
+            [f"{mod}A" for mod in MSKB_TO_UNIMOD.values()],
             replace_isoleucine_with_leucine,
             reverse,
         )
@@ -319,9 +336,8 @@ class MskbPeptideTokenizer(PeptideTokenizer):
         The stop token.
 
     """
-    def split(self, sequence: str) -> list[str]:
-        """Split a MassIVE-KB peptide sequence."""
-        return Peptide.from_massivekb(sequence).split()
+
+    _parse_peptide = Peptide.from_massivekb
 
 
 @nb.njit
@@ -331,7 +347,7 @@ def _calc_precursor_mass(
     n_isotopes: int,
     masses: nb.typed.Dict,
 ) -> np.ndarray[float]:
-    """Calculate the precursor mass of a peptide sequence
+    """Calculate the precursor mass of a peptide sequence.
 
     Parameters
     ----------
@@ -390,17 +406,25 @@ def _calc_fragment_masses(
         The m/z of the predicted b and y ions.
     """
     # Handle terminal mods:
-    seq = []
+    seq = np.empty(len(tokens))
+    n_mod = False
+    c_mod = False
     for idx, token in enumerate(tokens):
-        if idx == 1 and "-" in token[0]:
-            seq[0] += masses[token]
-            continue
+        if not idx and token.endswith("-"):
+            n_mod = True
 
-        if idx == (len(tokens) - 1) and "-" in token:
-            seq[-1] += masses[token]
-            continue
+        if idx == (len(tokens) - 1) and token.startswith("-"):
+            c_mod = True
 
-        seq.append(masses[token])
+        seq[idx] = masses[token]
+
+    if n_mod:
+        seq[1] += seq[0]
+        seq = seq[1:]
+
+    if c_mod:
+        seq[-2] += seq[-1]
+        seq = seq[:-1]
 
     # Calculate fragments:
     max_charge = min(charge, 2)
@@ -421,7 +445,7 @@ def _calc_fragment_masses(
 
 @nb.njit
 def _mass2mz(mass: float, charge: int) -> float:
-    """Calculate the m/z
+    """Calculate the m/z.
 
     Parameters
     ----------

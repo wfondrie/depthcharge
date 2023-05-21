@@ -14,9 +14,9 @@ from spectrum_utils import proforma
 
 MSKB_TO_UNIMOD = {
     "+42.011": "[Acetyl]-",
-    "+43.006": "[Carbamylation]-",
+    "+43.006": "[Carbamyl]-",
     "-17.027": "[Ammonia-loss]-",
-    "+43.006-17.027": "+25.980265",  # Not in Unimod
+    "+43.006-17.027": "[+25.980265]-",  # Not in Unimod
     "M+15.995": "M[Oxidation]",
     "N+0.984": "N[Deamidated]",
     "Q+0.984": "Q[Deamidated]",
