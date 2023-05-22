@@ -4,10 +4,11 @@ import pytest
 import torch
 from lark.exceptions import UnexpectedCharacters
 
-from depthcharge.base.dataclasses import (
+from depthcharge.primitives import (
     MassSpectrum,
     Molecule,
     Peptide,
+    PeptideIons,
     Precursor,
 )
 
@@ -73,6 +74,14 @@ def test_peptide_from_massivekb():
 
     with pytest.raises(UnexpectedCharacters):
         Peptide.from_massivekb("LES+79LIEK")
+
+
+def test_peptide_ions():
+    """Test peptide ions."""
+    ions = PeptideIons(["A", "B"], 42.0, torch.tensor([[[0]], [[1]]]))
+    assert ions.sequence == "AB"
+    assert ions.b_ions == torch.tensor([[0]])
+    assert ions.y_ions == torch.tensor([[1]])
 
 
 def test_molecule_init():
