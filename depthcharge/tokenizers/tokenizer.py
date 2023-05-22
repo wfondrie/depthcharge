@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Sequence
 
 import torch
-from sortedcontainers import SortedDict
+from sortedcontainers import SortedDict, SortedSet
 from torch import nn
 
 
@@ -23,14 +23,17 @@ class Tokenizer(ABC):
     def __init__(self, tokens: Sequence[str], stop_token: str = "$") -> None:
         """Initialize a tokenizer."""
         self.stop_token = stop_token
-        self.index = SortedDict({k: i for i, k in enumerate(tokens)})
-        if self.stop_token in self.index.keys():
+
+        tokens = SortedSet(tokens)
+        if self.stop_token in tokens:
             raise ValueError(
                 f"Stop token {stop_token} already exists in tokens.",
             )
 
-        self.index[self.stop_token] = len(self.index)
-        self.reverse_index = [None] + list(self.index.keys)
+        tokens.add(self.stop_token)
+        self.index = SortedDict({k: i + 1 for i, k in enumerate(tokens)})
+        self.reverse_index = [None] + list(tokens)
+        self.stop_int = self.index[self.stop_token]
 
     @abstractmethod
     def split(self, sequence: str) -> list[str]:
@@ -62,7 +65,10 @@ class Tokenizer(ABC):
             if to_strings:
                 return [self.split(s) for s in sequences]
 
-            tokens = [self.index[t] for s in sequences for t in self.split(s)]
+            tokens = [
+                torch.tensor([self.index[t] for t in self.split(s)])
+                for s in sequences
+            ]
             return nn.utils.rnn.pad_sequence(tokens, batch_first=True)
         except KeyError as err:
             raise ValueError("Unrecognized token") from err
