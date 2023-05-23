@@ -1,14 +1,20 @@
-"""Mass spectrometry data parsers"""
+"""Mass spectrometry data parsers."""
+from __future__ import annotations
+
 import logging
-from pathlib import Path
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable
+from os import PathLike
+from pathlib import Path
 
 import numpy as np
-from tqdm.auto import tqdm
+from pyteomics.mgf import MGF
 from pyteomics.mzml import MzML
 from pyteomics.mzxml import MzXML
-from pyteomics.mgf import MGF
+from tqdm.auto import tqdm
 
+from .. import utils
+from ..primitives import MassSpectrum
 
 LOGGER = logging.getLogger(__name__)
 
@@ -18,10 +24,12 @@ class BaseParser(ABC):
 
     Parameters
     ----------
-    ms_data_file : str or Path
+    ms_data_file : PathLike
         The mzML file to parse.
     ms_level : int
         The MS level of the spectra to parse.
+    preprocessing_fn : Callable or Iterable[Callable], optional
+        The function(s) used to preprocess the mass spectra.
     valid_charge : Iterable[int], optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
@@ -31,14 +39,20 @@ class BaseParser(ABC):
 
     def __init__(
         self,
-        ms_data_file,
-        ms_level,
-        valid_charge=None,
-        id_type="scan",
-    ):
-        """Initialize the BaseParser"""
+        ms_data_file: PathLike,
+        ms_level: int,
+        preprocessing_fn: Callable | Iterable[Callable] | None = None,
+        valid_charge: Iterable[int] | None = None,
+        id_type: str = "scan",
+    ) -> None:
+        """Initialize the BaseParser."""
         self.path = Path(ms_data_file)
         self.ms_level = ms_level
+        if preprocessing_fn is None:
+            self.preprocessing_fn = []
+        else:
+            self.preprocessing_fn = utils.listify(preprocessing_fn)
+
         self.valid_charge = None if valid_charge is None else set(valid_charge)
         self.id_type = id_type
         self.offset = None
@@ -47,24 +61,28 @@ class BaseParser(ABC):
         self.scan_id = []
         self.mz_arrays = []
         self.intensity_arrays = []
+        self.annotations = None
 
     @abstractmethod
-    def open(self):
-        """Open the file as an iterable"""
-        pass
+    def open(self) -> Iterable:
+        """Open the file as an iterable."""
 
     @abstractmethod
-    def parse_spectrum(self, spectrum):
-        """Parse a single spectrum
+    def parse_spectrum(self, spectrum: dict) -> MassSpectrum | None:
+        """Parse a single spectrum.
 
         Parameters
         ----------
         spectrum : dict
             The dictionary defining the spectrum in a given format.
-        """
-        pass
 
-    def read(self):
+        Returns
+        -------
+        MassSpectrum or None
+            The parsed mass spectrum or None if it is skipped.
+        """
+
+    def read(self) -> BaseParser:
         """Read the ms data file.
 
         Returns
@@ -75,7 +93,18 @@ class BaseParser(ABC):
         with self.open() as spectra:
             for spectrum in tqdm(spectra, desc=str(self.path), unit="spectra"):
                 try:
-                    self.parse_spectrum(spectrum)
+                    spectrum = self.parse_spectrum(spectrum)
+                    if self.preprocessing_fn is not None:
+                        for processor in self.preprocessing_fn:
+                            spectrum = processor(spectrum)
+
+                    self.mz_arrays.append(spectrum.mz)
+                    self.intensity_arrays.append(spectrum.intensity)
+                    self.precursor_mz.append(spectrum.precursor_mz)
+                    self.precursor_charge.append(spectrum.precursor_charge)
+                    self.scan_id.append(spectrum.precursor_charge)
+                    if self.annotations is not None:
+                        self.annotations.append(spectrum.label)
                 except (IndexError, KeyError, ValueError):
                     n_skipped += 1
 
@@ -102,12 +131,12 @@ class BaseParser(ABC):
         return self
 
     @property
-    def n_spectra(self):
-        """The number of spectra"""
+    def n_spectra(self) -> int:
+        """The number of spectra."""
         return self.offset.shape[0]
 
     @property
-    def n_peaks(self):
+    def n_peaks(self) -> int:
         """The number of peaks in the file."""
         return self.mz_arrays.shape[0]
 
@@ -117,37 +146,36 @@ class MzmlParser(BaseParser):
 
     Parameters
     ----------
-    ms_data_file : str or Path
+    ms_data_file : PathLike
         The mzML file to parse.
-    ms_level : int
+    ms_level : int, optional
         The MS level of the spectra to parse.
+    preprocessing_fn : Callable or Iterable[Callable], optional
+        The function(s) used to preprocess the mass spectra.
     valid_charge : Iterable[int], optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
     """
 
-    def __init__(self, ms_data_file, ms_level=2, valid_charge=None):
-        """Initialize the MzmlParser."""
-        super().__init__(
-            ms_data_file,
-            ms_level=ms_level,
-            valid_charge=valid_charge,
-        )
-
-    def open(self):
-        """Open the mzML file for reading"""
+    def open(self) -> Iterable[dict]:
+        """Open the mzML file for reading."""
         return MzML(str(self.path))
 
-    def parse_spectrum(self, spectrum):
+    def parse_spectrum(self, spectrum: dict) -> MassSpectrum | None:
         """Parse a single spectrum.
 
         Parameters
         ----------
         spectrum : dict
             The dictionary defining the spectrum in mzML format.
+
+        Returns
+        -------
+        MassSpectrum or None
+            The parsed mass spectrum or None if not at the correct MS level.
         """
         if spectrum["ms level"] != self.ms_level:
-            return
+            return None
 
         if self.ms_level > 1:
             precursor = spectrum["precursorList"]["precursor"][0]
@@ -163,13 +191,16 @@ class MzmlParser(BaseParser):
             precursor_mz, precursor_charge = None, 0
 
         if self.valid_charge is None or precursor_charge in self.valid_charge:
-            self.mz_arrays.append(spectrum["m/z array"])
-            self.intensity_arrays.append(spectrum["intensity array"])
-            self.precursor_mz.append(precursor_mz)
-            self.precursor_charge.append(precursor_charge)
-            self.scan_id.append(_parse_scan_id(spectrum["id"]))
-        else:
-            raise ValueError("Invalid precursor charge")
+            return MassSpectrum(
+                filename=str(self.path),
+                scan_id=_parse_scan_id(spectrum["id"]),
+                mz=spectrum["m/z array"],
+                intensity=spectrum["intensity array"],
+                precursor_mz=precursor_mz,
+                precursor_charge=precursor_charge,
+            )
+
+        raise ValueError("Invalid precursor charge")
 
 
 class MzxmlParser(BaseParser):
@@ -177,37 +208,36 @@ class MzxmlParser(BaseParser):
 
     Parameters
     ----------
-    ms_data_file : str or Path
+    ms_data_file : PathLike
         The mzXML file to parse.
-    ms_level : int
+    ms_level : int, optional
         The MS level of the spectra to parse.
+    preprocessing_fn : Callable or Iterable[Callable], optional
+        The function(s) used to preprocess the mass spectra.
     valid_charge : Iterable[int], optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
     """
 
-    def __init__(self, ms_data_file, ms_level=2, valid_charge=None):
-        """Initialize the MzxmlParser."""
-        super().__init__(
-            ms_data_file,
-            ms_level=ms_level,
-            valid_charge=valid_charge,
-        )
-
-    def open(self):
-        """Open the mzXML file for reading"""
+    def open(self) -> Iterable[dict]:
+        """Open the mzXML file for reading."""
         return MzXML(str(self.path))
 
-    def parse_spectrum(self, spectrum):
+    def parse_spectrum(self, spectrum: dict) -> MassSpectrum | None:
         """Parse a single spectrum.
 
         Parameters
         ----------
         spectrum : dict
             The dictionary defining the spectrum in mzXML format.
+
+        Returns
+        -------
+        MassSpectrum
+            The parsed mass spectrum.
         """
         if spectrum["msLevel"] != self.ms_level:
-            return
+            return None
 
         if self.ms_level > 1:
             precursor = spectrum["precursorMz"][0]
@@ -217,13 +247,16 @@ class MzxmlParser(BaseParser):
             precursor_mz, precursor_charge = None, 0
 
         if self.valid_charge is None or precursor_charge in self.valid_charge:
-            self.mz_arrays.append(spectrum["m/z array"])
-            self.intensity_arrays.append(spectrum["intensity array"])
-            self.precursor_mz.append(precursor_mz)
-            self.precursor_charge.append(precursor_charge)
-            self.scan_id.append(_parse_scan_id(spectrum["id"]))
-        else:
-            raise ValueError("Invalid precursor charge")
+            return MassSpectrum(
+                filename=str(self.path),
+                scan_id=_parse_scan_id(spectrum["id"]),
+                mz=spectrum["m/z array"],
+                intensity=spectrum["intensity array"],
+                precursor_mz=precursor_mz,
+                precursor_charge=precursor_charge,
+            )
+
+        raise ValueError("Invalid precursor charge")
 
 
 class MgfParser(BaseParser):
@@ -231,10 +264,12 @@ class MgfParser(BaseParser):
 
     Parameters
     ----------
-    ms_data_file : str or Path
+    ms_data_file : PathLike
         The MGF file to parse.
-    ms_level : int
+    ms_level : int, optional
         The MS level of the spectra to parse.
+    preprocessing_fn : Callable or Iterable[Callable], optional
+        The function(s) used to preprocess the mass spectra.
     valid_charge : Iterable[int], optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
@@ -244,26 +279,30 @@ class MgfParser(BaseParser):
 
     def __init__(
         self,
-        ms_data_file,
-        ms_level=2,
-        valid_charge=None,
-        annotations=False,
-    ):
+        ms_data_file: PathLike,
+        ms_level: int = 2,
+        preprocessing_fn: Callable | Iterable[Callable] | None = None,
+        valid_charge: Iterable[int] | None = None,
+        annotations: bool = False,
+    ) -> None:
         """Initialize the MgfParser."""
         super().__init__(
             ms_data_file,
             ms_level=ms_level,
+            preprocessing_fn=preprocessing_fn,
             valid_charge=valid_charge,
             id_type="index",
         )
-        self.annotations = [] if annotations else None
+        if annotations:
+            self.annotations = []
+
         self._counter = -1
 
-    def open(self):
-        """Open the MGF file for reading"""
+    def open(self) -> Iterable[dict]:
+        """Open the MGF file for reading."""
         return MGF(str(self.path))
 
-    def parse_spectrum(self, spectrum):
+    def parse_spectrum(self, spectrum: dict) -> MassSpectrum:
         """Parse a single spectrum.
 
         Parameters
@@ -283,16 +322,19 @@ class MgfParser(BaseParser):
             self.annotations.append(spectrum["params"].get("seq"))
 
         if self.valid_charge is None or precursor_charge in self.valid_charge:
-            self.mz_arrays.append(spectrum["m/z array"])
-            self.intensity_arrays.append(spectrum["intensity array"])
-            self.precursor_mz.append(precursor_mz)
-            self.precursor_charge.append(precursor_charge)
-            self.scan_id.append(self._counter)
-        else:
-            raise ValueError("Invalid precursor charge")
+            return MassSpectrum(
+                filename=str(self.path),
+                scan_id=_parse_scan_id(self._counter),
+                mz=spectrum["m/z array"],
+                intensity=spectrum["intensity array"],
+                precursor_mz=precursor_mz,
+                precursor_charge=precursor_charge,
+            )
+
+        raise ValueError("Invalid precursor charge")
 
 
-def _parse_scan_id(scan_str):
+def _parse_scan_id(scan_str: str | int) -> int:
     """Remove the string prefix from the scan ID.
 
     Adapted from:

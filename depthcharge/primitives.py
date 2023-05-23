@@ -5,12 +5,17 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+import numpy as np
 import selfies as sf
 import torch
+from numpy.typing import ArrayLike
 from PIL.PngImagePlugin import PngImageFile
 from rdkit import Chem
 from rdkit.Chem import Draw
 from spectrum_utils import proforma
+from spectrum_utils.spectrum import MsmsSpectrum
+
+from .constants import PROTON
 
 MSKB_TO_UNIMOD = {
     "+42.011": "[Acetyl]-",
@@ -286,59 +291,95 @@ class Molecule:
         return cls(sf.decoder(selfies), charge)
 
 
-@dataclass
-class MassSpectrum:
+class MassSpectrum(MsmsSpectrum):
     """A mass spectrum.
 
     Parameters
     ----------
-    mzs: torch.tensor of shape (n_peaks,)
+    filename: str
+        The file from which the spectrum originated.
+    scan_id: str
+        The Hupo PSI standard scan identifier.
+    mz: array of shape (n_peaks,)
         The m/z values.
-    intensities: torch.tensor of shape (n_peaks, )
+    intensitiy: array of shape (n_peaks, )
         The intensity values.
-    precursor: Precurosr, optional
+    filename: str, optional
+        The file from which the spectrum originated.
+    precursor: Precusor, optional
         Precursor ion information, if applicable.
+    label: str, optional
+        A label for the mass spectrum. This is typically an
+        annotation, such as the generating peptide sequence,
+        but is distinct from spectrum_utils' annotation.
     """
 
-    mzs: torch.tensor
-    intensities: torch.tensor
-    precursor: Precursor | None = None
+    def __init__(
+        self,
+        filename: str,
+        scan_id: str,
+        mz: ArrayLike,
+        intensity: ArrayLike,
+        retention_time: float | None = None,
+        ion_mobility: float | None = None,
+        precursor_mz: float | None = None,
+        precursor_charge: int | None = None,
+        label: str | None = None,
+    ) -> None:
+        """Initialize a MassSpectrum."""
+        self.filename = filename
+        self.scan_id = scan_id
+        self.label = label
 
-    def __post_init__(self) -> None:
-        """Validate the parameters."""
-        if not isinstance(self.mzs, torch.Tensor):
-            self.mzs = torch.tensor(self.mzs)
+        # Not currently supported by spectrum_utils:
+        self.ion_mobility = ion_mobility
 
-        if not isinstance(self.intensities, torch.Tensor):
-            self.intensities = torch.tensor(self.intensities)
+        # spectrum_utils requires a precursor. Will remove after
+        # I make a PR:
+        if precursor_mz is None:
+            precursor_mz = np.nan
 
-        if not self.mzs.shape == self.intensities.shape:
-            raise ValueError(
-                "'mzs' and 'intensities' must be the same length."
-            )
+        if precursor_charge is None:
+            precursor_charge = np.nan
+
+        super().__init__(
+            identifier=self.usi,
+            precursor_mz=precursor_mz,
+            precursor_charge=precursor_charge,
+            mz=mz,
+            intensity=intensity,
+            retention_time=retention_time,
+        )
+
+    @property
+    def usi(self) -> str:
+        """The Universal Spectrum Identifier."""
+        index_type, scan = self.scan_id.split("=")
+        fname = re.sub(
+            ".(gz|tar|tar.gz|zip|bz2|tar.bz2)$",
+            "",
+            self.filename,
+            flags=re.IGNORECASE,
+        )
+        fname = re.sub(
+            ".(raw|mzml|mzxml|mgf|d|wiff)$",
+            "",
+            fname,
+            flags=re.IGNORECASE,
+        )
+        return ":".join([fname, index_type, scan])
+
+    @property
+    def precursor_mass(self) -> float:
+        """The monoisotopic mass."""
+        return (self.precursor_mz - PROTON) * self.precursor_charge
 
     def to_tensor(self) -> torch.tensor:
-        """Combine the m/z and intensities into a single tensor.
+        """Combine the m/z and intensity arrays into a single tensor.
 
         Returns
         -------
         torch.tensor of shape (n_peaks, 2)
-            The spectrum information.
+            The mass spectrum information.
         """
-        return torch.vstack([self.mzs, self.intensities]).T
-
-
-@dataclass
-class Precursor:
-    """The description of a precursor ion or window.
-
-    Parameters
-    ----------
-    mz : float or 2-tuple of floats
-        Either the selected m/z or the m/z isolation window.
-    charge : int, optional
-        The charge of the precursor ion, if known.
-    """
-
-    mz: float | tuple[float, float]
-    charge: int | None = None
+        return torch.tensor(np.vstack([self.mz, self.intensity]).T)

@@ -1,4 +1,4 @@
-"""Constants"""
+"""Constants."""
 HYDROGEN = 1.007825035
 OXYGEN = 15.99491463
 H2O = 2 * HYDROGEN + OXYGEN
