@@ -3,7 +3,7 @@ import pytest
 
 
 def test_no_tensorboard(monkeypatch):
-    """Test that import works without tensorboard"""
+    """Test that import works without tensorboard."""
     import sys
 
     sys.modules["tensorboard"] = None

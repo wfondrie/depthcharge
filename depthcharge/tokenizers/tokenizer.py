@@ -8,6 +8,8 @@ import torch
 from sortedcontainers import SortedDict, SortedSet
 from torch import nn
 
+from .. import utils
+
 
 class Tokenizer(ABC):
     """An abstract base class for Depthcharge tokenizers.
@@ -35,6 +37,10 @@ class Tokenizer(ABC):
         self.reverse_index = [None] + list(tokens)
         self.stop_int = self.index[self.stop_token]
 
+    def __len__(self) -> int:
+        """The number of tokens."""
+        return len(self.index)
+
     @abstractmethod
     def split(self, sequence: str) -> list[str]:
         """Split a sequence into the constituent string tokens."""
@@ -43,6 +49,7 @@ class Tokenizer(ABC):
         self,
         sequences: Iterable[str],
         to_strings: bool = False,
+        add_stop: bool = False,
     ) -> torch.Tensor | list[list[str]]:
         """Tokenize the input sequences.
 
@@ -53,6 +60,8 @@ class Tokenizer(ABC):
         to_strings : bool, optional
             Return each as a list of token strings rather than a
             tensor. This is useful for debugging.
+        add_stop : bool, optional
+            Append the stop token tothe end of the sequence.
 
         Returns
         -------
@@ -62,14 +71,22 @@ class Tokenizer(ABC):
             each sequence.
         """
         try:
-            if to_strings:
-                return [self.split(s) for s in sequences]
+            out = []
+            for seq in utils.listify(sequences):
+                tokens = self.split(seq)
+                if add_stop and tokens[-1] != self.stop_token:
+                    tokens.append(self.stop_token)
 
-            tokens = [
-                torch.tensor([self.index[t] for t in self.split(s)])
-                for s in sequences
-            ]
-            return nn.utils.rnn.pad_sequence(tokens, batch_first=True)
+                if to_strings:
+                    out.append(tokens)
+                    continue
+
+                out.append(torch.tensor([self.index[t] for t in tokens]))
+
+            if to_strings:
+                return out
+
+            return nn.utils.rnn.pad_sequence(out, batch_first=True)
         except KeyError as err:
             raise ValueError("Unrecognized token") from err
 

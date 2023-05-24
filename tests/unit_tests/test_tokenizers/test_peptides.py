@@ -103,6 +103,9 @@ def test_proforma_init():
     orig = proforma.detokenize(tokens)
     assert orig == ["KEILSEL"]
 
+    tokens = proforma.tokenize("LESLIEK", True, True)[0]
+    assert "".join(tokens) == "KEILSEL$"
+
 
 def test_mskb_init():
     """Test that the MassIVE-KB dataset works."""

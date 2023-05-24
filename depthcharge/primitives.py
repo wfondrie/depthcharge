@@ -343,7 +343,7 @@ class MassSpectrum(MsmsSpectrum):
             precursor_charge = np.nan
 
         super().__init__(
-            identifier=self.usi,
+            identifier=str(scan_id),
             precursor_mz=precursor_mz,
             precursor_charge=precursor_charge,
             mz=mz,
