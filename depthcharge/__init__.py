@@ -3,7 +3,6 @@ from . import (
     data,
     encoders,
     feedforward,
-    mixins,
     tokenizers,
     transformers,
 )
