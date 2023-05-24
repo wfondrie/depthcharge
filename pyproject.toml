@@ -72,6 +72,7 @@ fix = true
 "*tests/*.py" = ["ANN", "N806"]
 "__init__.py" = ["F401", "D104"]
 "depthcharge/encoders/sinusoidal.py" = ["N803"]
+"depthcharge/feedforward.py" = ["N803"]
 
 [tool.black]
 line-length = 79
