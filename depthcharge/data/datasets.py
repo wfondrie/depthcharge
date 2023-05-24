@@ -1,11 +1,16 @@
 """Parse mass spectra into an HDF5 file format."""
 from __future__ import annotations
 
+import hashlib
 import logging
+import uuid
 from collections.abc import Callable, Iterable
 from os import PathLike
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Any
 
+import dill
 import h5py
 import numpy as np
 import torch
@@ -22,17 +27,16 @@ LOGGER = logging.getLogger(__name__)
 class SpectrumDataset(Dataset):
     """Store and access a collection of mass spectra.
 
-    This class parses one or more mzML file, converts it to an HDF5 file
-    format. This allows depthcharge to access spectra from many different
+    Parses one or more MS data files, adding the mass spectra to an HDF5
+    file that indexes the mass spectra from one or multiple files.
+    This allows depthcharge to access random mass spectra from many different
     files quickly and without loading them all into memory.
 
     Parameters
     ----------
-    index_path : PathLike
-        The name and path of the HDF5 file index. If the path does
-        not contain the `.h5` or `.hdf5` extension, `.hdf5` will be added.
     ms_data_files : PathLike or list of PathLike, optional
-        The mzML to include in this collection.
+        The mzML, mzXML, or MGF files to include in this collection. Files
+        can be added later using the ``.add_file()`` method.
     ms_level : int, optional
         The level of tandem mass spectra to use.
     preprocessing_fn : Callable or Iterable[Callable], optional
@@ -45,6 +49,10 @@ class SpectrumDataset(Dataset):
         any precursor charge is accepted.
     annotated : bool, optional
         Whether or not the index contains spectrum annotations.
+    index_path : PathLike, optional.
+        The name and path of the HDF5 file index. If the path does
+        not contain the `.h5` or `.hdf5` extension, `.hdf5` will be added.
+        If ``None``, a file will be created in a temporary directory.
     overwite : bool, optional
         Overwrite previously indexed files? If ``False`` and new files are
         provided, they will be appended to the collection.
@@ -65,16 +73,23 @@ class SpectrumDataset(Dataset):
 
     def __init__(
         self,
-        index_path: PathLike,
         ms_data_files: PathLike | Iterable[PathLike] = None,
         ms_level: int = 2,
         preprocessing_fn: Callable | Iterable[Callable] | None = None,
         valid_charge: Iterable[int] | None = None,
+        index_path: PathLike | None = None,
         overwrite: bool = False,
     ) -> None:
         """Initialize a SpectrumIndex."""
+        self._tmpdir = None
+        if index_path is None:
+            # Create a random temporary file:
+            self._tmpdir = TemporaryDirectory()
+            index_path = Path(self._tmpdir.name) / f"{uuid.uuid4()}.hdf5"
+
         index_path = Path(index_path)
         if index_path.suffix not in [".h5", ".hdf5"]:
+            index_path = Path(index_path)
             index_path = Path(str(index_path) + ".hdf5")
 
         # Set attributes and check parameters:
@@ -104,22 +119,11 @@ class SpectrumDataset(Dataset):
                 index.attrs["n_spectra"] = 0
                 index.attrs["n_peaks"] = 0
                 index.attrs["annotated"] = self.annotated
-
-        # Else, verify that the previous index uses the same ms_level.
+                index.attrs["preprocessing_fn"] = _hash_obj(
+                    tuple(self.preprocessing_fn)
+                )
         else:
-            with self:
-                try:
-                    assert self._handle.attrs["ms_level"] == self.ms_level
-                    if self._annotated:
-                        assert self._handle.attrs["annotated"]
-                except (KeyError, AssertionError):
-                    raise ValueError(
-                        f"'{self.path}' already exists, but was created with "
-                        "incompatible parameters. Use 'overwrite=True' to "
-                        "overwrite it."
-                    )
-
-                self._reindex()
+            self._validate_index()
 
         # Now parse spectra.
         if ms_data_files is not None:
@@ -143,6 +147,24 @@ class SpectrumDataset(Dataset):
             grp_idx += lin_idx >= offsets[grp_idx]
             row_idx = lin_idx - offsets[grp_idx - 1]
             self._locs[lin_idx] = (grp_idx, row_idx)
+
+    def _validate_index(self) -> None:
+        """Validate that the index is appropriate for this dataset."""
+        preproc_hash = _hash_obj(tuple(self.preprocessing_fn))
+        with self:
+            try:
+                assert self._handle.attrs["ms_level"] == self.ms_level
+                assert self._handle.attrs["preprocessing_fn"] == preproc_hash
+                if self._annotated:
+                    assert self._handle.attrs["annotated"]
+            except (KeyError, AssertionError):
+                raise ValueError(
+                    f"'{self.path}' already exists, but was created with "
+                    "incompatible parameters. Use 'overwrite=True' to "
+                    "overwrite it."
+                )
+
+            self._reindex()
 
     def _get_parser(
         self,
@@ -363,6 +385,11 @@ class SpectrumDataset(Dataset):
     def __len__(self) -> int:
         """The number of spectra in the index."""
         return self.n_spectra
+
+    def __del__(self) -> None:
+        """Cleanup the temporary directory."""
+        if self._tmpdir is not None:
+            self._tmpdir.cleanup()
 
     def __getitem__(self, idx: int) -> MassSpectrum:
         """Access a mass spectrum.
@@ -604,6 +631,8 @@ def _collate_fn(
         values and ``X[:, :, 1]`` are their associated intensities.
     precursors : torch.Tensor of shape (batch_size, 2)
         The precursor mass and charge state.
+    annotations : np.ndarray of shape (batch_size,)
+        The annotations, if any exist.
     """
     spectra = []
     masses = []
@@ -620,4 +649,11 @@ def _collate_fn(
         spectra,
         batch_first=True,
     )
-    return spectra, precursors.T.float(), annotations
+    return spectra, precursors.T.float(), np.array(annotations)
+
+
+def _hash_obj(obj: Any) -> str:  # noqa: ANN401
+    """SHA1 hash for a picklable object."""
+    out = hashlib.sha1()
+    out.update(dill.dumps(obj))
+    return out.hexdigest()

@@ -80,6 +80,7 @@ def _spectrum_utils_fn(func: str) -> Callable:
             A valid deptcharge preprocessing function.
         """
 
+        @wraps(wrapper)
         def preprocess(spec: MassSpectrum) -> MassSpectrum:
             """The wrapped preprocessing function.
 

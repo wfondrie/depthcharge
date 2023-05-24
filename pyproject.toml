@@ -27,6 +27,7 @@ dependencies = [
     "lark",
     "selfies",
     "sortedcontainers",
+    "dill",
 ]
 dynamic = ["version"]
 

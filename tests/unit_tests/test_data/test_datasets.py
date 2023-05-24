@@ -2,6 +2,8 @@
 import functools
 import shutil
 
+import pytest
+
 from depthcharge.data import (
     AnnotatedSpectrumDataset,
     SpectrumDataset,
@@ -14,14 +16,12 @@ def test_spectrum_id(mgf_small, tmp_path):
     mgf_small2 = tmp_path / "mgf_small2.mgf"
     shutil.copy(mgf_small, mgf_small2)
 
-    dataset = SpectrumDataset(tmp_path / "index.hdf5", [mgf_small, mgf_small2])
+    dataset = SpectrumDataset([mgf_small, mgf_small2])
     with dataset:
         assert dataset.get_spectrum_id(0) == (str(mgf_small), "index=0")
         assert dataset.get_spectrum_id(3) == (str(mgf_small2), "index=1")
 
-    dataset = AnnotatedSpectrumDataset(
-        tmp_path / "index2.hdf5", [mgf_small, mgf_small2]
-    )
+    dataset = AnnotatedSpectrumDataset([mgf_small, mgf_small2])
     with dataset:
         assert dataset.get_spectrum_id(0) == (str(mgf_small), "index=0")
         assert dataset.get_spectrum_id(3) == (str(mgf_small2), "index=1")
@@ -32,14 +32,12 @@ def test_indexing(mgf_small, tmp_path):
     mgf_small2 = tmp_path / "mgf_small2.mgf"
     shutil.copy(mgf_small, mgf_small2)
 
-    dataset = SpectrumDataset(tmp_path / "index.hdf5", [mgf_small, mgf_small2])
+    dataset = SpectrumDataset([mgf_small, mgf_small2])
     spec = dataset[0]
     assert isinstance(spec, MassSpectrum)
     assert spec.label is None
 
-    dataset = AnnotatedSpectrumDataset(
-        tmp_path / "index2.hdf5", [mgf_small, mgf_small2]
-    )
+    dataset = AnnotatedSpectrumDataset([mgf_small, mgf_small2])
     spec = dataset[0]
     assert isinstance(spec, MassSpectrum)
     assert spec.label == "LESLIEK"
@@ -74,10 +72,7 @@ def test_mgf(mgf_small, tmp_path):
     mgf_small2 = tmp_path / "mgf_small2.mgf"
     shutil.copy(mgf_small, mgf_small2)
 
-    index = SpectrumDataset(
-        tmp_path / "index.hdf5",
-        [mgf_small, mgf_small2],
-    )
+    index = SpectrumDataset([mgf_small, mgf_small2])
     assert index.ms_files == [str(mgf_small), str(mgf_small2)]
     assert index.ms_level == 2
     assert not index.annotated
@@ -89,10 +84,7 @@ def test_mgf(mgf_small, tmp_path):
         assert index.get_spectrum_id(0) == (str(mgf_small), "index=0")
         assert index.get_spectrum_id(3) == (str(mgf_small2), "index=1")
 
-    index = AnnotatedSpectrumDataset(
-        tmp_path / "index2.hdf5",
-        [mgf_small, mgf_small2],
-    )
+    index = AnnotatedSpectrumDataset([mgf_small, mgf_small2])
     assert index.ms_files == [str(mgf_small), str(mgf_small2)]
     assert index.ms_level == 2
     assert index.annotated
@@ -110,9 +102,7 @@ def test_mzml_index(real_mzml, tmp_path):
     real_mzml2 = tmp_path / "real_mzml2.mzML"
     shutil.copy(real_mzml, real_mzml2)
 
-    index = SpectrumDataset(
-        tmp_path / "index.hdf5", [real_mzml, real_mzml2], 2, []
-    )
+    index = SpectrumDataset([real_mzml, real_mzml2], 2, [])
     assert index.ms_files == [str(real_mzml), str(real_mzml2)]
     assert index.ms_level == 2
     assert not index.annotated
@@ -125,9 +115,7 @@ def test_mzml_index(real_mzml, tmp_path):
         assert index.get_spectrum_id(7) == (str(real_mzml2), "scan=510")
 
     # MS3
-    index = SpectrumDataset(
-        tmp_path / "index2.hdf5", [real_mzml, real_mzml2], 3, []
-    )
+    index = SpectrumDataset([real_mzml, real_mzml2], 3, [])
     assert index.ms_files == [str(real_mzml), str(real_mzml2)]
     assert index.ms_level == 3
     assert index.n_spectra == 6
@@ -138,9 +126,7 @@ def test_mzml_index(real_mzml, tmp_path):
         assert index.get_spectrum_id(5) == (str(real_mzml2), "scan=508")
 
     # MS1
-    index = SpectrumDataset(
-        tmp_path / "index3.hdf5", [real_mzml, real_mzml2], 1, []
-    )
+    index = SpectrumDataset([real_mzml, real_mzml2], 1, [])
     assert index.ms_files == [str(real_mzml), str(real_mzml2)]
     assert index.ms_level == 1
     assert index.n_spectra == 8
@@ -156,9 +142,7 @@ def test_mzxml_index(real_mzxml, tmp_path):
     real_mzxml2 = tmp_path / "real_mzxml2.mzXML"
     shutil.copy(real_mzxml, real_mzxml2)
 
-    index = SpectrumDataset(
-        tmp_path / "index.hdf5", [real_mzxml, real_mzxml2], 2, []
-    )
+    index = SpectrumDataset([real_mzxml, real_mzxml2], 2, [])
     assert index.ms_files == [str(real_mzxml), str(real_mzxml2)]
     assert index.ms_level == 2
     assert not index.annotated
@@ -171,9 +155,7 @@ def test_mzxml_index(real_mzxml, tmp_path):
         assert index.get_spectrum_id(7) == (str(real_mzxml2), "scan=510")
 
     # MS3
-    index = SpectrumDataset(
-        tmp_path / "index2.hdf5", [real_mzxml, real_mzxml2], 3, []
-    )
+    index = SpectrumDataset([real_mzxml, real_mzxml2], 3, [])
     assert index.ms_files == [str(real_mzxml), str(real_mzxml2)]
     assert index.ms_level == 3
     assert index.n_spectra == 6
@@ -184,9 +166,7 @@ def test_mzxml_index(real_mzxml, tmp_path):
         assert index.get_spectrum_id(5) == (str(real_mzxml2), "scan=508")
 
     # MS1
-    index = SpectrumDataset(
-        tmp_path / "index3.hdf5", [real_mzxml, real_mzxml2], 1, []
-    )
+    index = SpectrumDataset([real_mzxml, real_mzxml2], 1, [])
     assert index.ms_files == [str(real_mzxml), str(real_mzxml2)]
     assert index.ms_level == 1
     assert index.n_spectra == 8
@@ -199,36 +179,54 @@ def test_mzxml_index(real_mzxml, tmp_path):
 
 def test_spectrum_index_reuse(mgf_small, tmp_path):
     """Reuse a previously created (annotated) spectrum index."""
-    index = SpectrumDataset(tmp_path / "index.hdf5", mgf_small)
-    index2 = SpectrumDataset(tmp_path / "index.hdf5")
+    plain_index = tmp_path / "plain.hdf5"
+    ann_index = tmp_path / "ann.hdf5"
+
+    index = SpectrumDataset(mgf_small, index_path=plain_index)
+    index2 = SpectrumDataset(index_path=plain_index)
     assert index.ms_level == index2.ms_level
     assert index.annotated == index2.annotated
     assert not index2.annotated
     assert index.n_peaks == index2.n_peaks
     assert index.n_spectra == index2.n_spectra
 
-    index = AnnotatedSpectrumDataset(
-        tmp_path / "annotated_index.hdf5", mgf_small
-    )
-    index2 = AnnotatedSpectrumDataset(tmp_path / "annotated_index.hdf5")
-    assert index.ms_level == index2.ms_level
-    assert index.annotated == index2.annotated
-    assert index2.annotated
-    assert index.n_peaks == index2.n_peaks
-    assert index.n_spectra == index2.n_spectra
+    index3 = AnnotatedSpectrumDataset(mgf_small, index_path=ann_index)
+    index4 = AnnotatedSpectrumDataset(index_path=ann_index)
+    assert index3.ms_level == index4.ms_level
+    assert index3.annotated == index4.annotated
+    assert index4.annotated
+    assert index3.n_peaks == index4.n_peaks
+    assert index3.n_spectra == index4.n_spectra
+
+    # An annotated spectrum dataset may be loaded as a spectrum dataset,
+    # but not vice versa:
+    SpectrumDataset(index_path=ann_index)
+    with pytest.raises(ValueError):
+        AnnotatedSpectrumDataset(index_path=plain_index)
+
+    # Verify we invalidate correctly:
+    with pytest.raises(ValueError):
+        SpectrumDataset(index_path=plain_index, ms_level=1)
+
+    with pytest.raises(ValueError):
+        SpectrumDataset(index_path=plain_index, preprocessing_fn=[])
+
+    with pytest.raises(ValueError):
+        AnnotatedSpectrumDataset(index_path=ann_index, ms_level=3)
+
+    with pytest.raises(ValueError):
+        AnnotatedSpectrumDataset(index_path=plain_index, preprocessing_fn=[])
 
 
-def test_preprocessing_fn(mgf_small, tmp_path):
+def test_preprocessing_fn(mgf_small):
     """Test preprocessing functions."""
-    dset = SpectrumDataset(tmp_path / "index.hdf5", mgf_small)
+    dset = SpectrumDataset(mgf_small)
     loader = dset.loader(batch_size=1, num_workers=0)
 
     spec, *_ = next(iter(loader))
     assert (spec[:, :, 1] < 1).all()
 
-    dset = SpectrumDataset(
-        tmp_path / "index.hdf5", mgf_small, preprocessing_fn=[], overwrite=True
-    )
+    dset = SpectrumDataset(mgf_small, preprocessing_fn=[])
     loader = dset.loader(batch_size=1, num_workers=0)
 
     spec, *_ = next(iter(loader))
@@ -239,13 +237,7 @@ def test_preprocessing_fn(mgf_small, tmp_path):
         spec.intensity[:] = 2.0
         return spec
 
-    dset = SpectrumDataset(
-        tmp_path / "index.hdf5",
-        mgf_small,
-        preprocessing_fn=my_func,
-        overwrite=True,
-    )
+    dset = SpectrumDataset(mgf_small, preprocessing_fn=my_func)
     loader = dset.loader(batch_size=1, num_workers=0)
-
     spec, *_ = next(iter(loader))
     assert (spec[:, :, 1] == 2).all()

@@ -1,5 +1,4 @@
 """Test PyTorch DataLoaders."""
-import torch
 
 from depthcharge.data import (
     AnnotatedSpectrumDataset,
@@ -7,46 +6,32 @@ from depthcharge.data import (
 )
 
 
-def test_spectrum_index_init(mgf_small, tmp_path):
+def test_spectrum_loader(mgf_small):
     """Test initialization of with a SpectrumIndex."""
-    dset = SpectrumDataset(tmp_path / "index.hdf5", mgf_small)
+    dset = SpectrumDataset(mgf_small, 2)
     loader = dset.loader(batch_size=1, num_workers=0)
 
     batch = next(iter(loader))
     assert len(batch) == 2
-    assert batch[0].shape[0] == 1
-    assert batch[0].shape[2] == 2
+    assert batch[0].shape == (1, 13, 2)
     assert batch[1].shape == (1, 2)
 
-    dset = SpectrumDataset(
-        tmp_path / "index.hdf5",
-        mgf_small,
-        preprocessing_fn=[],
-        overwrite=True,
-    )
-    loader = torch.utils.data.DataLoader(
-        dset,
-        batch_size=1,
-        collate_fn=dset.collate_fn,
-        num_workers=0,
-    )
+    dset = SpectrumDataset(mgf_small, 2, [])
+    loader = dset.loader(batch_size=1, num_workers=0)
 
     batch = next(iter(loader))
     assert len(batch) == 2
-    assert batch[0].shape[0] == 1
-    assert batch[0].shape[1] == 3
-    assert batch[0].shape[2] == 2
+    assert batch[0].shape == (1, 14, 2)
     assert batch[1].shape == (1, 2)
 
 
-def test_ann_spectrum_index_init(mgf_small, tmp_path):
+def test_ann_spectrum_loader(mgf_small):
     """Test initialization of with a SpectrumIndex."""
-    dset = AnnotatedSpectrumDataset(tmp_path / "index.hdf5", mgf_small)
+    dset = AnnotatedSpectrumDataset(mgf_small)
     loader = dset.loader(batch_size=1, num_workers=0)
 
     batch = next(iter(loader))
     assert len(batch) == 3
-    assert batch[0].shape[0] == 1
-    assert batch[0].shape[2] == 2
+    assert batch[0].shape == (1, 13, 2)
     assert batch[1].shape == (1, 2)
     assert batch[2].shape == (1,)
