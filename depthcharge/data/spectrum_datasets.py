@@ -379,6 +379,11 @@ class SpectrumDataset(Dataset):
         **kwargs : dict
             Keyword arguments passed initialize a torch.utils.data.DataLoader,
             excluding ``dataset`` and ``collate_fn``.
+
+        Returns
+        -------
+        torch.utils.data.DataLoader
+            A DataLoader for the mass spectra.
         """
         return DataLoader(self, *args, collate_fn=self.collate_fn, **kwargs)
 

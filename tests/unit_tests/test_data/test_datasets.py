@@ -6,6 +6,7 @@ import pytest
 
 from depthcharge.data import (
     AnnotatedSpectrumDataset,
+    PeptideDataset,
     SpectrumDataset,
 )
 from depthcharge.primitives import MassSpectrum
@@ -241,3 +242,16 @@ def test_preprocessing_fn(mgf_small):
     loader = dset.loader(batch_size=1, num_workers=0)
     spec, *_ = next(iter(loader))
     assert (spec[:, :, 1] == 2).all()
+
+
+def test_peptide_dataset():
+    """Test the peptide dataset."""
+    seqs = ["LESLIEK", "EDITHR"]
+    charges = [2, 3]
+    dset = PeptideDataset(seqs, charges)
+    assert dset[0] == ("LESLIEK", 2)
+    assert dset[1] == ("EDITHR", 3)
+    assert len(dset) == 2
+
+    with pytest.raises(ValueError):
+        PeptideDataset(seqs, [1, 2, 3])

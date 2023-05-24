@@ -1,3 +1,4 @@
 """The Pytorch Datasets."""
 from . import preprocessing
-from .datasets import AnnotatedSpectrumDataset, SpectrumDataset
+from .peptide_datasets import PeptideDataset
+from .spectrum_datasets import AnnotatedSpectrumDataset, SpectrumDataset
