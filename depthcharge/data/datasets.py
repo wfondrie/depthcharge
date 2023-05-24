@@ -612,7 +612,7 @@ def _collate_fn(
     for spec in batch:
         spectra.append(spec.to_tensor())
         masses.append(spec.precursor_mass)
-        charges.append(spec.charges)
+        charges.append(spec.precursor_charge)
         annotations.append(spec.label)
 
     precursors = torch.vstack([torch.tensor(masses), torch.tensor(charges)])

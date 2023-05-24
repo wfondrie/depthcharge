@@ -2,14 +2,14 @@
 from os import PathLike
 from typing import Any
 
+import pandas as pd
+
 try:
-    import pandas as pd
     from tensorboard.backend.event_processing.event_accumulator import (
         EventAccumulator,
     )
 except ImportError:
     EventAccumulator = None
-    pd = None
 
 
 def read_tensorboard_scalars(path: PathLike) -> pd.DataFrame:

@@ -195,3 +195,57 @@ def test_mzxml_index(real_mzxml, tmp_path):
     with index:
         assert index.get_spectrum_id(0) == (str(real_mzxml), "scan=500")
         assert index.get_spectrum_id(5) == (str(real_mzxml2), "scan=503")
+
+
+def test_spectrum_index_reuse(mgf_small, tmp_path):
+    """Reuse a previously created (annotated) spectrum index."""
+    index = SpectrumDataset(tmp_path / "index.hdf5", mgf_small)
+    index2 = SpectrumDataset(tmp_path / "index.hdf5")
+    assert index.ms_level == index2.ms_level
+    assert index.annotated == index2.annotated
+    assert not index2.annotated
+    assert index.n_peaks == index2.n_peaks
+    assert index.n_spectra == index2.n_spectra
+
+    index = AnnotatedSpectrumDataset(
+        tmp_path / "annotated_index.hdf5", mgf_small
+    )
+    index2 = AnnotatedSpectrumDataset(tmp_path / "annotated_index.hdf5")
+    assert index.ms_level == index2.ms_level
+    assert index.annotated == index2.annotated
+    assert index2.annotated
+    assert index.n_peaks == index2.n_peaks
+    assert index.n_spectra == index2.n_spectra
+
+
+def test_preprocessing_fn(mgf_small, tmp_path):
+    """Test preprocessing functions."""
+    dset = SpectrumDataset(tmp_path / "index.hdf5", mgf_small)
+    loader = dset.loader(batch_size=1, num_workers=0)
+
+    spec, *_ = next(iter(loader))
+    assert (spec[:, :, 1] < 1).all()
+
+    dset = SpectrumDataset(
+        tmp_path / "index.hdf5", mgf_small, preprocessing_fn=[], overwrite=True
+    )
+    loader = dset.loader(batch_size=1, num_workers=0)
+
+    spec, *_ = next(iter(loader))
+    assert (spec[:, :, 1] == 1).all()
+
+    def my_func(spec):
+        """A simple test function."""
+        spec.intensity[:] = 2.0
+        return spec
+
+    dset = SpectrumDataset(
+        tmp_path / "index.hdf5",
+        mgf_small,
+        preprocessing_fn=my_func,
+        overwrite=True,
+    )
+    loader = dset.loader(batch_size=1, num_workers=0)
+
+    spec, *_ = next(iter(loader))
+    assert (spec[:, :, 1] == 2).all()

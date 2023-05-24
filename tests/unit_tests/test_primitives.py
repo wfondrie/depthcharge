@@ -9,7 +9,6 @@ from depthcharge.primitives import (
     Molecule,
     Peptide,
     PeptideIons,
-    Precursor,
 )
 
 
@@ -106,17 +105,15 @@ def test_mass_spectrum():
     mzs = np.arange(10)
     intensities = np.arange(10) + 100
 
-    MassSpectrum(torch.tensor(mzs), torch.tensor(intensities))
-    MassSpectrum(mzs, intensities, Precursor(10.0, 2))
-    spec = MassSpectrum(mzs, intensities)
+    spec = MassSpectrum("test", "scan=1", mzs, intensities)
+    assert spec.usi == "test:scan:1"
+
+    spec = MassSpectrum(
+        "test",
+        "scan=1",
+        mzs,
+        intensities,
+        precursor_mz=10.0,
+        precursor_charge=3,
+    )
     assert spec.to_tensor().shape == (10, 2)
-
-    with pytest.raises(ValueError):
-        MassSpectrum(mzs, np.arange(9))
-
-
-def test_precursor():
-    """Test precursor initialization."""
-    Precursor(10.0)
-    Precursor((2, 3))
-    Precursor((1, 2), 3)
