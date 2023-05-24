@@ -18,16 +18,15 @@ dependencies = [
     "torch>=1.11.0",
     "pyteomics>=4.4.2",
     "numpy>=1.18.1",
-    "pandas>=1.0.3",
     "numba>=0.48.0",
     "lxml>=4.9.1",
     "h5py>=3.7.0",
     "einops>=0.4.1",
     "tqdm>=4.65.0",
-    "lark",
-    "selfies",
-    "sortedcontainers",
-    "dill",
+    "lark>=1.1.4",
+    "selfies>=2.1.1",
+    "sortedcontainers>=2.4.0",
+    "dill>=0.3.6",
 ]
 dynamic = ["version"]
 
