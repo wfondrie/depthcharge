@@ -94,6 +94,9 @@ class BaseParser(ABC):
             for spectrum in tqdm(spectra, desc=str(self.path), unit="spectra"):
                 try:
                     spectrum = self.parse_spectrum(spectrum)
+                    if spectrum is None:
+                        continue
+
                     if self.preprocessing_fn is not None:
                         for processor in self.preprocessing_fn:
                             spectrum = processor(spectrum)
@@ -102,7 +105,7 @@ class BaseParser(ABC):
                     self.intensity_arrays.append(spectrum.intensity)
                     self.precursor_mz.append(spectrum.precursor_mz)
                     self.precursor_charge.append(spectrum.precursor_charge)
-                    self.scan_id.append(spectrum.precursor_charge)
+                    self.scan_id.append(_parse_scan_id(spectrum.scan_id))
                     if self.annotations is not None:
                         self.annotations.append(spectrum.label)
                 except (IndexError, KeyError, ValueError):
@@ -193,7 +196,7 @@ class MzmlParser(BaseParser):
         if self.valid_charge is None or precursor_charge in self.valid_charge:
             return MassSpectrum(
                 filename=str(self.path),
-                scan_id=_parse_scan_id(spectrum["id"]),
+                scan_id=spectrum["id"],
                 mz=spectrum["m/z array"],
                 intensity=spectrum["intensity array"],
                 precursor_mz=precursor_mz,
@@ -249,7 +252,7 @@ class MzxmlParser(BaseParser):
         if self.valid_charge is None or precursor_charge in self.valid_charge:
             return MassSpectrum(
                 filename=str(self.path),
-                scan_id=_parse_scan_id(spectrum["id"]),
+                scan_id=spectrum["id"],
                 mz=spectrum["m/z array"],
                 intensity=spectrum["intensity array"],
                 precursor_mz=precursor_mz,
@@ -319,16 +322,19 @@ class MgfParser(BaseParser):
             precursor_mz, precursor_charge = None, 0
 
         if self.annotations is not None:
-            self.annotations.append(spectrum["params"].get("seq"))
+            label = spectrum["params"].get("seq")
+        else:
+            label = None
 
         if self.valid_charge is None or precursor_charge in self.valid_charge:
             return MassSpectrum(
                 filename=str(self.path),
-                scan_id=_parse_scan_id(self._counter),
+                scan_id=self._counter,
                 mz=spectrum["m/z array"],
                 intensity=spectrum["intensity array"],
                 precursor_mz=precursor_mz,
                 precursor_charge=precursor_charge,
+                label=label,
             )
 
         raise ValueError("Invalid precursor charge")

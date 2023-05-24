@@ -61,6 +61,8 @@ class SpectrumDataset(Dataset):
     n_peaks : int
     """
 
+    _annotated = False
+
     def __init__(
         self,
         index_path: PathLike,
@@ -85,15 +87,12 @@ class SpectrumDataset(Dataset):
         self._file_map = {}
         self._locs = {}
 
-        # Detect if I should be annotated or not:
-        self._annotated = hasattr(self, annotations)
-
         if preprocessing_fn is not None:
             self._preprocessing_fn = utils.listify(preprocessing_fn)
         else:
             self._preprocessing_fn = [
                 preprocessing.set_mz_range(min_mz=140),
-                preprocessing.filter_intensity(max_num_peak=200),
+                preprocessing.filter_intensity(max_num_peaks=200),
                 preprocessing.scale_intensity(scaling="root"),
                 preprocessing.scale_to_unit_norm,
             ]
@@ -111,6 +110,8 @@ class SpectrumDataset(Dataset):
             with self:
                 try:
                     assert self._handle.attrs["ms_level"] == self.ms_level
+                    if self._annotated:
+                        assert self._handle.attrs["annotated"]
                 except (KeyError, AssertionError):
                     raise ValueError(
                         f"'{self.path}' already exists, but was created with "
@@ -266,7 +267,7 @@ class SpectrumDataset(Dataset):
                     data=parser.annotations,
                     dtype=h5py.string_dtype(),
                 )
-            except (KeyError, AttributeError):
+            except (KeyError, AttributeError, TypeError):
                 pass
 
             self._file_map[str(ms_data_file)] = group_index
@@ -313,8 +314,8 @@ class SpectrumDataset(Dataset):
         return MassSpectrum(
             filename=grp.attrs["path"],
             scan_id=f"{grp.attrs['id_type']}={metadata[row_index]['scan_id']}",
-            mz=spectrum["mz_array"],
-            intensity=spectrum["intensity_array"],
+            mz=np.array(spectrum["mz_array"]),
+            intensity=np.array(spectrum["intensity_array"]),
             precursor_mz=precursor["precursor_mz"],
             precursor_charge=precursor["precursor_charge"],
         )
@@ -510,26 +511,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     n_peaks : int
     """
 
-    def __init__(
-        self,
-        index_path: PathLike,
-        ms_data_files: PathLike | Iterable[PathLike] = None,
-        ms_level: int = 2,
-        valid_charge: Iterable[int] | None = None,
-        overwrite: bool = False,
-    ) -> None:
-        """Initialize an AnnotatedSpectrumIndex."""
-        super().__init__(
-            index_path=index_path,
-            ms_data_files=ms_data_files,
-            ms_level=ms_level,
-            valid_charge=valid_charge,
-            overwrite=overwrite,
-        )
-        if not self._handle.attrs["annotated"]:
-            raise ValueError(
-                "The provided spectrum index was created without annotations."
-            )
+    _annotated = True
 
     def _get_parser(self, ms_data_file: str) -> MgfParser:
         """Get the parser for the MS data file."""
@@ -538,6 +520,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
                 ms_data_file,
                 ms_level=self.ms_level,
                 annotations=True,
+                preprocessing_fn=self.preprocessing_fn,
             )
 
         raise ValueError("Only MGF files are currently supported.")
