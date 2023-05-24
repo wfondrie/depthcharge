@@ -28,7 +28,8 @@ dependencies = [
     "sortedcontainers>=2.4.0",
     "dill>=0.3.6",
     "rdkit>=2023.03.1",
-    "pillow>=9.4.0"
+    "pillow>=9.4.0",
+    "spectrum-utils>=0.4.1",
 ]
 dynamic = ["version"]
 
