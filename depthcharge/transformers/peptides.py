@@ -34,10 +34,8 @@ class _PeptideTransformer(torch.nn.Module):
         super().__init__()
         self.tokenizer = tokenizer
 
-        if isinstance(positional_encoder, PositionalEncoder):
+        if callable(positional_encoder):
             self.positional_encoder = positional_encoder
-            if positional_encoder.d_model != d_model:
-                ValueError("The PositionaEncoder have the same 'd_model'.")
         elif positional_encoder:
             self.positional_encoder = PositionalEncoder(d_model)
         else:
