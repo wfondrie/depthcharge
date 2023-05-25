@@ -249,9 +249,20 @@ def test_peptide_dataset():
     seqs = ["LESLIEK", "EDITHR"]
     charges = [2, 3]
     dset = PeptideDataset(seqs, charges)
-    assert dset[0] == ("LESLIEK", 2)
-    assert dset[1] == ("EDITHR", 3)
+    assert dset[0] == ("LESLIEK", 2, None)
+    assert dset[1] == ("EDITHR", 3, None)
     assert len(dset) == 2
 
     with pytest.raises(ValueError):
         PeptideDataset(seqs, [1, 2, 3])
+
+    seqs = ["LESLIEK", "EDITHR"]
+    charges = [2, 3]
+    target = [1.1, 2.2]
+    dset = PeptideDataset(seqs, charges, target)
+    assert dset[0] == ("LESLIEK", 2, 1.1)
+    assert dset[1] == ("EDITHR", 3, 2.2)
+    assert len(dset) == 2
+
+    with pytest.raises(ValueError):
+        PeptideDataset(seqs, charges, [1.1])

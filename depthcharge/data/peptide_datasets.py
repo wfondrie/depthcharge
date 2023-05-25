@@ -12,16 +12,20 @@ class PeptideDataset(Dataset):
 
     Parameters
     ----------
-    sequences : ArrayLike[str]
+    sequences : ArrayLike of str
         The peptide sequences in a format compatible with
         your tokenizer. ProForma is preferred.
-    charges : ArrayLike[int]
+    charges : ArrayLike of int
+        The charge state for each peptide.
+    target : torch.Tensor, optional
+        Target values to predict.
     """
 
     def __init__(
         self,
         sequences: ArrayLike,
         charges: ArrayLike,
+        target: ArrayLike | None = None,
     ) -> None:
         """Initialize a PeptideDataset."""
         self.sequences = sequences
@@ -31,9 +35,19 @@ class PeptideDataset(Dataset):
                 "'sequences' and 'charges' must be the same length."
             )
 
-    def __getitem__(self, idx: int) -> tuple[str, int]:
+        self.target = target
+        if self.target is not None and len(self.target) != len(self.charges):
+            raise ValueError(
+                "'sequences' and 'target' must be the same length."
+            )
+
+    def __getitem__(self, idx: int) -> tuple[str, int, float | None]:
         """Get a single example."""
-        return self.sequences[idx], self.charges[idx]
+        seq, charge = self.sequences[idx], self.charges[idx]
+        if self.target is not None:
+            return seq, charge, self.target[idx]
+
+        return seq, charge, None
 
     def __len__(self) -> int:
         """The number of peptides in the data."""
@@ -61,10 +75,15 @@ class PeptideDataset(Dataset):
         charges : torch.Tensor[int]
             The charge states.
         """
-        sequences, charges = list(zip(*batch))
+        sequences, charges, target = list(zip(*batch))
         sequences = np.array(sequences)
         charges = torch.tensor(charges, dtype=int)
-        return sequences, charges
+        if any(t is None for t in target):
+            target = None
+        else:
+            target = torch.tensor(target)
+
+        return sequences, charges, target
 
     def loader(self, *args: tuple, **kwargs: dict) -> DataLoader:
         """A PyTorch DataLoader for peptides.

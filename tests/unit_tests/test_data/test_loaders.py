@@ -48,6 +48,16 @@ def test_peptide_loaer():
     loader = dset.loader(batch_size=2, num_workers=0)
 
     batch = next(iter(loader))
-    assert len(batch) == 2
+    assert len(batch) == 3
     np.testing.assert_equal(batch[0], np.array(seqs[:2]))
     torch.testing.assert_close(batch[1], torch.tensor(charges[:2], dtype=int))
+    assert batch[2] is None
+
+    dset = PeptideDataset(seqs, charges, [1, 2, 3])
+    loader = dset.loader(batch_size=2, num_workers=0)
+
+    batch = next(iter(loader))
+    assert len(batch) == 3
+    np.testing.assert_equal(batch[0], np.array(seqs[:2]))
+    torch.testing.assert_close(batch[1], torch.tensor(charges[:2], dtype=int))
+    torch.testing.assert_close(batch[2], torch.tensor([1, 2]))
