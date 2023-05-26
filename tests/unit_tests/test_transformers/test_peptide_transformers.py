@@ -12,7 +12,7 @@ from depthcharge.transformers import (
 def test_peptide_encoder():
     """Test that a peptide encoder will run."""
     tokenizer = PeptideTokenizer()
-    peptides = ["LESLIEK", "PEPTIDER", "EDITHRRR"]
+    peptides = ["LESLIEK", "PEPTIDER", "EDITHYKK"]
     charges = torch.tensor([2, 3, 3])
 
     model = PeptideTransformerEncoder(tokenizer, 8, 1, 12, max_charge=3)

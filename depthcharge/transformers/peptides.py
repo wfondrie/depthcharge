@@ -43,7 +43,7 @@ class _PeptideTransformer(torch.nn.Module):
 
         self.charge_encoder = torch.nn.Embedding(max_charge, d_model)
         self.aa_encoder = torch.nn.Embedding(
-            len(self.tokenizer),
+            len(self.tokenizer) + 1,
             d_model,
             padding_idx=0,
         )
