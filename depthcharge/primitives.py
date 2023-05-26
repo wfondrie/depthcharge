@@ -10,9 +10,10 @@ import selfies as sf
 import torch
 from numpy.typing import ArrayLike
 from PIL.PngImagePlugin import PngImageFile
+from pyteomics import proforma
+from pyteomics.proforma import GenericModification, MassModification
 from rdkit import Chem
 from rdkit.Chem import Draw
-from spectrum_utils import proforma
 from spectrum_utils.spectrum import MsmsSpectrum
 
 from .constants import PROTON
@@ -60,7 +61,37 @@ class Peptide:
                     "'sequences' to account for terminal modifications."
                 )
 
-        self.proforma = "".join(self.split())
+        if self.modifications is None:
+            self.modifications = [None] * (len(self.sequence) + 2)
+
+        # Parse modifications into Pyteomics' format
+        parsed = [None] * (len(self.sequence) + 2)
+        for idx, mod in enumerate(self.modifications):
+            if mod is None:
+                continue
+
+            try:
+                mod = [MassModification(mod)]
+            except ValueError:
+                try:
+                    mod = [GenericModification(mod)]
+                except (AttributeError, TypeError):
+                    pass
+            except TypeError:
+                pass
+
+            parsed[idx] = mod
+
+        self.modifications = parsed
+        n_mod = self.modifications[0]
+        c_mod = self.modifications[-1]
+
+        self.proforma = proforma.to_proforma(
+            sequence=list(zip(self.sequence, self.modifications[1:-1])),
+            n_term=[n_mod] if n_mod is not None else n_mod,
+            c_term=[c_mod] if c_mod is not None else c_mod,
+            charge_state=self.charge,
+        )
 
     def split(self) -> list[str]:
         """Split the modified peptide for tokenization."""
@@ -68,19 +99,22 @@ class Peptide:
             return list(self.sequence)
 
         out = []
-        for idx, (aa, mod) in enumerate(
+        for idx, (aa, mods) in enumerate(
             zip(f"-{self.sequence}-", self.modifications)
         ):
-            if mod is None:
+            if mods is None:
                 if idx and (idx < len(self.modifications) - 1):
                     out.append(aa)
 
                 continue
 
-            try:
-                modstr = f"[{mod:+0.6f}]"
-            except ValueError:
-                modstr = f"[{mod}]"
+            if len(mods) == 1:
+                try:
+                    modstr = f"[{mods[0].name}]"
+                except (AttributeError, ValueError):
+                    modstr = f"[{mods[0].mass:+0.6f}]"
+            else:
+                modstr = f"[{sum([m.mass for m in mods]):+0.6f}]"
 
             if not idx:
                 out.append(f"{modstr}-")
@@ -90,7 +124,10 @@ class Peptide:
         return out
 
     @classmethod
-    def from_proforma(cls, sequence: str) -> Peptide:
+    def from_proforma(
+        cls,
+        sequence: str,
+    ) -> Peptide:
         """Create a Peptide from a ProForma 2.0 string.
 
         Parameters
@@ -103,35 +140,32 @@ class Peptide:
         Peptide
             The parsed ProForma peptide.
         """
-        pep = proforma.parse(sequence)[0]
-        seq = pep.sequence
-
-        # Get the charge:
+        pep, meta = proforma.parse(sequence)
         try:
-            charge = pep.charge.charge
+            charge = meta["charge_state"].charge
         except AttributeError:
             charge = None
 
-        if pep.modifications is None:
-            return cls(seq, None, charge)
+        static_mods = {}
+        for mod_rule in meta["fixed_modifications"]:
+            for res in mod_rule.targets:
+                static_mods[res] = mod_rule.modification_tag
 
-        # Get the modifications:
-        mods = [None] * (len(seq) + 2)
-        for mod in pep.modifications:
-            pos = mod.position
-            if pos == "N-term":
-                pos = 0
-            elif pos == "C-term":
-                pos = -1
-            else:
-                pos += 1
+        seq = [None] * len(pep)
+        mods = [None] * (len(pep) + 2)
+        mods[0] = meta["n_term"]
+        mods[-1] = meta["c_term"]
+        for idx, (res, var_mods) in enumerate(pep):
+            seq[idx] = res
+            if res in static_mods:
+                if var_mods is None:
+                    var_mods = []
 
-            try:
-                mods[pos] = mod.source[0].name
-            except (TypeError, AttributeError):
-                mods[pos] = mod.mass
+                var_mods.insert(0, static_mods[res])
 
-        return cls(seq, mods, charge)
+            mods[idx + 1] = var_mods
+
+        return cls("".join(seq), mods, charge)
 
     @classmethod
     def from_massivekb(

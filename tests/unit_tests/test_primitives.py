@@ -19,7 +19,7 @@ def test_peptide_init():
     assert Peptide(peptide, None, None).charge is None
     assert Peptide(peptide, None, 2).charge == 2
 
-    mods = [-10.0, None, None, 71.0, None, None, "blah", None, "c"]
+    mods = [-10.0, None, None, 71.0, None, None, "Phospho", None, +1]
     expected = [
         "[-10.000000]-",
         "L",
@@ -27,22 +27,22 @@ def test_peptide_init():
         "S[+71.000000]",
         "L",
         "I",
-        "E[blah]",
+        "E[Phospho]",
         "K",
-        "-[c]",
+        "-[+1.000000]",
     ]
 
     parsed = Peptide(peptide, mods)
     assert parsed.split() == expected
 
-    mods = [None, None, None, 71.0, None, None, "blah", None, None]
+    mods = [None, None, None, 71.0, None, None, "Phospho", None, None]
     expected = [
         "L",
         "E",
         "S[+71.000000]",
         "L",
         "I",
-        "E[blah]",
+        "E[Phospho]",
         "K",
     ]
     parsed = Peptide(peptide, mods)
@@ -60,6 +60,13 @@ def test_peptide_from_proforma():
 
     parsed = Peptide.from_proforma("ED[Phospho]IT[Obs:+1]H")
     assert parsed.split() == ["E", "D[Phospho]", "I", "T[+1.000000]", "H"]
+
+    # If multiple mods exist on a single AA, the mass should be summed.
+    parsed = Peptide.from_proforma("<[Phospho]@C,T>C[+1]AT")
+    assert parsed.split() == ["C[+80.966331]", "A", "T[Phospho]"]
+
+    reparsed = Peptide.from_proforma(parsed.proforma)
+    assert parsed.split() == reparsed.split()
 
 
 def test_peptide_from_massivekb():

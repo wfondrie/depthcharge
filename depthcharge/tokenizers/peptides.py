@@ -1,12 +1,13 @@
 """Tokenizers for peptides."""
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 
 import numba as nb
 import numpy as np
 import torch
-from spectrum_utils import proforma
+from pyteomics.proforma import GenericModification, MassModification
 
 from .. import utils
 from ..constants import H2O, PROTON
@@ -221,35 +222,33 @@ class PeptideTokenizer(Tokenizer):
         if isinstance(sequences, str):
             sequences = [sequences]
 
+        # Parse modifications:
         new_res = cls.residues.copy()
         for peptide in sequences:
-            parsed = proforma.parse(peptide)[0]
-            if parsed.modifications is None:
-                continue
+            parsed = Peptide.from_proforma(peptide).split()
+            for token in parsed:
+                if token in new_res.keys():
+                    continue
 
-            for mod in parsed.modifications:
-                loc = mod.position
+                if token == "-":
+                    continue
+
+                match = re.search(r"(.*)\[(.*)\]", token)
                 try:
-                    modstr = f"[{mod.source[0].name}]"
-                except (TypeError, AttributeError):
-                    modstr = f"[{mod.mass:+0.6f}]"
+                    res, mod = match.groups()
+                    if res and res != "-":
+                        res_mass = new_res[res]
+                    else:
+                        res_mass = 0
+                except (AttributeError, KeyError) as err:
+                    raise ValueError("Unrecognized token {token}.") from err
 
-                if loc == "N-term":
-                    modstr += "-"
-                    res_mass = 0
-                elif loc == "C-term":
-                    modstr = "-" + modstr
-                    res_mass = 0
-                else:
-                    res = parsed.sequence[loc]
-                    try:
-                        res_mass = cls.residues[res]
-                    except KeyError:
-                        raise ValueError(f"Unknown amino acid {res}.")
+                try:
+                    mod = MassModification(mod)
+                except ValueError:
+                    mod = GenericModification(mod)
 
-                    modstr = res + modstr
-
-                new_res[modstr] = mod.mass + res_mass
+                new_res[token] = res_mass + mod.mass
 
         return cls(new_res, replace_isoleucine_with_leucine, reverse)
 
