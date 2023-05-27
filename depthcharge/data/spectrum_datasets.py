@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from .. import utils
 from ..primitives import MassSpectrum
+from ..tokenizers import PeptideTokenizer
 from . import preprocessing
 from .parsers import MgfParser, MzmlParser, MzxmlParser
 
@@ -545,6 +546,27 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
 
     _annotated = True
 
+    def __init__(
+        self,
+        tokenizer: PeptideTokenizer,
+        ms_data_files: PathLike | Iterable[PathLike] = None,
+        ms_level: int = 2,
+        preprocessing_fn: Callable | Iterable[Callable] | None = None,
+        valid_charge: Iterable[int] | None = None,
+        index_path: PathLike | None = None,
+        overwrite: bool = False,
+    ) -> None:
+        """Initialize an AnnotatedSpectrumIndex."""
+        self.tokenizer = tokenizer
+        super().__init__(
+            ms_data_files=ms_data_files,
+            ms_level=ms_level,
+            preprocessing_fn=preprocessing_fn,
+            valid_charge=valid_charge,
+            index_path=index_path,
+            overwrite=overwrite,
+        )
+
     def _get_parser(self, ms_data_file: str) -> MgfParser:
         """Get the parser for the MS data file."""
         if ms_data_file.suffix.lower() == ".mgf":
@@ -589,8 +611,8 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
 
         return np.concatenate(annotations)
 
-    @staticmethod
     def collate_fn(
+        self,
         batch: Iterable[MassSpectrum],
     ) -> tuple[torch.Tensor, torch.Tensor, np.ndarray[str]]:
         """The collate function for a AnnotatedSpectrumDataset.
@@ -613,12 +635,14 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         annotations : np.ndarray[str]
             The spectrum annotations.
         """
-        return _collate_fn(batch)
+        spectra, precursors, annotations = _collate_fn(batch)
+        tokens = self.tokenizer.tokenize(annotations)
+        return spectra, precursors, tokens
 
 
 def _collate_fn(
     batch: Iterable[MassSpectrum],
-) -> tuple[torch.Tensor, torch.Tensor, np.ndarray[str | None]]:
+) -> tuple[torch.Tensor, torch.Tensor, list[str | None]]:
     """The collate function for a SpectrumDataset.
 
     The mass spectra must be padded so that they fit nicely as a tensor.
@@ -654,7 +678,7 @@ def _collate_fn(
         spectra,
         batch_first=True,
     )
-    return spectra, precursors.T.float(), np.array(annotations)
+    return spectra, precursors.T.float(), annotations
 
 
 def _hash_obj(obj: Any) -> str:  # noqa: ANN401

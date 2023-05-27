@@ -3,6 +3,7 @@ import functools
 import shutil
 
 import pytest
+import torch
 
 from depthcharge.data import (
     AnnotatedSpectrumDataset,
@@ -10,6 +11,13 @@ from depthcharge.data import (
     SpectrumDataset,
 )
 from depthcharge.primitives import MassSpectrum
+from depthcharge.tokenizers import PeptideTokenizer
+
+
+@pytest.fixture(scope="module")
+def tokenizer():
+    """Use a tokenizer for every test."""
+    return PeptideTokenizer()
 
 
 def test_spectrum_id(mgf_small, tmp_path):
@@ -22,7 +30,7 @@ def test_spectrum_id(mgf_small, tmp_path):
         assert dataset.get_spectrum_id(0) == (str(mgf_small), "index=0")
         assert dataset.get_spectrum_id(3) == (str(mgf_small2), "index=1")
 
-    dataset = AnnotatedSpectrumDataset([mgf_small, mgf_small2])
+    dataset = AnnotatedSpectrumDataset(tokenizer, [mgf_small, mgf_small2])
     with dataset:
         assert dataset.get_spectrum_id(0) == (str(mgf_small), "index=0")
         assert dataset.get_spectrum_id(3) == (str(mgf_small2), "index=1")
@@ -38,7 +46,7 @@ def test_indexing(mgf_small, tmp_path):
     assert isinstance(spec, MassSpectrum)
     assert spec.label is None
 
-    dataset = AnnotatedSpectrumDataset([mgf_small, mgf_small2])
+    dataset = AnnotatedSpectrumDataset(tokenizer, [mgf_small, mgf_small2])
     spec = dataset[0]
     assert isinstance(spec, MassSpectrum)
     assert spec.label == "LESLIEK"
@@ -85,7 +93,7 @@ def test_mgf(mgf_small, tmp_path):
         assert index.get_spectrum_id(0) == (str(mgf_small), "index=0")
         assert index.get_spectrum_id(3) == (str(mgf_small2), "index=1")
 
-    index = AnnotatedSpectrumDataset([mgf_small, mgf_small2])
+    index = AnnotatedSpectrumDataset(tokenizer, [mgf_small, mgf_small2])
     assert index.ms_files == [str(mgf_small), str(mgf_small2)]
     assert index.ms_level == 2
     assert index.annotated
@@ -191,8 +199,10 @@ def test_spectrum_index_reuse(mgf_small, tmp_path):
     assert index.n_peaks == index2.n_peaks
     assert index.n_spectra == index2.n_spectra
 
-    index3 = AnnotatedSpectrumDataset(mgf_small, index_path=ann_index)
-    index4 = AnnotatedSpectrumDataset(index_path=ann_index)
+    index3 = AnnotatedSpectrumDataset(
+        tokenizer, mgf_small, index_path=ann_index
+    )
+    index4 = AnnotatedSpectrumDataset(tokenizer, index_path=ann_index)
     assert index3.ms_level == index4.ms_level
     assert index3.annotated == index4.annotated
     assert index4.annotated
@@ -203,7 +213,7 @@ def test_spectrum_index_reuse(mgf_small, tmp_path):
     # but not vice versa:
     SpectrumDataset(index_path=ann_index)
     with pytest.raises(ValueError):
-        AnnotatedSpectrumDataset(index_path=plain_index)
+        AnnotatedSpectrumDataset(tokenizer, index_path=plain_index)
 
     # Verify we invalidate correctly:
     with pytest.raises(ValueError):
@@ -213,10 +223,12 @@ def test_spectrum_index_reuse(mgf_small, tmp_path):
         SpectrumDataset(index_path=plain_index, preprocessing_fn=[])
 
     with pytest.raises(ValueError):
-        AnnotatedSpectrumDataset(index_path=ann_index, ms_level=3)
+        AnnotatedSpectrumDataset(tokenizer, index_path=ann_index, ms_level=3)
 
     with pytest.raises(ValueError):
-        AnnotatedSpectrumDataset(index_path=plain_index, preprocessing_fn=[])
+        AnnotatedSpectrumDataset(
+            tokenizer, index_path=plain_index, preprocessing_fn=[]
+        )
 
 
 def test_preprocessing_fn(mgf_small):
@@ -246,23 +258,28 @@ def test_preprocessing_fn(mgf_small):
 
 def test_peptide_dataset():
     """Test the peptide dataset."""
+    tokenizer = PeptideTokenizer()
     seqs = ["LESLIEK", "EDITHR"]
-    charges = [2, 3]
-    dset = PeptideDataset(seqs, charges)
-    assert dset[0] == ("LESLIEK", 2, None)
-    assert dset[1] == ("EDITHR", 3, None)
+    charges = torch.tensor([2, 3])
+    dset = PeptideDataset(tokenizer, seqs, charges)
+    torch.testing.assert_close(dset[0][0], tokenizer.tokenize("LESLIEK"))
+    torch.testing.assert_close(dset[1][0][:6], tokenizer.tokenize("EDITHR"))
+    assert dset[0][1].item() == 2
+    assert dset[1][1].item() == 3
     assert len(dset) == 2
 
-    with pytest.raises(ValueError):
-        PeptideDataset(seqs, [1, 2, 3])
-
     seqs = ["LESLIEK", "EDITHR"]
-    charges = [2, 3]
-    target = [1.1, 2.2]
-    dset = PeptideDataset(seqs, charges, target)
-    assert dset[0] == ("LESLIEK", 2, 1.1)
-    assert dset[1] == ("EDITHR", 3, 2.2)
+    charges = torch.tensor([2, 3])
+    target = torch.tensor([1.1, 2.2])
+    other = torch.tensor([[1, 1], [2, 2]])
+    dset = PeptideDataset(tokenizer, seqs, charges, target, other)
+    torch.testing.assert_close(dset[0][0], tokenizer.tokenize("LESLIEK"))
+    torch.testing.assert_close(dset[1][0][:6], tokenizer.tokenize("EDITHR"))
+    assert dset[0][1].item() == 2
+    assert dset[1][1].item() == 3
+    torch.testing.assert_close(dset[0][2], torch.tensor(1.1))
+    torch.testing.assert_close(dset[1][3], other[1, :])
     assert len(dset) == 2
 
-    with pytest.raises(ValueError):
-        PeptideDataset(seqs, charges, [1.1])
+    torch.testing.assert_close(dset.tokens, tokenizer.tokenize(seqs))
+    torch.testing.assert_close(dset.charges, charges)

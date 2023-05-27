@@ -12,7 +12,7 @@ from depthcharge.transformers import (
 def test_peptide_encoder():
     """Test that a peptide encoder will run."""
     tokenizer = PeptideTokenizer()
-    peptides = ["LESLIEK", "PEPTIDER", "EDITHYKK"]
+    peptides = tokenizer.tokenize(["LESLIEK", "PEPTIDER", "EDITHYKK"])
     charges = torch.tensor([2, 3, 3])
 
     model = PeptideTransformerEncoder(tokenizer, 8, 1, 12, max_charge=3)
@@ -29,6 +29,8 @@ def test_peptide_encoder():
 def test_peptide_decoder():
     """Test that a peptide decoder will run."""
     tokenizer = PeptideTokenizer()
+    n_tokens = len(tokenizer)
+
     spectra = torch.tensor(
         [
             [[100.1, 0.1], [200.2, 0.2], [300.3, 0.3]],
@@ -36,13 +38,12 @@ def test_peptide_decoder():
         ]
     )
 
-    peptides = ["LESLIEK", "PEPTIDER"]
+    peptides = tokenizer.tokenize(["LESLIEK", "PEPTIDER"])
     precursors = torch.tensor([[100.0, 2], [200.0, 3]])
 
     encoder = SpectrumTransformerEncoder(8, 1, 12)
     memory, mem_mask = encoder(spectra)
 
-    decoder = PeptideTransformerDecoder(tokenizer, 8, 1, 12, max_charge=3)
-    scores, tokens = decoder(peptides, precursors, memory, mem_mask)
+    decoder = PeptideTransformerDecoder(n_tokens, 8, 1, 12, max_charge=3)
+    scores = decoder(peptides, precursors, memory, mem_mask)
     assert scores.shape == (2, 9, len(tokenizer))
-    assert tokens.shape == (2, 8)

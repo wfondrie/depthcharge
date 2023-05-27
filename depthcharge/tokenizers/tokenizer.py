@@ -86,6 +86,9 @@ class Tokenizer(ABC):
             if to_strings:
                 return out
 
+            if isinstance(sequences, str):
+                return out[0]
+
             return nn.utils.rnn.pad_sequence(out, batch_first=True)
         except KeyError as err:
             raise ValueError("Unrecognized token") from err

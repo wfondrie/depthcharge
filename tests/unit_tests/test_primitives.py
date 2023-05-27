@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 import torch
-from lark.exceptions import UnexpectedCharacters
+from pyteomics.proforma import ProFormaError
 
 from depthcharge.primitives import (
     MassSpectrum,
@@ -78,7 +78,7 @@ def test_peptide_from_massivekb():
     assert parsed.charge == 2
     assert parsed.split() == ["[Acetyl]-", "E", "D", "I", "T", "H"]
 
-    with pytest.raises(UnexpectedCharacters):
+    with pytest.raises(ProFormaError):
         Peptide.from_massivekb("LES+79LIEK")
 
 

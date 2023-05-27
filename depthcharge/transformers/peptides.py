@@ -1,7 +1,6 @@
 """Transformer models for peptides."""
 import torch
 
-from .. import utils
 from ..encoders import FloatEncoder, PositionalEncoder
 from ..tokenizers import PeptideTokenizer
 
@@ -11,11 +10,11 @@ class _PeptideTransformer(torch.nn.Module):
 
     Parameters
     ----------
+    n_tokens : int or PeptideTokenizer
+        The number of tokens used to tokenize peptide sequences.
     d_model : int
         The latent dimensionality to represent the amino acids in a peptide
         sequence.
-    tokenizer : PeptideTokenizer
-        A tokenizer specifying how to handle peptide sequences.
     positional_encoder : PositionalEncoder or bool
         The positional encodings to use for the amino acid sequence. If
         ``True``, the default positional encoder is used. ``False`` disables
@@ -26,13 +25,16 @@ class _PeptideTransformer(torch.nn.Module):
 
     def __init__(
         self,
+        n_tokens: int | PeptideTokenizer,
         d_model: int,
-        tokenizer: PeptideTokenizer,
         positional_encoder: PositionalEncoder | bool,
         max_charge: int,
     ) -> None:
         super().__init__()
-        self.tokenizer = tokenizer
+        try:
+            n_tokens = len(n_tokens)
+        except TypeError:
+            n_tokens = n_tokens
 
         if callable(positional_encoder):
             self.positional_encoder = positional_encoder
@@ -43,7 +45,7 @@ class _PeptideTransformer(torch.nn.Module):
 
         self.charge_encoder = torch.nn.Embedding(max_charge, d_model)
         self.aa_encoder = torch.nn.Embedding(
-            len(self.tokenizer) + 1,
+            n_tokens + 1,
             d_model,
             padding_idx=0,
         )
@@ -59,8 +61,8 @@ class PeptideTransformerEncoder(_PeptideTransformer):
 
     Parameters
     ----------
-    tokenizer : PeptideTokenizer
-        A tokenizer specifying how to handle peptide sequences.
+    n_tokens : int or PeptideTokenizer
+        The number of tokens used to tokenize peptide sequences.
     d_model : int
         The latent dimensionality to represent the amino acids in a peptide
         sequence.
@@ -84,7 +86,7 @@ class PeptideTransformerEncoder(_PeptideTransformer):
 
     def __init__(
         self,
-        tokenizer: PeptideTokenizer,
+        n_tokens: int | PeptideTokenizer,
         d_model: int = 128,
         nhead: int = 8,
         dim_feedforward: int = 1024,
@@ -95,8 +97,8 @@ class PeptideTransformerEncoder(_PeptideTransformer):
     ) -> None:
         """Initialize a PeptideEncoder."""
         super().__init__(
+            n_tokens=n_tokens,
             d_model=d_model,
-            tokenizer=tokenizer,
             positional_encoder=positional_encoder,
             max_charge=max_charge,
         )
@@ -117,19 +119,18 @@ class PeptideTransformerEncoder(_PeptideTransformer):
 
     def forward(
         self,
-        sequences: list[str] | torch.Tensor,
+        tokens: torch.Tensor,
         charges: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Predict the next amino acid for a collection of sequences.
 
         Parameters
         ----------
-        sequences : list of str or torch.Tensor of length batch_size
-            The partial peptide sequences for which to predict the next
-            amino acid. Optionally, these may be the token indices instead
-            of a string.
+        tokens : torch.Tensor of size (batch_size, peptide_length)
+            The integer tokens describing each peptide sequence, padded
+            to the maximum peptide length in the batch with 0s.
         charges : torch.Tensor of size (batch_size,)
-            The charge state of the peptide
+            The charge state of each peptide.
 
         Returns
         -------
@@ -139,15 +140,8 @@ class PeptideTransformerEncoder(_PeptideTransformer):
         mem_mask : torch.Tensor
             The memory mask specifying which elements were padding in X.
         """
-        sequences = utils.listify(sequences)
-        if isinstance(sequences[0][0], str):
-            tokens = self.tokenizer.tokenize(sequences).to(self.device)
-        else:
-            tokens = sequences.to(self.device)
-
+        # Encode everything:
         encoded = self.aa_encoder(tokens)
-
-        # Encode charges
         charges = self.charge_encoder(charges - 1)[:, None]
         encoded = torch.cat([charges, encoded], dim=1)
 
@@ -167,8 +161,8 @@ class PeptideTransformerDecoder(_PeptideTransformer):
 
     Parameters
     ----------
-    tokenizer : PeptideTokenizer
-        A tokenizer specifying how to handle peptide sequences.
+    n_tokens : int or PeptideTokenizer
+        The number of tokens used to tokenize peptide sequences.
     d_model : int, optional
         The latent dimensionality to represent peaks in the mass spectrum.
     nhead : int, optional
@@ -191,7 +185,7 @@ class PeptideTransformerDecoder(_PeptideTransformer):
 
     def __init__(
         self,
-        tokenizer: PeptideTokenizer,
+        n_tokens: int | PeptideTokenizer,
         d_model: int = 128,
         nhead: int = 8,
         dim_feedforward: int = 1024,
@@ -202,8 +196,8 @@ class PeptideTransformerDecoder(_PeptideTransformer):
     ) -> None:
         """Initialize a PeptideDecoder."""
         super().__init__(
+            n_tokens=n_tokens,
             d_model=d_model,
-            tokenizer=tokenizer,
             positional_encoder=positional_encoder,
             max_charge=max_charge,
         )
@@ -223,11 +217,14 @@ class PeptideTransformerDecoder(_PeptideTransformer):
             num_layers=n_layers,
         )
 
-        self.final = torch.nn.Linear(d_model, len(self.tokenizer))
+        self.final = torch.nn.Linear(
+            d_model,
+            self.aa_encoder.num_embeddings - 1,
+        )
 
     def forward(
         self,
-        sequences: list[str] | torch.Tensor | None,
+        tokens: torch.Tensor | None,
         precursors: torch.Tensor,
         memory: torch.Tensor,
         memory_key_padding_mask: torch.Tensor,
@@ -236,7 +233,7 @@ class PeptideTransformerDecoder(_PeptideTransformer):
 
         Parameters
         ----------
-        sequences : list of str, torch.Tensor, or None
+        tokens : list of str, torch.Tensor, or None
             The partial peptide sequences for which to predict the next
             amino acid. Optionally, these may be the token indices instead
             of a string.
@@ -254,31 +251,20 @@ class PeptideTransformerDecoder(_PeptideTransformer):
             The raw output for the final linear layer. These can be Softmax
             transformed to yield the probability of each amino acid for the
             prediction.
-        tokens : torch.Tensor of size (batch_size, len_sequence)
-            The input padded tokens.
 
         """
         # Prepare sequences
-        if sequences is not None:
-            sequences = utils.listify(sequences)
-            if isinstance(sequences[0][0], str):
-                tokens = self.tokenizer.tokenize(sequences).to(self.device)
-            else:
-                tokens = sequences.to(self.device)
-        else:
+        if tokens is None:
             tokens = torch.tensor([[]]).to(self.device)
 
-        # Prepare mass and charge
+        # Encode everything:
+        tokens = self.aa_encoder(tokens)
         masses = self.mass_encoder(precursors[:, None, 0])
         charges = self.charge_encoder(precursors[:, 1].int() - 1)
         precursors = masses + charges[:, None, :]
 
         # Feed through model:
-        if sequences is None:
-            tgt = precursors
-        else:
-            tgt = torch.cat([precursors, self.aa_encoder(tokens)], dim=1)
-
+        tgt = torch.cat([precursors, tokens], dim=1)
         tgt_key_padding_mask = tgt.sum(axis=2) == 0
         tgt = self.positional_encoder(tgt)
         tgt_mask = generate_tgt_mask(tgt.shape[1]).type_as(precursors)
@@ -289,7 +275,7 @@ class PeptideTransformerDecoder(_PeptideTransformer):
             tgt_key_padding_mask=tgt_key_padding_mask,
             memory_key_padding_mask=memory_key_padding_mask.to(self.device),
         )
-        return self.final(preds), tokens
+        return self.final(preds)
 
 
 def generate_tgt_mask(sz: int) -> torch.Tensor:
