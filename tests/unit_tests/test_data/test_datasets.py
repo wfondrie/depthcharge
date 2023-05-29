@@ -231,6 +231,19 @@ def test_spectrum_index_reuse(mgf_small, tmp_path):
         )
 
 
+def test_spectrum_indexing_bug(tmp_path, mgf_small):
+    """Test that we've fixed reindexing upon reload."""
+    dset1 = AnnotatedSpectrumDataset(
+        PeptideTokenizer(), mgf_small, 2, index_path=tmp_path / "test.hdf5"
+    )
+
+    dset2 = AnnotatedSpectrumDataset(
+        PeptideTokenizer(), mgf_small, 2, index_path=tmp_path / "test.hdf5"
+    )
+
+    assert dset1._locs == dset2._locs
+
+
 def test_preprocessing_fn(mgf_small):
     """Test preprocessing functions."""
     dset = SpectrumDataset(mgf_small)

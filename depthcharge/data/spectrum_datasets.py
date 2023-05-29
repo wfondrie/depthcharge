@@ -134,7 +134,7 @@ class SpectrumDataset(Dataset):
 
     def _reindex(self) -> None:
         """Update the file mappings and offsets."""
-        offsets = []
+        offsets = [0]
         for idx in range(len(self._handle)):
             grp = self._handle[str(idx)]
             offsets.append(grp.attrs["n_spectra"])
@@ -145,8 +145,8 @@ class SpectrumDataset(Dataset):
         # Build a map of 1D indices to 2D locations:
         grp_idx = 0
         for lin_idx in range(offsets[-1]):
-            grp_idx += lin_idx >= offsets[grp_idx]
-            row_idx = lin_idx - offsets[grp_idx - 1]
+            grp_idx += lin_idx >= offsets[grp_idx + 1]
+            row_idx = lin_idx - offsets[grp_idx]
             self._locs[lin_idx] = (grp_idx, row_idx)
 
     def _validate_index(self) -> None:
