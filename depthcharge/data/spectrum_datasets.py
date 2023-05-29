@@ -102,7 +102,7 @@ class SpectrumDataset(Dataset):
         self._file_offsets = np.array([0])
         self._file_map = {}
         self._locs = {}
-        self._offsets = {}
+        self._offsets = None
 
         if preprocessing_fn is not None:
             self._preprocessing_fn = utils.listify(preprocessing_fn)
@@ -149,6 +149,9 @@ class SpectrumDataset(Dataset):
             grp_idx += lin_idx >= offsets[grp_idx + 1]
             row_idx = lin_idx - offsets[grp_idx]
             self._locs[lin_idx] = (grp_idx, row_idx)
+
+        self._offsets = None
+        _ = self.offsets  # Reinitialize the offsets.
 
     def _validate_index(self) -> None:
         """Validate that the index is appropriate for this dataset."""
