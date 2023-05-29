@@ -102,6 +102,7 @@ class SpectrumDataset(Dataset):
         self._file_offsets = np.array([0])
         self._file_map = {}
         self._locs = {}
+        self._offsets = {}
 
         if preprocessing_fn is not None:
             self._preprocessing_fn = utils.listify(preprocessing_fn)
@@ -244,6 +245,9 @@ class SpectrumDataset(Dataset):
         if str(ms_data_file) in self._file_map:
             return
 
+        # Invalidate current offsets:
+        self._offsets = None
+
         # Read the file:
         parser = self._get_parser(ms_data_file)
         parser.read()
@@ -324,7 +328,7 @@ class SpectrumDataset(Dataset):
         grp = self._handle[str(group_index)]
         metadata = grp["metadata"]
         spectra = grp["spectra"]
-        offsets = metadata["offset"][row_index : row_index + 2]
+        offsets = self.offsets[str(group_index)][row_index : row_index + 2]
 
         start_offset = offsets[0]
         if offsets.shape[0] == 2:
@@ -419,12 +423,13 @@ class SpectrumDataset(Dataset):
 
     def __enter__(self) -> SpectrumDataset:
         """Open the index file for reading."""
-        self._handle = h5py.File(
-            self.path,
-            "r",
-            rdcc_nbytes=int(3e8),
-            rdcc_nslots=1024000,
-        )
+        if self._handle is None:
+            self._handle = h5py.File(
+                self.path,
+                "r",
+                rdcc_nbytes=int(3e8),
+                rdcc_nslots=1024000,
+            )
         return self
 
     def __exit__(self, *args: str) -> None:
@@ -484,6 +489,18 @@ class SpectrumDataset(Dataset):
                 return self._handle.attrs["n_peaks"]
 
         return self._handle.attrs["n_peaks"]
+
+    @property
+    def offsets(self) -> dict[str, np.array]:
+        """The offsets denoting where each spectrum starts."""
+        if self._offsets is not None:
+            return self._offsets
+
+        self._offsets = {
+            k: v["metadata"]["offset"] for k, v in self._handle.items()
+        }
+
+        return self._offsets
 
     @staticmethod
     def collate_fn(
