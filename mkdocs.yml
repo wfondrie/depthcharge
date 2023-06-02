@@ -2,6 +2,7 @@ site_name: depthcharge
 repo_url: https://github.com/wfondrie/depthcharge
 nav:
   - Home: "README.md"
+  - API: "api/index.md"
 
 theme:
   name: material
@@ -9,10 +10,13 @@ theme:
     - navigation.tabs
     - navigation.sections
     - toc.integrate
+    - content.code.copy
   logo: static/icon.svg
   favicon: static/icon.svg
   font:
-    text: Roboto
+    text: Fira Code
+  palette:
+    scheme: depthcharge
 
 extra_css:
   - stylesheets/extra.css
@@ -22,14 +26,16 @@ plugins:
       default_handler: python
       handlers:
         python:
-          selection:
+          options:
             docstring_style: numpy
-          rendering:
             show_root_heading: true
             heading_level: 3
             docstring_section_style: spacy
             show_source: false
             merge_init_into_class: true
+            docstring_options:
+              ignore_init_summary: true
+              trim_doctest_flags: true
 
 markdown_extensions:
   - attr_list
@@ -37,6 +43,8 @@ markdown_extensions:
   - footnotes
   - pymdownx.highlight:
       anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
