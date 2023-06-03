@@ -34,7 +34,7 @@ class _PeptideTransformer(torch.nn.Module):
         try:
             n_tokens = len(n_tokens)
         except TypeError:
-            n_tokens = n_tokens
+            pass
 
         if callable(positional_encoder):
             self.positional_encoder = positional_encoder
@@ -175,7 +175,7 @@ class PeptideTransformerDecoder(_PeptideTransformer):
         The number of Transformer layers.
     dropout : float, optional
         The dropout probability for all layers.
-    postional_encoder : PositionalEncoder or bool, optional
+    positional_encoder : PositionalEncoder or bool, optional
         The positional encodings to use for the amino acid sequence. If
         ``True``, the default positional encoder is used. ``False`` disables
         positional encodings, typically only for ablation tests.
@@ -241,7 +241,7 @@ class PeptideTransformerDecoder(_PeptideTransformer):
             The precursor mass (axis 0) and charge (axis 1).
         memory : torch.Tensor of shape (batch_size, n_peaks, d_model)
             The representations from a ``TransformerEncoder``, such as a
-           ``SpectrumEncoder``.
+            ``SpectrumEncoder``.
         memory_key_padding_mask : torch.Tensor of shape (batch_size, n_peaks)
             The mask that indicates which elements of ``memory`` are padding.
 

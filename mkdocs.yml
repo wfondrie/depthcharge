@@ -1,15 +1,23 @@
 site_name: depthcharge
 repo_url: https://github.com/wfondrie/depthcharge
 nav:
-  - Home: "README.md"
-  - API: "api/index.md"
+  - Getting Started:
+      - Introduction: "index.md"
+      - Installation: "getting-started/installation.md"
+  - API:
+      - Overview: "api/index.md"
+      - Tokenizers: "api/tokenizers.md"
+      - Datasets: "api/datasets.md"
+      - Encoders: "api/encoders.md"
+      - Transformers: "api/transformers.md"
+      - Primitives: "api/primitives.md"
 
 theme:
   name: material
   features:
     - navigation.tabs
-    - navigation.sections
-    - toc.integrate
+    #- navigation.sections
+    #- toc.integrate
     - content.code.copy
   logo: static/icon.svg
   favicon: static/icon.svg
@@ -36,6 +44,8 @@ plugins:
             docstring_options:
               ignore_init_summary: true
               trim_doctest_flags: true
+            options:
+              members: true
 
 markdown_extensions:
   - attr_list

@@ -48,13 +48,11 @@ class SpectrumDataset(Dataset):
     valid_charge : Iterable[int], optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
-    annotated : bool, optional
-        Whether or not the index contains spectrum annotations.
     index_path : PathLike, optional.
         The name and path of the HDF5 file index. If the path does
         not contain the `.h5` or `.hdf5` extension, `.hdf5` will be added.
         If ``None``, a file will be created in a temporary directory.
-    overwite : bool, optional
+    overwrite : bool, optional
         Overwrite previously indexed files? If ``False`` and new files are
         provided, they will be appended to the collection.
 
@@ -546,10 +544,15 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         The MGF to include in this collection.
     ms_level : int, optional
         The level of tandem mass spectra to use.
+    preprocessing_fn : Callable or Iterable[Callable], optional
+        The function(s) used to preprocess the mass spectra. ``None``,
+        the default, filters for the top 200 peaks above m/z 140,
+        square root transforms the intensities and scales them to unit norm.
+        See the preprocessing module for details and additional options.
     valid_charge : Iterable[int], optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
-    overwite : bool
+    overwrite : bool
         Overwrite previously indexed files? If ``False`` and new files are
         provided, they will be appended to the collection.
 

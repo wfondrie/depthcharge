@@ -336,12 +336,16 @@ class MassSpectrum(MsmsSpectrum):
         The Hupo PSI standard scan identifier.
     mz: array of shape (n_peaks,)
         The m/z values.
-    intensitiy: array of shape (n_peaks, )
+    intensity: array of shape (n_peaks, )
         The intensity values.
-    filename: str, optional
-        The file from which the spectrum originated.
-    precursor: Precusor, optional
-        Precursor ion information, if applicable.
+    retention_time: float, optional
+        The measured retention time.
+    ion_mobility: float, optional
+        The measured ion mobility.
+    precursor_mz: float, optional
+        The precursor ion m/z, if applicable.
+    precursor_charge: int, optional
+        The precursor charge, if applicable.
     label: str, optional
         A label for the mass spectrum. This is typically an
         annotation, such as the generating peptide sequence,

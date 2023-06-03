@@ -18,6 +18,9 @@ from .tokenizer import Tokenizer
 class PeptideTokenizer(Tokenizer):
     """A tokenizer for ProForma peptide sequences.
 
+    Parse and tokenize ProForma-compliant peptide sequences. Additionally,
+    use this class to calculate fragment and precursor ion masses.
+
     Parameters
     ----------
     residues : dict[str, float], optional
@@ -76,8 +79,8 @@ class PeptideTokenizer(Tokenizer):
     def __init__(
         self,
         residues: dict[str, float] | None = None,
-        replace_isoleucine_with_leucine: bool = True,
-        reverse: bool = True,
+        replace_isoleucine_with_leucine: bool = False,
+        reverse: bool = False,
     ) -> None:
         """Initialize a PeptideTokenizer."""
         self.replace_isoleucine_with_leucine = replace_isoleucine_with_leucine
@@ -92,7 +95,18 @@ class PeptideTokenizer(Tokenizer):
         super().__init__(list(self.residues.keys()))
 
     def split(self, sequence: str) -> list[str]:
-        """Split a ProForma peptide sequence."""
+        """Split a ProForma peptide sequence.
+
+        Parameters
+        ----------
+        sequence : str
+            The peptide sequence.
+
+        Returns
+        -------
+        list[str]
+            The tokens that compprise the peptide sequence.
+        """
         pep = self._parse_peptide(sequence)
         if self.replace_isoleucine_with_leucine:
             pep.sequence = pep.sequence.replace("I", "L")
