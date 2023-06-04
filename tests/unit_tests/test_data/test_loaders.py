@@ -1,123 +1,68 @@
-"""Test PyTorch DataLoaders"""
+"""Test PyTorch DataLoaders."""
 import torch
+
 from depthcharge.data import (
-    SpectrumIndex,
-    AnnotatedSpectrumIndex,
-    SpectrumDataset,
     AnnotatedSpectrumDataset,
+    PeptideDataset,
+    SpectrumDataset,
 )
+from depthcharge.tokenizers import PeptideTokenizer
 
 
-def test_spectrum_index_init(mgf_small, tmp_path):
-    """Test initialization of with a SpectrumIndex"""
-    index = SpectrumIndex(tmp_path / "index.hdf5", mgf_small)
-    dset = SpectrumDataset(index)
-    loader = torch.utils.data.DataLoader(
-        dset,
-        batch_size=1,
-        collate_fn=dset.collate_fn,
-        num_workers=0,
-    )
+def test_spectrum_loader(mgf_small):
+    """Test initialization of with a SpectrumIndex."""
+    dset = SpectrumDataset(mgf_small, 2)
+    loader = dset.loader(batch_size=1, num_workers=0)
 
     batch = next(iter(loader))
     assert len(batch) == 2
-    assert batch[0].shape[0] == 1
-    assert batch[0].shape[2] == 2
+    assert batch[0].shape == (1, 13, 2)
     assert batch[1].shape == (1, 2)
 
-    dset = SpectrumDataset(index, n_peaks=3)
-    loader = torch.utils.data.DataLoader(
-        dset,
-        batch_size=1,
-        collate_fn=dset.collate_fn,
-        num_workers=0,
-    )
+    dset = SpectrumDataset(mgf_small, 2, [])
+    loader = dset.loader(batch_size=1, num_workers=0)
 
     batch = next(iter(loader))
     assert len(batch) == 2
-    assert batch[0].shape[0] == 1
-    assert batch[0].shape[1] == 3
-    assert batch[0].shape[2] == 2
+    assert batch[0].shape == (1, 14, 2)
     assert batch[1].shape == (1, 2)
 
 
-def test_ann_spectrum_index_init(mgf_small, tmp_path):
-    """Test initialization of with a SpectrumIndex"""
-    index = AnnotatedSpectrumIndex(tmp_path / "index.hdf5", mgf_small)
-    dset = AnnotatedSpectrumDataset(index)
-    loader = torch.utils.data.DataLoader(
-        dset,
-        batch_size=1,
-        num_workers=0,
-        collate_fn=dset.collate_fn,
-    )
+def test_ann_spectrum_loader(mgf_small):
+    """Test initialization of with a SpectrumIndex."""
+    tokenizer = PeptideTokenizer()
+    dset = AnnotatedSpectrumDataset(tokenizer, mgf_small)
+    loader = dset.loader(batch_size=1, num_workers=0)
 
     batch = next(iter(loader))
     assert len(batch) == 3
-    assert batch[0].shape[0] == 1
-    assert batch[0].shape[2] == 2
+    assert batch[0].shape == (1, 13, 2)
     assert batch[1].shape == (1, 2)
-    assert batch[2].shape == (1,)
+    assert batch[2].shape == (1, 7)
 
 
-def test_spectrum_index_reuse(mgf_small, tmp_path):
-    """Reuse a previously created (annotated) spectrum index."""
-    index = SpectrumIndex(tmp_path / "index.hdf5", mgf_small)
-    index2 = SpectrumIndex(tmp_path / "index.hdf5")
-    assert index.ms_level == index2.ms_level
-    assert index.annotated == index2.annotated
-    assert not index2.annotated
-    assert index.n_peaks == index2.n_peaks
-    assert index.n_spectra == index2.n_spectra
+def test_peptide_loader():
+    """Test our peptid data loader."""
+    seqs = ["LESLIE", "EDITH", "PEPTIDE"]
+    charges = torch.tensor([5, 3, 1])
+    tokenizer = PeptideTokenizer()
+    dset = PeptideDataset(tokenizer, seqs, charges)
+    loader = dset.loader(batch_size=2, num_workers=0)
 
-    index = AnnotatedSpectrumIndex(
-        tmp_path / "annotated_index.hdf5", mgf_small
+    batch = next(iter(loader))
+    assert len(batch) == 2
+    torch.testing.assert_close(
+        batch[0],
+        tokenizer.tokenize(seqs)[:2, :],
     )
-    index2 = AnnotatedSpectrumIndex(tmp_path / "annotated_index.hdf5")
-    assert index.ms_level == index2.ms_level
-    assert index.annotated == index2.annotated
-    assert index2.annotated
-    assert index.n_peaks == index2.n_peaks
-    assert index.n_spectra == index2.n_spectra
+    torch.testing.assert_close(batch[1], torch.tensor(charges[:2], dtype=int))
 
+    args = (torch.tensor([1, 2, 3]), torch.tensor([[1, 1], [2, 2], [3, 3]]))
+    dset = PeptideDataset(tokenizer, seqs, charges, *args)
+    loader = dset.loader(batch_size=2, num_workers=0)
 
-def test_preprocessing_fn(mgf_small, tmp_path):
-    """Test preprocessing functions."""
-    index = SpectrumIndex(tmp_path / "index.hdf5", mgf_small)
-    dset = SpectrumDataset(index)
-    loader = torch.utils.data.DataLoader(
-        dset,
-        batch_size=1,
-        collate_fn=dset.collate_fn,
-        num_workers=0,
-    )
-
-    spec, *_ = next(iter(loader))
-    assert (spec[:, :, 1] < 1).all()
-
-    dset = SpectrumDataset(index, preprocessing_fn=[])
-    loader = torch.utils.data.DataLoader(
-        dset,
-        batch_size=1,
-        collate_fn=dset.collate_fn,
-        num_workers=0,
-    )
-
-    spec, *_ = next(iter(loader))
-    assert (spec[:, :, 1] == 1).all()
-
-    def my_func(mz_array, int_array, precursor_mz, precursor_charge):
-        """A simple test function"""
-        int_array[:] = 2.0
-        return mz_array, int_array
-
-    dset = SpectrumDataset(index, preprocessing_fn=my_func)
-    loader = torch.utils.data.DataLoader(
-        dset,
-        batch_size=1,
-        collate_fn=dset.collate_fn,
-        num_workers=0,
-    )
-
-    spec, *_ = next(iter(loader))
-    assert (spec[:, :, 1] == 2).all()
+    batch = next(iter(loader))
+    assert len(batch) == 4
+    torch.testing.assert_close(batch[1], torch.tensor(charges[:2], dtype=int))
+    torch.testing.assert_close(batch[2], torch.tensor([1, 2]))
+    torch.testing.assert_close(batch[3], args[1][:2, :])

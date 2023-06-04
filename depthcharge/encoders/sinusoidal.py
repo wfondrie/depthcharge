@@ -1,9 +1,9 @@
 """Simple encoders for input into Transformers and the like."""
 import math
 
-import torch
 import einops
 import numpy as np
+import torch
 
 
 class FloatEncoder(torch.nn.Module):
@@ -11,16 +11,21 @@ class FloatEncoder(torch.nn.Module):
 
     Parameters
     ----------
-    dim_model : int
+    d_model : int
         The number of features to output.
-    min_wavelength : float
+    min_wavelength : float, optional
         The minimum wavelength to use.
-    max_wavelength : float
+    max_wavelength : float, optional
         The maximum wavelength to use.
     """
 
-    def __init__(self, dim_model, min_wavelength=0.001, max_wavelength=10000):
-        """Initialize the MassEncoder"""
+    def __init__(
+        self,
+        d_model: int,
+        min_wavelength: float = 0.001,
+        max_wavelength: float = 10000,
+    ) -> None:
+        """Initialize the MassEncoder."""
         super().__init__()
 
         # Error checking:
@@ -31,33 +36,31 @@ class FloatEncoder(torch.nn.Module):
             raise ValueError("'max_wavelength' must be greater than 0.")
 
         # Get dimensions for equations:
-        d_sin = math.ceil(dim_model / 2)
-        d_cos = dim_model - d_sin
+        d_sin = math.ceil(d_model / 2)
+        d_cos = d_model - d_sin
 
         base = min_wavelength / (2 * np.pi)
         scale = max_wavelength / min_wavelength
         sin_exp = torch.arange(0, d_sin).float() / (d_sin - 1)
-        cos_exp = (torch.arange(d_sin, dim_model).float() - d_sin) / (
-            d_cos - 1
-        )
+        cos_exp = (torch.arange(d_sin, d_model).float() - d_sin) / (d_cos - 1)
         sin_term = base * (scale**sin_exp)
         cos_term = base * (scale**cos_exp)
 
         self.register_buffer("sin_term", sin_term)
         self.register_buffer("cos_term", cos_term)
 
-    def forward(self, X):
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Encode m/z values.
 
         Parameters
         ----------
-        X : torch.Tensor of shape (batch_size, n_masses)
+        X : torch.Tensor of shape (batch_size, n_float)
             The masses to embed.
 
         Returns
         -------
-        torch.Tensor of shape (batch_size, n_masses, dim_model)
-            The encoded features for the mass spectra.
+        torch.Tensor of shape (batch_size, n_float, d_model)
+            The encoded features for the floating point numbers.
         """
         sin_mz = torch.sin(X[:, :, None] / self.sin_term)
         cos_mz = torch.cos(X[:, :, None] / self.cos_term)
@@ -69,63 +72,53 @@ class PeakEncoder(torch.nn.Module):
 
     Parameters
     ----------
-    dim_model : int
+    d_model : int
         The number of features to output.
-    dim_intensity : int, optional
-        The number of features to use for intensity. The remaining features
-        will be used to encode the m/z values.
-    min_wavelength : float, optional
-        The minimum wavelength to use.
-    max_wavelength : float, optional
-        The maximum wavelength to use.
-    learned_intensity_encoding : bool, optional
-        Use a learned intensity encoding as opposed to a sinusoidal encoding.
-        Note that for the sinusoidal encoding, this encoder expects values
-        between [0, 1].
+    min_mz_wavelength : float, optional
+        The minimum wavelength to use for m/z.
+    max_mz_wavelength : float, optional
+        The maximum wavelength to use for m/z.
+    min_intensity_wavelength : float, optional
+        The minimum wavelength to use for intensity. The default assumes
+        intensities between [0, 1].
+    max_intensity_wavelength : float, optional
+        The maximum wavelength to use for intensity. The default assumes
+        intensities between [0, 1].
     """
 
     def __init__(
         self,
-        dim_model,
-        dim_intensity=None,
-        min_wavelength=0.001,
-        max_wavelength=10000,
-        learned_intensity_encoding=True,
-    ):
-        """Initialize the MzEncoder"""
+        d_model: int,
+        min_mz_wavelength: float = 0.001,
+        max_mz_wavelength: float = 10000,
+        min_intensity_wavelength: float = 1e-6,
+        max_intensity_wavelength: float = 1,
+        *,
+        _legacy: bool = False,
+    ) -> None:
+        """Initialize the MzEncoder."""
         super().__init__()
-        self.dim_model = dim_model
-        self.dim_mz = dim_model
-        self.learned_intensity_encoding = learned_intensity_encoding
-        if dim_intensity is not None:
-            if dim_intensity >= dim_model:
-                raise ValueError(
-                    "'dim_intensity' must be less than 'dim_model'"
-                )
-
-            self.dim_mz -= dim_intensity
-            self.dim_intensity = dim_intensity
-        else:
-            self.dim_intensity = dim_model
+        self.d_model = d_model
+        self._legacy = _legacy
 
         self.mz_encoder = FloatEncoder(
-            dim_model=self.dim_mz,
-            min_wavelength=min_wavelength,
-            max_wavelength=max_wavelength,
+            d_model=self.d_model,
+            min_wavelength=min_mz_wavelength,
+            max_wavelength=max_mz_wavelength,
         )
 
-        if self.learned_intensity_encoding:
-            self.int_encoder = torch.nn.Linear(
-                1, self.dim_intensity, bias=False
-            )
-        else:
-            self.int_encoder = FloatEncoder(
-                dim_model=self.dim_intensity,
-                min_wavelength=1e-6,
-                max_wavelength=1,
-            )
+        self.int_encoder = FloatEncoder(
+            d_model=self.d_model,
+            min_wavelength=min_intensity_wavelength,
+            max_wavelength=max_intensity_wavelength,
+        )
+        self.combiner = torch.nn.Linear(2 * d_model, d_model, bias=False)
 
-    def forward(self, X):
+        # Likely removing this soon:
+        if self._legacy:
+            self.int_encoder = torch.nn.Linear(1, self.d_model, bias=False)
+
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Encode m/z values and intensities.
 
         Note that we expect intensities to fall within the interval [0, 1].
@@ -141,22 +134,23 @@ class PeakEncoder(torch.nn.Module):
 
         Returns
         -------
-        torch.Tensor of shape (n_spectra, n_peaks, dim_model)
+        torch.Tensor of shape (n_spectra, n_peaks, d_model)
             The encoded features for the mass spectra.
         """
-        m_over_z = X[:, :, 0]
-        encoded = self.mz_encoder(m_over_z)
+        if self._legacy:
+            encoded_mz = self.mz_encoder(X[:, :, 0])
+            encoded_int = self.int_encoder(X[:, :, [1]])
+            return encoded_mz + encoded_int
 
-        if self.learned_intensity_encoding:
-            int_input = X[:, :, [1]]
-        else:
-            int_input = X[:, :, 1]
+        encoded = torch.cat(
+            [
+                self.mz_encoder(X[:, :, 0]),
+                self.int_encoder(X[:, :, 1]),
+            ],
+            dim=2,
+        )
 
-        intensity = self.int_encoder(int_input)
-        if self.dim_intensity == self.dim_model:
-            return encoded + intensity
-
-        return torch.cat([encoded, intensity], dim=2)
+        return self.combiner(encoded)
 
 
 class PositionalEncoder(FloatEncoder):
@@ -164,7 +158,7 @@ class PositionalEncoder(FloatEncoder):
 
     Parameters
     ----------
-    dim_model : int
+    d_model : int
         The number of features to output.
     min_wavelength : float, optional
         The shortest wavelength in the geometric progression.
@@ -172,15 +166,20 @@ class PositionalEncoder(FloatEncoder):
         The longest wavelength in the geometric progression.
     """
 
-    def __init__(self, dim_model, min_wavelength=1, max_wavelength=10000):
-        """Initialize the MzEncoder"""
+    def __init__(
+        self,
+        d_model: int,
+        min_wavelength: float = 1.0,
+        max_wavelength: float = 1e5,
+    ) -> None:
+        """Initialize the MzEncoder."""
         super().__init__(
-            dim_model=dim_model,
+            d_model=d_model,
             min_wavelength=min_wavelength,
             max_wavelength=max_wavelength,
         )
 
-    def forward(self, X):
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Encode positions in a sequence.
 
         Parameters

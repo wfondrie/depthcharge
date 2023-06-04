@@ -1,6 +1,7 @@
-"""Test getting the version"""
-import depthcharge
+"""Test getting the version."""
 from importlib.metadata import PackageNotFoundError
+
+import depthcharge
 
 
 def test_version():
@@ -12,7 +13,10 @@ def test_version():
 
 
 def test_bad_version(monkeypatch):
+    """Test for a bad version."""
+
     def bad_version(*args, **kwargs):
+        """A bad version."""
         raise PackageNotFoundError
 
     monkeypatch.setattr("depthcharge.version.version", bad_version)

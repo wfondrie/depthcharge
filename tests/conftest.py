@@ -1,8 +1,8 @@
-"""Pytest fixtures"""
+"""Pytest fixtures."""
 from pathlib import Path
 
-import pytest
 import numpy as np
+import pytest
 from pyteomics.mass import calculate_mass
 
 DATA_DIR = Path(__file__).parent / ".." / "data"
@@ -36,7 +36,7 @@ def mgf_medium(tmp_path):
 @pytest.fixture
 def mgf_small(tmp_path):
     """An MGF file with 2 annotated spectra."""
-    peptides = ["LESLIEK", "PEPTIDEK"]
+    peptides = ["LESLIEK", "EDITHR"]
     mgf_file = tmp_path / "small.mgf"
     return _create_mgf(peptides, mgf_file)
 
@@ -107,6 +107,8 @@ def _create_mgf(peptides, mgf_file, add_problems=False, random_state=42):
 
     Returns
     -------
+    PathLike
+        The MGF file.
     """
     rng = np.random.default_rng(random_state)
     peptides = list(peptides)
@@ -132,7 +134,7 @@ def _create_mgf(peptides, mgf_file, add_problems=False, random_state=42):
 
 
 def _random_peptides(n_peptides, random_state=42):
-    """Create random peptides
+    """Create random peptides.
 
     Parameters
     ----------

@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Providing a proper tokenization class (also resolves #24 and #18)
+- First-class support for ProForma peptide annotations, thanks to `spectrum_utils` and `pyteomics`.
+- Adding primitive dataclasses for peptides, peptide ions, mass spectra ... and even small molecules 🚀
+- Adding type hints to everything and stricter linting with Ruff.
+- Adding a ton of tests.
+- Tight integration with `spectrum_utils` 💪
+
+### Changed
+- Moving preprocessing onto parsing instead of data loading (similar to @bittremieux's proposal in #31)
+- Combining the SpectrumIndex and SpectrumDataset classes into one.
+- Changing peak encodings. Instead of encoding the intensity using a linear projection and summing with the sinusoidal m/z encodings, now the intensity is also sinusoidally encoded and is combined with the sinusoidal m/z encodings using a linear layer.
+
 
 ## [v0.2.2] - 2023-05-15
 ### Fixed

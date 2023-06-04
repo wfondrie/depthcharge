@@ -1,17 +1,17 @@
-"""Test the encoders"""
+"""Test the encoders."""
+import numpy as np
 import pytest
 import torch
-import numpy as np
 
-from depthcharge.components.encoders import (
-    PositionalEncoder,
+from depthcharge.encoders import (
     FloatEncoder,
     PeakEncoder,
+    PositionalEncoder,
 )
 
 
 def test_positional_encoder():
-    """Test the positional encoder"""
+    """Test the positional encoder."""
     enc = PositionalEncoder(8, 1, 8)
     X = torch.zeros(1, 9, 8)
     Y = enc(X)
@@ -42,15 +42,13 @@ def test_positional_encoder():
 
 
 def test_float_encoder():
-    """Test the float encodings"""
+    """Test the float encodings."""
     enc = FloatEncoder(8, 0.1, 10)
     X = torch.tensor([[0, 0.1, 10, 0.256]])
     Y = enc(X)
     period = torch.cat([torch.zeros(4), torch.ones(4)], axis=0)
     torch.testing.assert_close(Y[0, 0, :], period)
     torch.testing.assert_close(Y[0, 1, (0, 4)], torch.tensor([0.0, 1]))
-
-    print(Y[0, 2])
     torch.testing.assert_close(Y[0, 2, (3, 7)], torch.tensor([0.0, 1]))
 
     # Check for things in-between the expected period:
@@ -67,9 +65,9 @@ def test_invalid_float_encoder():
         FloatEncoder(8, 10, 0)
 
 
-def test_default_peak_encoder():
-    """Test the peak encodings"""
-    enc = PeakEncoder(8)
+def test_legacy_peak_encoder():
+    """Test the peak encodings."""
+    enc = PeakEncoder(8, _legacy=True)
 
     # We want to test that the addition between the peak and
     # m/z encoding is happening:
@@ -83,30 +81,10 @@ def test_default_peak_encoder():
 
 
 def test_both_sinusoid():
-    """Test that both encoders are sinusoidal"""
-    enc = PeakEncoder(8, learned_intensity_encoding=False)
-
+    """Test that both encoders are sinusoidal."""
+    enc = PeakEncoder(8)
     X = torch.tensor([[[0.0, 0], [0, 1]]])
     Y = enc(X)
 
     assert Y.shape == (1, 2, 8)
     assert isinstance(enc.int_encoder, FloatEncoder)
-
-
-def test_split_dims():
-    """Test that dimensions are split correctly"""
-    enc = PeakEncoder(8, 4)
-
-    # We want to test that the addition between the peak and
-    # m/z encoding is happening:
-    enc.int_encoder.weight = torch.nn.Parameter(torch.ones(4, 1) * 5)
-
-    X = torch.tensor([[[0.0, 0], [0, 1]]])
-    Y = enc(X)
-
-    assert Y.shape == (1, 2, 8)
-    torch.testing.assert_close(Y[0, 1, 4:], torch.ones(4) * 5)
-    assert (Y[0, 1, :4] <= 1).all()
-
-    with pytest.raises(ValueError):
-        PeakEncoder(8, 9)
