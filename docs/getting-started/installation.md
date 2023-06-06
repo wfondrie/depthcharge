@@ -1,6 +1,4 @@
-# Installating Depthcharge
-
-Depthcharge can currently be installed with pip, and will eventually be made available through [Bioconda](https://bioconda.github.io).
+# Installing Depthcharge
 
 ## Requirements
 
@@ -28,4 +26,4 @@ Depthcharge can be install with `pip`, directly from PyPI:
 $ pip install depthcharge-ms
 ```
 
-We have plans to also add it to Bioconda!
+Eventually Depthcharge will be made available through Bioconda.

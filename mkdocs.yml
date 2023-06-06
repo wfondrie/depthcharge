@@ -11,13 +11,15 @@ nav:
       - Encoders: "api/encoders.md"
       - Transformers: "api/transformers.md"
       - Primitives: "api/primitives.md"
+  - Changelog: CHANGELOG.md
+  - Contributing: CONTRIBUTING.md
+  - Code of Conduct: CODE_OF_CONDUCT.md
 
 theme:
   name: material
   features:
     - navigation.tabs
-    #- navigation.sections
-    #- toc.integrate
+    - navigation.footer
     - content.code.copy
   logo: static/icon.svg
   favicon: static/icon.svg
