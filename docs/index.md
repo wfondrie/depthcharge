@@ -1,4 +1,4 @@
-![depthcharge logo](./static/logo-dark.png#gh-dark-mode-only)
+![depthcharge logo](./static/logo-dark.png#gh-dark-mode-only){: style="height:200px;display:block;margin-left:auto;margin-right:auto"}
 
 Depthcharge is a deep learning toolkit for building Transformer models to analyze mass spectrometry data.
 
