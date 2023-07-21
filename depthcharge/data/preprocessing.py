@@ -10,7 +10,8 @@ argument.
 
 We can also define custom preprocessing functions. All preprocessing functions
 must accept a ``MassSpectrum`` as their only argument and return a
-``MassSpectrum``.
+``MassSpectrum``. If a ``Mass Spectrum`` is invalid, the function should raise
+a ``ValueError``.
 
 ### Examples
 
@@ -28,8 +29,8 @@ SpectrumDataset(
 
 Apply a custom function:
 ```Python
-def my_func(mz_array, int_array, precursor_mz, precursor_charge):
-    return mz_array, torch.log(int_array)
+def my_func(spec: MassSpectrum) -> MassSpectrum:
+    spec._inner._intensity = np.log(spectrum.intensity)
 
 SpectrumDataset(
     ...,

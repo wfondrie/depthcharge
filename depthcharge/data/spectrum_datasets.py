@@ -205,7 +205,7 @@ class SpectrumDataset(Dataset):
     def _assemble_metadata(
         self,
         parser: MzmlParser | MzxmlParser | MgfParser,
-    ) -> dict:
+    ) -> np.ndarray:
         """Assemble the metadata.
 
         Parameters
@@ -413,7 +413,7 @@ class SpectrumDataset(Dataset):
         Returns
         -------
         tuple of numpy.ndarray
-            The m/z values, intensity values, precurosr m/z, precurosr charge,
+            The m/z values, intensity values, precursor m/z, precurosr charge,
             and the annotation (if available).
         """
         if self._handle is None:

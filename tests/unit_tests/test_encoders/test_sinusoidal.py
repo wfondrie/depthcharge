@@ -55,6 +55,19 @@ def test_float_encoder():
     assert Y[0, 3, :].min() > -0.99
     assert Y[0, 3, :].max() < 0.99
 
+    enc = FloatEncoder(8, 0.1, 10, True)
+    X = torch.tensor([[0, 0.1, 10, 0.256]])
+    Y = enc(X)
+    period = torch.cat([torch.zeros(4), torch.ones(4)], axis=0)
+    torch.testing.assert_close(Y[0, 0, :], period)
+    torch.testing.assert_close(Y[0, 1, (0, 4)], torch.tensor([0.0, 1]))
+    torch.testing.assert_close(Y[0, 2, (3, 7)], torch.tensor([0.0, 1]))
+
+    # Check for things in-between the expected period:
+    assert Y[0, 3, :].min() > -0.99
+    assert Y[0, 3, :].max() < 0.99
+    assert isinstance(enc.sin_term, torch.nn.Parameter)
+
 
 def test_invalid_float_encoder():
     """Test that errors are raised."""
@@ -65,21 +78,6 @@ def test_invalid_float_encoder():
         FloatEncoder(8, 10, 0)
 
 
-def test_legacy_peak_encoder():
-    """Test the peak encodings."""
-    enc = PeakEncoder(8, _legacy=True)
-
-    # We want to test that the addition between the peak and
-    # m/z encoding is happening:
-    enc.int_encoder.weight = torch.nn.Parameter(torch.ones(8, 1))
-
-    X = torch.tensor([[[0.0, 0], [0, 1]]])
-    Y = enc(X)
-
-    assert Y.shape == (1, 2, 8)
-    torch.testing.assert_close(Y[0, 0, :] + 1, Y[0, 1, :])
-
-
 def test_both_sinusoid():
     """Test that both encoders are sinusoidal."""
     enc = PeakEncoder(8)
@@ -88,3 +86,12 @@ def test_both_sinusoid():
 
     assert Y.shape == (1, 2, 8)
     assert isinstance(enc.int_encoder, FloatEncoder)
+
+    enc = PeakEncoder(8, learnable_wavelengths=True)
+    X = torch.tensor([[[0.0, 0], [0, 1]]])
+    Y = enc(X)
+
+    assert Y.shape == (1, 2, 8)
+    assert isinstance(enc.int_encoder, FloatEncoder)
+    assert isinstance(enc.int_encoder.sin_term, torch.nn.Parameter)
+    assert isinstance(enc.mz_encoder.sin_term, torch.nn.Parameter)
