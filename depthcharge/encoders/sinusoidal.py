@@ -17,6 +17,9 @@ class FloatEncoder(torch.nn.Module):
         The minimum wavelength to use.
     max_wavelength : float, optional
         The maximum wavelength to use.
+    learnable_wavelengths : bool, optional
+        Allow the selected wavelengths to be fine-tuned
+        by the model.
     """
 
     def __init__(
@@ -24,6 +27,7 @@ class FloatEncoder(torch.nn.Module):
         d_model: int,
         min_wavelength: float = 0.001,
         max_wavelength: float = 10000,
+        learnable_wavelengths: bool = False,
     ) -> None:
         """Initialize the MassEncoder."""
         super().__init__()
@@ -34,6 +38,8 @@ class FloatEncoder(torch.nn.Module):
 
         if max_wavelength <= 0:
             raise ValueError("'max_wavelength' must be greater than 0.")
+
+        self.learnable_wavelengths = learnable_wavelengths
 
         # Get dimensions for equations:
         d_sin = math.ceil(d_model / 2)
@@ -46,8 +52,12 @@ class FloatEncoder(torch.nn.Module):
         sin_term = base * (scale**sin_exp)
         cos_term = base * (scale**cos_exp)
 
-        self.register_buffer("sin_term", sin_term)
-        self.register_buffer("cos_term", cos_term)
+        if not self.learnable_wavelengths:
+            self.register_buffer("sin_term", sin_term)
+            self.register_buffer("cos_term", cos_term)
+        else:
+            self.sin_term = torch.nn.Parameter(sin_term)
+            self.cos_term = torch.nn.Parameter(cos_term)
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Encode m/z values.
@@ -84,6 +94,9 @@ class PeakEncoder(torch.nn.Module):
     max_intensity_wavelength : float, optional
         The maximum wavelength to use for intensity. The default assumes
         intensities between [0, 1].
+    learnable_wavelengths : bool, optional
+        Allow the selected wavelengths to be fine-tuned
+        by the model.
     """
 
     def __init__(
@@ -93,30 +106,27 @@ class PeakEncoder(torch.nn.Module):
         max_mz_wavelength: float = 10000,
         min_intensity_wavelength: float = 1e-6,
         max_intensity_wavelength: float = 1,
-        *,
-        _legacy: bool = False,
+        learnable_wavelengths: bool = False,
     ) -> None:
         """Initialize the MzEncoder."""
         super().__init__()
         self.d_model = d_model
-        self._legacy = _legacy
+        self.learnable_wavelengths = learnable_wavelengths
 
         self.mz_encoder = FloatEncoder(
             d_model=self.d_model,
             min_wavelength=min_mz_wavelength,
             max_wavelength=max_mz_wavelength,
+            learnable_wavelengths=learnable_wavelengths,
         )
 
         self.int_encoder = FloatEncoder(
             d_model=self.d_model,
             min_wavelength=min_intensity_wavelength,
             max_wavelength=max_intensity_wavelength,
+            learnable_wavelengths=learnable_wavelengths,
         )
         self.combiner = torch.nn.Linear(2 * d_model, d_model, bias=False)
-
-        # Likely removing this soon:
-        if self._legacy:
-            self.int_encoder = torch.nn.Linear(1, self.d_model, bias=False)
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Encode m/z values and intensities.
@@ -137,11 +147,6 @@ class PeakEncoder(torch.nn.Module):
         torch.Tensor of shape (n_spectra, n_peaks, d_model)
             The encoded features for the mass spectra.
         """
-        if self._legacy:
-            encoded_mz = self.mz_encoder(X[:, :, 0])
-            encoded_int = self.int_encoder(X[:, :, [1]])
-            return encoded_mz + encoded_int
-
         encoded = torch.cat(
             [
                 self.mz_encoder(X[:, :, 0]),

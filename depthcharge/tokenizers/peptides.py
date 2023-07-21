@@ -372,9 +372,6 @@ def _calc_fragment_masses(
         The tokenized peptide sequence.
     charge : int
         The charge state to consider. Use 'None' to get the neutral mass.
-    n_isotopes : int
-        The number of C13 isotopes to return, starting from the
-        monoisotopic mass.
     masses : nb.typed.Dict
         The mass dictionary to use.
 

@@ -43,7 +43,7 @@ class _PeptideTransformer(torch.nn.Module):
         else:
             self.positional_encoder = torch.nn.Identity()
 
-        self.charge_encoder = torch.nn.Embedding(max_charge, d_model)
+        self.charge_encoder = torch.nn.Embedding(max_charge + 1, d_model)
         self.aa_encoder = torch.nn.Embedding(
             n_tokens + 1,
             d_model,
@@ -142,7 +142,7 @@ class PeptideTransformerEncoder(_PeptideTransformer):
         """
         # Encode everything:
         encoded = self.aa_encoder(tokens)
-        charges = self.charge_encoder(charges - 1)[:, None]
+        charges = self.charge_encoder(charges)[:, None]
         encoded = torch.cat([charges, encoded], dim=1)
 
         # Create mask

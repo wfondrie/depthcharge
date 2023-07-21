@@ -25,7 +25,7 @@ class BaseParser(ABC):
     Parameters
     ----------
     ms_data_file : PathLike
-        The mzML file to parse.
+        The peak file to parse.
     ms_level : int
         The MS level of the spectra to parse.
     preprocessing_fn : Callable or Iterable[Callable], optional
@@ -151,7 +151,7 @@ class MzmlParser(BaseParser):
     ----------
     ms_data_file : PathLike
         The mzML file to parse.
-    ms_level : int, optional
+    ms_level : int
         The MS level of the spectra to parse.
     preprocessing_fn : Callable or Iterable[Callable], optional
         The function(s) used to preprocess the mass spectra.
@@ -213,7 +213,7 @@ class MzxmlParser(BaseParser):
     ----------
     ms_data_file : PathLike
         The mzXML file to parse.
-    ms_level : int, optional
+    ms_level : int
         The MS level of the spectra to parse.
     preprocessing_fn : Callable or Iterable[Callable], optional
         The function(s) used to preprocess the mass spectra.
@@ -269,7 +269,7 @@ class MgfParser(BaseParser):
     ----------
     ms_data_file : PathLike
         The MGF file to parse.
-    ms_level : int, optional
+    ms_level : int
         The MS level of the spectra to parse.
     preprocessing_fn : Callable or Iterable[Callable], optional
         The function(s) used to preprocess the mass spectra.
