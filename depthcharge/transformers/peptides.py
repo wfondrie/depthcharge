@@ -267,7 +267,7 @@ class PeptideTransformerDecoder(_PeptideTransformer):
         tgt = torch.cat([precursors, tokens], dim=1)
         tgt_key_padding_mask = tgt.sum(axis=2) == 0
         tgt = self.positional_encoder(tgt)
-        tgt_mask = generate_tgt_mask(tgt.shape[1]).type_as(precursors)
+        tgt_mask = generate_tgt_mask(tgt.shape[1])
         preds = self.transformer_decoder(
             tgt=tgt,
             memory=memory,
