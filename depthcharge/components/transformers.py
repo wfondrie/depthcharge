@@ -437,7 +437,7 @@ class PeptideDecoder(_PeptideTransformer):
 
         tgt_key_padding_mask = tgt.sum(axis=2) == 0
         tgt = self.pos_encoder(tgt)
-        tgt_mask = generate_tgt_mask(tgt.shape[1]).type_as(precursors)
+        tgt_mask = generate_tgt_mask(tgt.shape[1]).to(self.device)
         preds = self.transformer_decoder(
             tgt=tgt,
             memory=memory,
