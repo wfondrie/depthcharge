@@ -30,6 +30,8 @@ dependencies = [
     "rdkit>=2023.03.1",
     "pillow>=9.4.0",
     "spectrum-utils>=0.4.1",
+    "duckdb>=0.8.1",
+    "polars>=0.18.8",
 ]
 dynamic = ["version"]
 

@@ -11,7 +11,6 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 import dill
-import h5py
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset

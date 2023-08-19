@@ -7,7 +7,7 @@ from collections.abc import Callable, Iterable
 from os import PathLike
 from pathlib import Path
 
-import numpy as np
+import polars as pl
 from pyteomics.mgf import MGF
 from pyteomics.mzml import MzML
 from pyteomics.mzxml import MzXML
@@ -55,13 +55,30 @@ class BaseParser(ABC):
 
         self.valid_charge = None if valid_charge is None else set(valid_charge)
         self.id_type = id_type
-        self.offset = None
-        self.precursor_mz = []
-        self.precursor_charge = []
-        self.scan_id = []
-        self.mz_arrays = []
-        self.intensity_arrays = []
-        self.annotations = None
+
+    def __iter__(self):
+        """Yield a spectrum."""
+        n_skipped = 0
+        with self.open() as spectra:
+            pbar = tqdm(spectra, desc=str(self.path), unit="spectra")
+            for idx, spectrum in enumerate(pbar):
+                try:
+                    spectrum = self.parse_spectrum(spectrum)
+                    if spectrum is None:
+                        continue
+
+                    if self.preprocessing_fn is not None:
+                        for processor in self.preprocessing_fn:
+                            spectrum = processor(spectrum)
+
+                    yield spectrum
+                except (IndexError, KeyError, ValueError):
+                    n_skipped += 1
+
+        if n_skipped:
+            LOGGER.warning(
+                "Skipped %d spectra because they were invalid.", n_skipped
+            )
 
     @abstractmethod
     def open(self) -> Iterable:
@@ -82,66 +99,15 @@ class BaseParser(ABC):
             The parsed mass spectrum or None if it is skipped.
         """
 
-    def read(self) -> BaseParser:
-        """Read the ms data file.
+    def to_parquet(parquet_file: PathLike) -> None:
+        """Convert the peak file to Parquet.
 
-        Returns
-        -------
-        Self
+        Parameters
+        ----------
+        parquet_file : PathLike
+            The parquet file to write.
         """
-        n_skipped = 0
-        with self.open() as spectra:
-            for spectrum in tqdm(spectra, desc=str(self.path), unit="spectra"):
-                try:
-                    spectrum = self.parse_spectrum(spectrum)
-                    if spectrum is None:
-                        continue
-
-                    if self.preprocessing_fn is not None:
-                        for processor in self.preprocessing_fn:
-                            spectrum = processor(spectrum)
-
-                    self.mz_arrays.append(spectrum.mz)
-                    self.intensity_arrays.append(spectrum.intensity)
-                    self.precursor_mz.append(spectrum.precursor_mz)
-                    self.precursor_charge.append(spectrum.precursor_charge)
-                    self.scan_id.append(_parse_scan_id(spectrum.scan_id))
-                    if self.annotations is not None:
-                        self.annotations.append(spectrum.label)
-                except (IndexError, KeyError, ValueError):
-                    n_skipped += 1
-
-        if n_skipped:
-            LOGGER.warning(
-                "Skipped %d spectra with invalid precursor info", n_skipped
-            )
-
-        self.precursor_mz = np.array(self.precursor_mz, dtype=np.float64)
-        self.precursor_charge = np.array(
-            self.precursor_charge,
-            dtype=np.uint8,
-        )
-
-        self.scan_id = np.array(self.scan_id)
-
-        # Build the index
-        sizes = np.array([0] + [s.shape[0] for s in self.mz_arrays])
-        self.offset = sizes[:-1].cumsum()
-        self.mz_arrays = np.concatenate(self.mz_arrays).astype(np.float64)
-        self.intensity_arrays = np.concatenate(self.intensity_arrays).astype(
-            np.float32
-        )
-        return self
-
-    @property
-    def n_spectra(self) -> int:
-        """The number of spectra."""
-        return self.offset.shape[0]
-
-    @property
-    def n_peaks(self) -> int:
-        """The number of peaks in the file."""
-        return self.mz_arrays.shape[0]
+        pl.LazyFra
 
 
 class MzmlParser(BaseParser):
