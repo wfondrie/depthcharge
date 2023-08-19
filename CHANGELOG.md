@@ -5,8 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.3.1] - 2023-08-18
 ### Added
 - Support for fine-tuning the wavelengths used for encoding floating point numbers like m/z and intensity to the `FloatEncoder` and `PeakEncoder`.
+
+### Fixed
+- The `tgt_mask` in the `PeptideTransformerDecoder` was the incorrect type.
+  Now it is `bool` as it should be.
+  Thanks @justin-a-sanders!
 
 ## [v0.3.0] - 2023-06-06
 ### Added
