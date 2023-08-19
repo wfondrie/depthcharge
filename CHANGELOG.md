@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Combining the SpectrumIndex and SpectrumDataset classes into one.
 - Changing peak encodings. Instead of encoding the intensity using a linear projection and summing with the sinusoidal m/z encodings, now the intensity is also sinusoidally encoded and is combined with the sinusoidal m/z encodings using a linear layer.
 
+## [v0.2.3] - 2023-08-18
+### Fixed
+- Applied hotfix from v0.3.1
 
 ## [v0.2.2] - 2023-05-15
 ### Fixed
