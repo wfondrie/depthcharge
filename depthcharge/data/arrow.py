@@ -278,4 +278,4 @@ def spectra_to_df(
         custom_fields=custom_fields,
     )
 
-    return pl.DataFrame(streamer)
+    return pl.from_arrow(streamer)
