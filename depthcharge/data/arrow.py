@@ -1,7 +1,7 @@
 """Store spectrum data as Arrow tables."""
+from collections.abc import Callable, Generator, Iterable
 from os import PathLike
 from pathlib import Path
-from typing import Callable, Iterable, Generator
 
 import polars as pl
 import pyarrow as pa
@@ -10,7 +10,7 @@ import pyarrow.parquet as pq
 from .parsers import ParserFactory
 
 
-def stream_spectra(
+def spectra_to_stream(
     peak_file: PathLike,
     batch_size: int | None,
     *,
@@ -83,12 +83,10 @@ def stream_spectra(
         "ms_level": ms_level,
         "valid_charge": valid_charge,
         "preprocessing_fn": preprocessing_fn,
-        "custom_fields": custom_fields
+        "custom_fields": custom_fields,
     }
 
     metadata_df = None if metadata_df is None else metadata_df.lazy()
-    batch_size = float("inf") if batch_size is None else batch_size
-
     parser = ParserFactory.get_parser(peak_file, **parser_args)
     for batch in parser.iter_batches(batch_size=batch_size):
         if metadata_df is not None:
@@ -180,7 +178,7 @@ def spectra_to_parquet(
     Path
         The Parquet file that was written.
     """
-    streamer = stream_spectra(
+    streamer = spectra_to_stream(
         peak_file=peak_file,
         batch_size=batch_size,
         metadata_df=metadata_df,
@@ -268,9 +266,9 @@ def spectra_to_df(
     Path
         The Parquet file that was written.
     """
-    streamer = stream_spectra(
+    streamer = spectra_to_stream(
         peak_file=peak_file,
-        batch_size=float("inf"),
+        batch_size=None,
         metadata_df=metadata_df,
         ms_level=ms_level,
         preprocessing_fn=preprocessing_fn,

@@ -42,6 +42,7 @@ class BaseParser(ABC):
     id_type : str, optional
         The Hupo-PSI prefix for the spectrum identifier.
     """
+
     def __init__(
         self,
         peak_file: PathLike,
@@ -134,7 +135,7 @@ class BaseParser(ABC):
             the spectra in a single batch.
 
         Yields
-        -------
+        ------
         RecordBatch
             A batch of spectra and their metadata.
         """
@@ -213,6 +214,7 @@ class MzmlParser(BaseParser):
         containing the necessary keys to retreive the value from the
         spectrum from the corresponding Pyteomics parser.
     """
+
     def sniff(self) -> None:
         """Quickly test a file for the correct type.
 
@@ -224,7 +226,7 @@ class MzmlParser(BaseParser):
         with self.peak_file.open() as mzdat:
             next(mzdat)
             if "http://psi.hupo.org/ms/mzml" not in next(mzdat):
-                raise IOError("Not an mzML file.")
+                raise OSError("Not an mzML file.")
 
     def open(self) -> Iterable[dict]:
         """Open the mzML file for reading."""
@@ -294,6 +296,7 @@ class MzxmlParser(BaseParser):
         containing the necessary keys to retreive the value from the
         spectrum from the corresponding Pyteomics parser.
     """
+
     def sniff(self) -> None:
         """Quickly test a file for the correct type.
 
@@ -306,7 +309,7 @@ class MzxmlParser(BaseParser):
         with self.peak_file.open() as mzdat:
             next(mzdat)
             if scent not in next(mzdat):
-                raise IOError("Not an mzXML file.")
+                raise OSError("Not an mzXML file.")
 
     def open(self) -> Iterable[dict]:
         """Open the mzXML file for reading."""
@@ -370,6 +373,7 @@ class MgfParser(BaseParser):
         containing the necessary keys to retreive the value from the
         spectrum from the corresponding Pyteomics parser.
     """
+
     def __init__(
         self,
         peak_file: PathLike,
@@ -388,7 +392,7 @@ class MgfParser(BaseParser):
             id_type="index",
         )
         self._counter = -1
-        self._assumed_ms_level = sorted(list(self.ms_level))[0]
+        self._assumed_ms_level = sorted(self.ms_level)[0]
 
     def sniff(self) -> None:
         """Quickly test a file for the correct type.
@@ -400,7 +404,7 @@ class MgfParser(BaseParser):
         """
         with self.peak_file.open() as mzdat:
             if not next(mzdat).startswith("BEGIN IONS"):
-                raise IOError("Not an MGF file.")
+                raise OSError("Not an MGF file.")
 
     def open(self) -> Iterable[dict]:
         """Open the MGF file for reading."""
@@ -466,6 +470,7 @@ def _parse_scan_id(scan_str: str | int) -> int:
 
 class ParserFactory:
     """Figure out what parser to use."""
+
     parsers = [
         MzmlParser,
         MzxmlParser,
@@ -473,18 +478,20 @@ class ParserFactory:
     ]
 
     @classmethod
-    def get_parser(cls, peak_file: PathLike, **kwargs) -> BaseParser:
+    def get_parser(cls, peak_file: PathLike, **kwargs: dict) -> BaseParser:
         """Get the correct parser for a peak file.
 
         Parameters
         ----------
         peak_file: PathLike
             The peak file to parse.
+        kwargs : dict
+            Keyword arguments to pass to the parser.
         """
         for parser in cls.parsers:
             try:
-                return parser(peak_file)
-            except IOError:
+                return parser(peak_file, **kwargs)
+            except OSError:
                 pass
 
-        raise IOError("Unknown file format.")
+        raise OSError("Unknown file format.")
