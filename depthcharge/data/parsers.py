@@ -124,20 +124,21 @@ class BaseParser(ABC):
 
         return out
 
-    def iter_batches(self, batch_size: int) -> pa.RecordBatch:
+    def iter_batches(self, batch_size: int | None) -> pa.RecordBatch:
         """Iterate over batches of mass spectra in the Arrow format.
 
         Parameters
         ----------
-        batch_size : int
-            The number of spectra in a batch.
+        batch_size : int or None
+            The number of spectra in a batch. ``None`` loads all of
+            the spectra in a single batch.
 
         Yields
         -------
         RecordBatch
             A batch of spectra and their metadata.
         """
-        n_skipped = 0
+        batch_size = float("inf") if batch_size is None else batch_size
         metadata = {
             "peak_file": self.peak_file.name,
             "id_type": self.id_type,
@@ -148,12 +149,13 @@ class BaseParser(ABC):
             "unit": " spectra",
         }
 
+        n_skipped = 0
         with self.open() as spectra:
             batch = []
             for spectrum in tqdm(spectra, **pbar_args):
                 try:
                     parsed = self.parse_spectrum(spectrum)
-                    if spectrum is None:
+                    if parsed is None:
                         continue
 
                     if self.preprocessing_fn is not None:
@@ -205,6 +207,11 @@ class MzmlParser(BaseParser):
     valid_charge : Iterable[int], optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
+    custom_fields : dict of str to list of str, optional
+        Additional field to extract during peak file parsing. The key must
+        be the resulting column name and value must be an interable of
+        containing the necessary keys to retreive the value from the
+        spectrum from the corresponding Pyteomics parser.
     """
     def sniff(self) -> None:
         """Quickly test a file for the correct type.
@@ -281,6 +288,11 @@ class MzxmlParser(BaseParser):
     valid_charge : Iterable[int], optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
+    custom_fields : dict of str to list of str, optional
+        Additional field to extract during peak file parsing. The key must
+        be the resulting column name and value must be an interable of
+        containing the necessary keys to retreive the value from the
+        spectrum from the corresponding Pyteomics parser.
     """
     def sniff(self) -> None:
         """Quickly test a file for the correct type.
@@ -352,14 +364,19 @@ class MgfParser(BaseParser):
     valid_charge : Iterable[int], optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
+    custom_fields : dict of str to list of str, optional
+        Additional field to extract during peak file parsing. The key must
+        be the resulting column name and value must be an interable of
+        containing the necessary keys to retreive the value from the
+        spectrum from the corresponding Pyteomics parser.
     """
-
     def __init__(
         self,
         peak_file: PathLike,
         ms_level: int = 2,
         preprocessing_fn: Callable | Iterable[Callable] | None = None,
         valid_charge: Iterable[int] | None = None,
+        custom_fields: dict[str, Iterable[str]] | None = None,
     ) -> None:
         """Initialize the MgfParser."""
         super().__init__(
@@ -367,6 +384,7 @@ class MgfParser(BaseParser):
             ms_level=ms_level,
             preprocessing_fn=preprocessing_fn,
             valid_charge=valid_charge,
+            custom_fields=None,
             id_type="index",
         )
         self._counter = -1
