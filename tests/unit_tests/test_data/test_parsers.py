@@ -1,8 +1,7 @@
 """Test that parsers work."""
-import pytest
 import polars as pl
+import pytest
 from polars.testing import (
-    assert_series_equal,
     assert_frame_equal,
 )
 
@@ -63,8 +62,8 @@ SMALL_MGF_MZS = [
 def test_mgf_and_base(mgf_small):
     """MGF file with a missing charge."""
     parsed = pl.from_arrow(MgfParser(mgf_small).iter_batches(None))
-    expected = (
-        pl.DataFrame({
+    expected = pl.DataFrame(
+        {
             "scan_id": [0, 1],
             "ms_level": [2, 2],
             "precursor_mz": [416.24474357, 257.464565],
@@ -73,10 +72,9 @@ def test_mgf_and_base(mgf_small):
             "intensity_array": [
                 [1.0] * len(SMALL_MGF_MZS[0]),
                 [1.0] * len(SMALL_MGF_MZS[1]),
-            ]
-        })
-        .with_columns(pl.col("intensity_array").cast(pl.List(pl.Float32)))
-    )
+            ],
+        }
+    ).with_columns(pl.col("intensity_array").cast(pl.List(pl.Float32)))
 
     assert parsed.shape == (2, 6)
     assert_frame_equal(parsed, expected)
@@ -97,9 +95,11 @@ def test_mgf_and_base(mgf_small):
         (2, None, [3], None, (3, 6)),
         (None, None, None, None, (11, 6)),
         (2, scale_to_unit_norm, None, {"index": ["index"]}, (4, 7)),
-    ]
+    ],
 )
-def test_mzml(real_mzml, ms_level, preprocessing_fn, valid_charge, custom_fields, shape):
+def test_mzml(
+    real_mzml, ms_level, preprocessing_fn, valid_charge, custom_fields, shape
+):
     """A simple mzML test."""
     parsed = pl.from_arrow(
         MzmlParser(
@@ -108,8 +108,7 @@ def test_mzml(real_mzml, ms_level, preprocessing_fn, valid_charge, custom_fields
             preprocessing_fn=preprocessing_fn,
             valid_charge=valid_charge,
             custom_fields=custom_fields,
-        )
-        .iter_batches(None)
+        ).iter_batches(None)
     )
     assert parsed.shape == shape
 
@@ -123,9 +122,11 @@ def test_mzml(real_mzml, ms_level, preprocessing_fn, valid_charge, custom_fields
         (2, None, [3], None, (3, 6)),
         (None, None, None, None, (11, 6)),
         (2, scale_to_unit_norm, None, {"CE": ["collisionEnergy"]}, (4, 7)),
-    ]
+    ],
 )
-def test_mzxml(real_mzxml, ms_level, preprocessing_fn, valid_charge, custom_fields, shape):
+def test_mzxml(
+    real_mzxml, ms_level, preprocessing_fn, valid_charge, custom_fields, shape
+):
     """A simple mzML test."""
     parsed = pl.from_arrow(
         MzxmlParser(
@@ -134,7 +135,6 @@ def test_mzxml(real_mzxml, ms_level, preprocessing_fn, valid_charge, custom_fiel
             preprocessing_fn=preprocessing_fn,
             valid_charge=valid_charge,
             custom_fields=custom_fields,
-        )
-        .iter_batches(None)
+        ).iter_batches(None)
     )
     assert parsed.shape == shape
