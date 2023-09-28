@@ -9,6 +9,12 @@ from ..encoders import PeakEncoder
 class SpectrumTransformerEncoder(torch.nn.Module):
     """A Transformer encoder for input mass spectra.
 
+    Use this PyTorch module to embed mass spectra. By default, nothing
+    other than the m/z and intensity arrays for each mass spectrum are
+    considered. However, arbitrary information can be integrated into the
+    spectrum representation by subclassing this class and overwriting the
+    `precursor_hook()` method.
+
     Parameters
     ----------
     d_model : int, optional
@@ -24,7 +30,22 @@ class SpectrumTransformerEncoder(torch.nn.Module):
     dropout : float, optional
         The dropout probability for all layers.
     peak_encoder : PeakEncoder or bool, optional
-        Sinusoidal encodings m/z and intensityvalues of each peak.
+        The function to encode the (m/z, intensity) tuples of each mass
+        spectrum. `True` uses the default sinusoidal encoding and `False`
+        instead performs a 1 to `d_model` learned linear projection.
+
+    Attributes
+    ----------
+    d_model : int
+    nhead : int
+    dim_feedforward : int
+    n_layers : int
+    dropout : float
+    peak_encoder : torch.nn.Module or Callable
+        The function to encode the (m/z, intensity) tuples of each mass
+        spectrum.
+    transformer_encoder : torch.nn.TransformerEncoder
+        The Transformer encoder layers.
     """
 
     def __init__(
