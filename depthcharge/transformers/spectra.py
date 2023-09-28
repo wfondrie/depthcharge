@@ -38,8 +38,11 @@ class SpectrumTransformerEncoder(torch.nn.Module):
     ) -> None:
         """Initialize a SpectrumEncoder."""
         super().__init__()
-
-        self.latent_spectrum = torch.nn.Parameter(torch.randn(1, 1, d_model))
+        self._d_model = d_model
+        self._nhead = nhead
+        self._dim_feedforward = dim_feedforward
+        self._n_layers = n_layers
+        self._dropout = dropout
 
         if callable(peak_encoder):
             self.peak_encoder = peak_encoder
@@ -62,20 +65,48 @@ class SpectrumTransformerEncoder(torch.nn.Module):
             num_layers=n_layers,
         )
 
+    @property
+    def d_model(self) -> int:
+        """The latent dimensionality of the model."""
+        return self._d_model
+
+    @property
+    def nhead(self) -> int:
+        """The number of attention heads."""
+        return self._nhead
+
+    @property
+    def dim_feedforward(self) -> int:
+        """The dimensionality of the Transformer feedforward layers."""
+        return self._dim_feedforward
+
+    @property
+    def n_layers(self) -> int:
+        """The number of Transformer layers."""
+        return self._n_layers
+
+    @property
+    def dropout(self) -> float:
+        """The dropout for the transformer layers."""
+        return self._dropout
+
     def forward(
         self,
-        spectra: torch.Tensor,
+        mz_array: torch.Tensor,
+        intensity_array: torch.Tensor,
+        **kwargs: dict,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Embed a mass spectrum.
+        """Embed a batch of mass spectra.
 
         Parameters
         ----------
-        spectra : torch.Tensor of shape (n_spectra, n_peaks, 2)
-            The spectra to embed. Axis 0 represents a mass spectrum, axis 1
-            contains the peaks in the mass spectrum, and axis 2 is essentially
-            a 2-tuple specifying the m/z-intensity pair for each peak. These
-            should be zero-padded, such that all of the spectra in the batch
-            are the same length.
+        mz_array : torch.Tensor of shape (n_spectra, n_peaks)
+            The zero-padded m/z dimension for a batch of mass spectra.
+        intensity_array : torch.Tensor of shape (n_spectra, n_peaks)
+            The zero-padded intensity dimension for a batch of mass spctra.
+        **kwargs : dict
+            Additional fields provided by the data loader. These may be
+            used by overwriting the `precursor_hook()` method in a subclass.
 
         Returns
         -------
@@ -85,19 +116,59 @@ class SpectrumTransformerEncoder(torch.nn.Module):
         mem_mask : torch.Tensor
             The memory mask specifying which elements were padding in X.
         """
+        spectra = torch.stack([mz_array, intensity_array], dim=2)
+        n_batch = spectra.shape[0]
         zeros = ~spectra.sum(dim=2).bool()
-        mask = [
-            torch.tensor([[False]] * spectra.shape[0]).type_as(zeros),
-            zeros,
-        ]
-        mask = torch.cat(mask, dim=1)
+        mask = torch.cat(
+            [torch.tensor([[False]] * n_batch).type_as(zeros), zeros], dim=1
+        )
         peaks = self.peak_encoder(spectra)
 
-        # Add the spectrum representation to each input:
-        latent_spectra = self.latent_spectrum.expand(peaks.shape[0], -1, -1)
+        # Add the precursor information:
+        latent_spectra = self.precursor_hook(
+            mz_array=mz_array,
+            intensity_array=intensity_array,
+            **kwargs,
+        )
 
-        peaks = torch.cat([latent_spectra, peaks], dim=1)
+        peaks = torch.cat([latent_spectra[:, None, :], peaks], dim=1)
         return self.transformer_encoder(peaks, src_key_padding_mask=mask), mask
+
+    def precursor_hook(
+        self,
+        mz_array: torch.Tensor,
+        intensity_array: torch.Tensor,
+        **kwargs: dict,
+    ) -> torch.Tensor:
+        """Define how additional information in the batch may be used.
+
+        Overwrite this method to define custom functionality dependent on
+        information in the batch. Examples would be to incorporate any
+        combination of the mass, charge, retention time, or
+        ion mobility of a precursor ion.
+
+        The representation returned by this method is preprended to the
+        peak representations that are fed into the Transformer encoder and
+        ultimately contribute to the spectrum representation that is the
+        first element of the sequence in the model output.
+
+        By default, this method returns a tensor of zeros.
+
+        Parameters
+        ----------
+        mz_array : torch.Tensor of shape (n_spectra, n_peaks)
+            The zero-padded m/z dimension for a batch of mass spectra.
+        intensity_array : torch.Tensor of shape (n_spectra, n_peaks)
+            The zero-padded intensity dimension for a batch of mass spctra.
+        **kwargs : dict
+            The additional data passed with the batch.
+
+        Returns
+        -------
+        torch.Tensor of shape (batch_size, d_model)
+            The precursor representations.
+        """
+        return torch.zeros((mz_array.shape[0], self.d_model)).type_as(mz_array)
 
     @property
     def device(self) -> torch.device:
