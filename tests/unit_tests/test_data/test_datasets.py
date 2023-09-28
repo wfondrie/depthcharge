@@ -67,6 +67,39 @@ def test_indexing(mgf_small, tmp_path):
     assert spec2["mz_array"].shape == (24,)
 
 
+def test_load(tmp_path, mgf_small):
+    """Test saving and loading a dataset."""
+    db_path = tmp_path / "test.lance"
+
+    AnnotatedSpectrumDataset(
+        mgf_small,
+        tokenizer,
+        "seq",
+        db_path,
+        preprocessing_fn=[],
+        custom_fields={"seq": ["params", "seq"]},
+    )
+
+    dataset = AnnotatedSpectrumDataset.from_lance(db_path, "seq", tokenizer)
+
+    spec = dataset[0]
+    assert len(spec) == 8
+    assert spec["seq"] == "LESLIEK"
+    assert spec["mz_array"].shape == (14,)
+
+    spec2 = dataset[1]
+    assert spec2["seq"] == "EDITHR"
+    assert spec2["mz_array"].shape == (24,)
+
+    dataset = SpectrumDataset.from_lance(db_path)
+    spec = dataset[0]
+    assert len(spec) == 8
+    assert spec["peak_file"] == "small.mgf"
+    assert spec["scan_id"] == 0
+    assert spec["ms_level"] == 2
+    assert (spec["precursor_mz"] - 416.2448) < 0.001
+
+
 def test_formats(tmp_path, real_mgf, real_mzml, real_mzxml):
     """Test all of the supported formats."""
     df = arrow.spectra_to_df(real_mgf)
