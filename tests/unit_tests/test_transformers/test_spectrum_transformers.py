@@ -66,3 +66,20 @@ def test_precursor_hook(batch):
     for elem in zip(emb1.flatten(), emb2.flatten()):
         if elem:
             assert elem[0] != elem[1]
+
+
+def test_properties():
+    """Test that the properties work."""
+    model = SpectrumTransformerEncoder(
+        d_model=256,
+        nhead=16,
+        dim_feedforward=48,
+        n_layers=3,
+        dropout=0.1,
+    )
+
+    assert model.d_model == 256
+    assert model.nhead == 16
+    assert model.dim_feedforward == 48
+    assert model.n_layers == 3
+    assert model.dropout == 0.1
