@@ -141,6 +141,33 @@ def test_mzxml(
     assert parsed.shape == shape
 
 
+@pytest.mark.parametrize(
+    ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
+    [
+        (2, None, None, None, (7, 7)),
+        (1, None, None, None, (7, 7)),
+        (3, None, None, None, (7, 7)),
+        (2, None, [3], None, (3, 7)),
+        (None, None, None, None, (7, 7)),
+        (2, scale_to_unit_norm, None, {"t": ["params", "title"]}, (7, 8)),
+    ],
+)
+def test_mgf(
+    real_mgf, ms_level, preprocessing_fn, valid_charge, custom_fields, shape
+):
+    """A simple mzML test."""
+    parsed = pl.from_arrow(
+        MgfParser(
+            real_mgf,
+            ms_level=ms_level,
+            preprocessing_fn=preprocessing_fn,
+            valid_charge=valid_charge,
+            custom_fields=custom_fields,
+        ).iter_batches(None)
+    )
+    assert parsed.shape == shape
+
+
 def test_custom_fields(mgf_small):
     """Test that custom fields are working."""
     parsed = pl.from_arrow(
@@ -158,3 +185,11 @@ def test_custom_fields(mgf_small):
                 mgf_small, custom_fields={"seq": ["params", "bar"]}
             ).iter_batches(None)
         )
+
+
+def test_invalid_file(tmp_path):
+    """Test an invalid file raises an error."""
+    tmp_path.touch("blah.txt")
+
+    with pytest.raises(OSError):
+        ParserFactory().get_parser(tmp_path / "blah.txt")

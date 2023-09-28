@@ -405,7 +405,10 @@ class MgfParser(BaseParser):
             id_type="index",
         )
         self._counter = -1
-        self._assumed_ms_level = sorted(self.ms_level)[0]
+        if ms_level is not None:
+            self._assumed_ms_level = sorted(self.ms_level)[0]
+        else:
+            self._assumed_ms_level = None
 
     def sniff(self) -> None:
         """Quickly test a file for the correct type.
