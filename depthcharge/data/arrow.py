@@ -12,8 +12,8 @@ from .parsers import ParserFactory
 
 def spectra_to_stream(
     peak_file: PathLike,
-    batch_size: int | None,
     *,
+    batch_size: int | None = 100_000,
     metadata_df: pl.DataFrame | None = None,
     ms_level: int | Iterable[int] | None = 2,
     preprocessing_fn: Callable | Iterable[Callable] | None = None,
@@ -27,6 +27,7 @@ def spectra_to_stream(
     This function reads data from a mass spectrometry data format,
     extracts the mass spectrum and identifying information. By
     default, the schema is:
+        peak_file: str
         scan_id: int
         ms_level: int
         precursor_mz: float
@@ -42,9 +43,10 @@ def spectra_to_stream(
     offset of the mass spectrum in the file.
 
     Finally, custom fields can be extracted from the mass spectrometry
-    data file for advanced use. A dictionary providing the key for
-    each spectrum returned by the corresponding pyteomics parser can
-    be provided, along with a column name for the value.
+    data file for advanced use. This must be a dictionary, where the
+    key is the new column name and the value is an interable for
+    extracting a value from the corresponding Pyteomics spectrum
+    dictionarly.
 
     Parameters
     ----------
@@ -124,6 +126,7 @@ def spectra_to_parquet(
     This function reads data from a mass spectrometry data format,
     extracts the mass spectrum and identifying information. By
     default, the schema is:
+        peak_file: str
         scan_id: int
         ms_level: int
         precursor_mz: float64
@@ -139,9 +142,10 @@ def spectra_to_parquet(
     offset of the mass spectrum in the file.
 
     Finally, custom fields can be extracted from the mass spectrometry
-    data file for advanced use. A dictionary providing the key for
-    each spectrum returned by the corresponding pyteomics parser can
-    be provided, along with a column name for the value.
+    data file for advanced use. This must be a dictionary, where the
+    key is the new column name and the value is an interable for
+    extracting a value from the corresponding Pyteomics spectrum
+    dictionary.
 
     Parameters
     ----------
@@ -217,6 +221,7 @@ def spectra_to_df(
     This function reads data from a mass spectrometry data format,
     extracts the mass spectrum and identifying information. By
     default, the schema is:
+        peak_file: str
         scan_id: int
         ms_level: int
         precursor_mz: float64
@@ -232,9 +237,10 @@ def spectra_to_df(
     offset of the mass spectrum in the file.
 
     Finally, custom fields can be extracted from the mass spectrometry
-    data file for advanced use. A dictionary providing the key for
-    each spectrum returned by the corresponding pyteomics parser can
-    be provided, along with a column name for the value.
+    data file for advanced use. This must be a dictionary, where the
+    key is the new column name and the value is an interable for
+    extracting a value from the corresponding Pyteomics spectrum
+    dictionary.
 
     Parameters
     ----------

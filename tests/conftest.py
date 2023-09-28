@@ -41,7 +41,6 @@ def mgf_small(tmp_path):
     return _create_mgf(peptides, mgf_file)
 
 
-# Utility functions -----------------------------------------------------------
 def _create_mgf_entry(peptide, charge=2):
     """Create a MassIVE-KB style MGF entry for a single PSM.
 

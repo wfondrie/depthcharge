@@ -358,6 +358,7 @@ class MassSpectrum(MsmsSpectrum):
         scan_id: str,
         mz: ArrayLike,
         intensity: ArrayLike,
+        ms_level: int = None,
         retention_time: float | None = None,
         ion_mobility: float | None = None,
         precursor_mz: float | None = None,
@@ -367,6 +368,7 @@ class MassSpectrum(MsmsSpectrum):
         """Initialize a MassSpectrum."""
         self.filename = filename
         self.scan_id = scan_id
+        self.ms_level = ms_level
         self.label = label
 
         # Not currently supported by spectrum_utils:

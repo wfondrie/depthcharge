@@ -1,5 +1,5 @@
 """Get the version information."""
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
 
 
 def _get_version() -> str:

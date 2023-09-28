@@ -13,12 +13,12 @@ from depthcharge.data.preprocessing import scale_to_unit_norm
 @pytest.mark.parametrize(
     ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
     [
-        (2, None, None, None, (4, 6)),
-        (1, None, None, None, (4, 6)),
-        (3, None, None, None, (3, 6)),
-        (2, None, [3], None, (3, 6)),
-        (None, None, None, None, (11, 6)),
-        (2, scale_to_unit_norm, None, {"index": ["index"]}, (4, 7)),
+        (2, None, None, None, (4, 7)),
+        (1, None, None, None, (4, 7)),
+        (3, None, None, None, (3, 7)),
+        (2, None, [3], None, (3, 7)),
+        (None, None, None, None, (11, 7)),
+        (2, scale_to_unit_norm, None, {"index": ["index"]}, (4, 8)),
     ],
 )
 def test_to_df(
@@ -39,12 +39,12 @@ def test_to_df(
 @pytest.mark.parametrize(
     ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
     [
-        (2, None, None, None, (4, 6)),
-        (1, None, None, None, (4, 6)),
-        (3, None, None, None, (3, 6)),
-        (2, None, [3], None, (3, 6)),
-        (None, None, None, None, (11, 6)),
-        (2, scale_to_unit_norm, None, {"index": ["index"]}, (4, 7)),
+        (2, None, None, None, (4, 7)),
+        (1, None, None, None, (4, 7)),
+        (3, None, None, None, (3, 7)),
+        (2, None, [3], None, (3, 7)),
+        (None, None, None, None, (11, 7)),
+        (2, scale_to_unit_norm, None, {"index": ["index"]}, (4, 8)),
     ],
 )
 def test_to_parquet(
@@ -73,12 +73,12 @@ def test_to_parquet(
 @pytest.mark.parametrize(
     ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
     [
-        (2, None, None, None, (4, 6)),
-        (1, None, None, None, (4, 6)),
-        (3, None, None, None, (3, 6)),
-        (2, None, [3], None, (3, 6)),
-        (None, None, None, None, (11, 6)),
-        (2, scale_to_unit_norm, None, {"index": ["index"]}, (4, 7)),
+        (2, None, None, None, (4, 7)),
+        (1, None, None, None, (4, 7)),
+        (3, None, None, None, (3, 7)),
+        (2, None, [3], None, (3, 7)),
+        (None, None, None, None, (11, 7)),
+        (2, scale_to_unit_norm, None, {"index": ["index"]}, (4, 8)),
     ],
 )
 def test_to_stream(

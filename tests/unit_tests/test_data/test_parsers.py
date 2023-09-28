@@ -1,9 +1,7 @@
 """Test that parsers work."""
 import polars as pl
 import pytest
-from polars.testing import (
-    assert_frame_equal,
-)
+from polars.testing import assert_frame_equal, assert_series_equal
 
 from depthcharge.data.parsers import (
     MgfParser,
@@ -61,9 +59,12 @@ SMALL_MGF_MZS = [
 
 def test_mgf_and_base(mgf_small):
     """MGF file with a missing charge."""
-    parsed = pl.from_arrow(MgfParser(mgf_small).iter_batches(None))
+    parsed = pl.from_arrow(
+        MgfParser(mgf_small, preprocessing_fn=[]).iter_batches(None)
+    )
     expected = pl.DataFrame(
         {
+            "peak_file": [mgf_small.name] * 2,
             "scan_id": [0, 1],
             "ms_level": [2, 2],
             "precursor_mz": [416.24474357, 257.464565],
@@ -76,25 +77,25 @@ def test_mgf_and_base(mgf_small):
         }
     ).with_columns(pl.col("intensity_array").cast(pl.List(pl.Float32)))
 
-    assert parsed.shape == (2, 6)
+    assert parsed.shape == (2, 7)
     assert_frame_equal(parsed, expected)
 
     parsed = pl.from_arrow(
         MgfParser(mgf_small, valid_charge=[2]).iter_batches(2),
     )
-    assert parsed.shape == (1, 6)
+    assert parsed.shape == (1, 7)
     assert isinstance(ParserFactory.get_parser(mgf_small), MgfParser)
 
 
 @pytest.mark.parametrize(
     ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
     [
-        (2, None, None, None, (4, 6)),
-        (1, None, None, None, (4, 6)),
-        (3, None, None, None, (3, 6)),
-        (2, None, [3], None, (3, 6)),
-        (None, None, None, None, (11, 6)),
-        (2, scale_to_unit_norm, None, {"index": ["index"]}, (4, 7)),
+        (2, None, None, None, (4, 7)),
+        (1, None, None, None, (4, 7)),
+        (3, None, None, None, (3, 7)),
+        (2, None, [3], None, (3, 7)),
+        (None, None, None, None, (11, 7)),
+        (2, scale_to_unit_norm, None, {"index": ["index"]}, (4, 8)),
     ],
 )
 def test_mzml(
@@ -116,12 +117,12 @@ def test_mzml(
 @pytest.mark.parametrize(
     ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
     [
-        (2, None, None, None, (4, 6)),
-        (1, None, None, None, (4, 6)),
-        (3, None, None, None, (3, 6)),
-        (2, None, [3], None, (3, 6)),
-        (None, None, None, None, (11, 6)),
-        (2, scale_to_unit_norm, None, {"CE": ["collisionEnergy"]}, (4, 7)),
+        (2, None, None, None, (4, 7)),
+        (1, None, None, None, (4, 7)),
+        (3, None, None, None, (3, 7)),
+        (2, None, [3], None, (3, 7)),
+        (None, None, None, None, (11, 7)),
+        (2, scale_to_unit_norm, None, {"CE": ["collisionEnergy"]}, (4, 8)),
     ],
 )
 def test_mzxml(
@@ -138,3 +139,22 @@ def test_mzxml(
         ).iter_batches(None)
     )
     assert parsed.shape == shape
+
+
+def test_custom_fields(mgf_small):
+    """Test that custom fields are working."""
+    parsed = pl.from_arrow(
+        MgfParser(
+            mgf_small, custom_fields={"seq": ["params", "seq"]}
+        ).iter_batches(None)
+    )
+
+    expected = pl.Series("seq", ["LESLIEK", "EDITHR"])
+    assert_series_equal(parsed["seq"], expected)
+
+    with pytest.raises(KeyError):
+        pl.from_arrow(
+            MgfParser(
+                mgf_small, custom_fields={"seq": ["params", "bar"]}
+            ).iter_batches(None)
+        )

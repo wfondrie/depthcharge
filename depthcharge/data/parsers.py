@@ -16,6 +16,7 @@ from tqdm.auto import tqdm
 
 from .. import utils
 from ..primitives import MassSpectrum
+from . import preprocessing
 
 LOGGER = logging.getLogger(__name__)
 
@@ -59,7 +60,12 @@ class BaseParser(ABC):
         )
 
         if preprocessing_fn is None:
-            self.preprocessing_fn = []
+            self.preprocessing_fn = [
+                preprocessing.set_mz_range(min_mz=140),
+                preprocessing.filter_intensity(max_num_peaks=200),
+                preprocessing.scale_intensity(scaling="root"),
+                preprocessing.scale_to_unit_norm,
+            ]
         else:
             self.preprocessing_fn = utils.listify(preprocessing_fn)
 
@@ -119,7 +125,13 @@ class BaseParser(ABC):
         for field, accessors in self.custom_fields.items():
             val = spectrum
             for accessor in accessors:
-                val = val[accessor]
+                try:
+                    val = val[accessor]
+                except (KeyError, IndexError) as exc:
+                    raise KeyError(
+                        f"'{accessor}' not found in {accessors} for custom field"
+                        f" '{field}'. Current state = {val}"
+                    ) from exc
 
             out[field] = val
 
@@ -164,6 +176,7 @@ class BaseParser(ABC):
                             parsed = processor(parsed)
 
                     entry = {
+                        "peak_file": self.peak_file.name,
                         "scan_id": _parse_scan_id(parsed.scan_id),
                         "ms_level": parsed.ms_level,
                         "precursor_mz": parsed.precursor_mz,
@@ -388,7 +401,7 @@ class MgfParser(BaseParser):
             ms_level=ms_level,
             preprocessing_fn=preprocessing_fn,
             valid_charge=valid_charge,
-            custom_fields=None,
+            custom_fields=custom_fields,
             id_type="index",
         )
         self._counter = -1
