@@ -6,6 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+We have completely reworked of the data module.
+Depthcharge now uses Apache Arrow-based formats instead of HDF5; spectra are converted either Parquet or streamed with PyArrow, optionally into Lance datasets.
+
+### Breaking Changes
+- Mass spectrometry data parsers now function as iterators, yielding batches of spectra as `pyarrow.RecordBatch` objects.
+- Parsers can now be told to read arbitrary fields from their respective file formats with the `custom_fields` parameter.
+- The parsing functionality of `SpctrumDataset` and its subclasses have been moved to the `spectra_to_*` functions in the data module.
+- `SpectrumDataset` and its subclasses now return dictionaries of data rather than a tuple of data. This allows us to incorporate arbitrary additional data
+
+### Added
+- Added the `StreamingSpectrumDataset` for fast inference.
+- Added `spectra_to_df`, `spectra_to_df`, `spectra_to_stream` to the `depthcharge.data` module.
+
+### Changed
+- Determining the mass spectrometry data file format is now less fragile.
+  It now looks for known line contents, rather than relying on the extension.
+
 ## [v0.3.1] - 2023-08-18
 ### Added
 - Support for fine-tuning the wavelengths used for encoding floating point numbers like m/z and intensity to the `FloatEncoder` and `PeakEncoder`.
