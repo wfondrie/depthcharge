@@ -2,17 +2,37 @@ name: Push docs
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    type: [published, edited]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        run:
+
+
       - uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      - run: pip install ".[docs]"
-      - run: mkdocs gh-deploy --force
+      - name: Install dependencies
+        run: pip install ".[docs]"
+
+      - name: Build the docs
+        run: mkdocs build
+
+      - name: Deploy the development docs
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          mike deploy --push dev
+
+      - name: Deploy the release docs
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          mike deploy --push -update-aliases ${{ github.ref_name }} latest
+          mike set-default --push latest

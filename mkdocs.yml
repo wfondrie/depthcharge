@@ -32,6 +32,9 @@ extra_css:
   - stylesheets/extra.css
 
 plugins:
+  - mkdocs-jupyter:
+      execute: true
+      allow_errors: false
   - mkdocstrings:
       default_handler: python
       handlers:
@@ -65,3 +68,5 @@ extra:
   social:
     - icon: fontawesome/brands/twitter
       link: https://twitter.com/wfondrie
+  version:
+    provider: mike
