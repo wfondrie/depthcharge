@@ -32,6 +32,12 @@ def assert_dicts_equal(
             continue
 
         try:
+            assert type(val1) is type(val2)
+        except AssertionError:
+            bad_keys.append(key)
+            continue
+
+        try:
             assert val1 == val2
             continue
         except AssertionError:
