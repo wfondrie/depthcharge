@@ -266,8 +266,23 @@ class MzmlParser(BaseParser):
             return None
 
         if ms_level > 1:
-            precursor = spectrum["precursorList"]["precursor"][0]
-            precursor_ion = precursor["selectedIonList"]["selectedIon"][0]
+            precursor = spectrum["precursorList"]["precursor"]
+            if len(precursor) > 1:
+                LOGGER.warning(
+                    "More than one precursor found for spectrum %s. "
+                    "Only the first will be retained.",
+                    spectrum["id"],
+                )
+
+            precursor_ion = precursor[0]["selectedIonList"]["selectedIon"]
+            if len(precursor_ion) > 1:
+                LOGGER.warning(
+                    "More than one selected ions found for spectrum %s. "
+                    "Only the first will be retained.",
+                    spectrum["id"],
+                )
+
+            precursor_ion = precursor_ion[0]
             precursor_mz = float(precursor_ion["selected ion m/z"])
             if "charge state" in precursor_ion:
                 precursor_charge = int(precursor_ion["charge state"])

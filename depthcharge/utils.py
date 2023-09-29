@@ -7,9 +7,10 @@ import polars as pl
 def listify(obj: Any) -> list[Any]:  # noqa: ANN401
     """Turn an object into a list, but don't split strings."""
     try:
-        assert not isinstance(obj, str)
-        assert not isinstance(obj, pl.DataFrame)
-        assert not isinstance(obj, pl.LazyFrame)
+        invalid = [str, pl.DataFrame, pl.LazyFrame]
+        if any(isinstance(obj, c) for c in invalid):
+            raise TypeError
+
         iter(obj)
     except (AssertionError, TypeError):
         obj = [obj]
