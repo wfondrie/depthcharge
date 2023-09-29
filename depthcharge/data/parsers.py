@@ -163,6 +163,7 @@ class BaseParser(ABC):
         }
 
         n_skipped = 0
+        last_exc = None
         with self.open() as spectra:
             batch = []
             for spectrum in tqdm(spectra, **pbar_args):
@@ -185,7 +186,8 @@ class BaseParser(ABC):
                         "intensity_array": parsed.intensity,
                     }
 
-                except (IndexError, KeyError, ValueError):
+                except (IndexError, KeyError, ValueError) as exc:
+                    last_exc = exc
                     n_skipped += 1
                     continue
 
@@ -205,6 +207,7 @@ class BaseParser(ABC):
             LOGGER.warning(
                 "Skipped %d spectra with invalid information", n_skipped
             )
+            LOGGER.debug("Last error: %s", str(last_exc))
 
 
 class MzmlParser(BaseParser):
@@ -479,7 +482,10 @@ def _parse_scan_id(scan_str: str | int) -> int:
         try:
             return int(scan_str[scan_str.find("scan=") + len("scan=") :])
         except ValueError:
-            pass
+            try:
+                return int(scan_str[scan_str.find("index=") + len("index=") :])
+            except ValueError:
+                pass
 
     raise ValueError("Failed to parse scan number")
 
