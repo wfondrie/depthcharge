@@ -14,7 +14,7 @@ def spectra_to_stream(
     peak_file: PathLike,
     *,
     batch_size: int | None = 100_000,
-    metadata_df: pl.DataFrame | None = None,
+    metadata_df: pl.DataFrame | pl.LazyFrame | None = None,
     ms_level: int | Iterable[int] | None = 2,
     preprocessing_fn: Callable | Iterable[Callable] | None = None,
     valid_charge: Iterable[int] | None = None,
@@ -55,10 +55,11 @@ def spectra_to_stream(
     batch_size : int or None
         The number of mass spectra in each RecordBatch. ``None`` will load
         all of the spectra in a single batch.
-    metadata_df : DataFrame, optional
-        A `polars.DataFrame` or `pandas.DataFrame` containing additional
+    metadata_df : polars.DataFrame or polars.LazyFrame, optional
+        A `polars.DataFrame` containing additional
         metadata from the spectra. This is merged on the `scan_id` column
-        which must be present.
+        which must be present, and optionally a `peak_file` column,
+        if present.
     ms_level : int, list of int, or None, optional
         The level(s) of tandem mass spectra to keep. `None` will retain
         all spectra.
@@ -88,21 +89,31 @@ def spectra_to_stream(
         "custom_fields": custom_fields,
     }
 
-    metadata_df = None if metadata_df is None else metadata_df.lazy()
+    on_cols = ["scan_id"]
+    validation = "1:1"
+    if metadata_df is not None:
+        metadata_df = metadata_df.lazy()
+        if "peak_file" in metadata_df.columns:
+            # Validation is only supported when on is a single column.
+            # Adding a footgun here to remove later...
+            validation = "m:m"
+            on_cols.append("peak_file")
+
     parser = ParserFactory.get_parser(peak_file, **parser_args)
     for batch in parser.iter_batches(batch_size=batch_size):
         if metadata_df is not None:
             batch = (
-                pl.LazyFrame(batch)
+                pl.from_arrow(batch)
+                .lazy()
                 .join(
                     metadata_df,
-                    on="scan_id",
+                    on=on_cols,
                     how="left",
-                    validate="1:1",
+                    validate=validation,
                 )
                 .collect()
                 .to_arrow()
-                .to_batches(max_size=batch_size)[0]
+                .to_batches(max_chunksize=batch_size)[0]
             )
 
         yield batch
@@ -156,10 +167,11 @@ def spectra_to_parquet(
         `.parquet` extension.
     batch_size : int
         The number of mass spectra to process simultaneously.
-    metadata_df : DataFrame, optional
-        A `polars.DataFrame` or `pandas.DataFrame` containing additional
+    metadata_df : polars.DataFrame or polars.LazyFrame, optional
+        A `polars.DataFrame` containing additional
         metadata from the spectra. This is merged on the `scan_id` column
-        which must be present.
+        which must be present, and optionally a `peak_file` column,
+        if present.
     ms_level : int, list of int, or None, optional
         The level(s) of tandem mass spectra to keep. `None` will retain
         all spectra.
@@ -246,10 +258,11 @@ def spectra_to_df(
     ----------
     peak_file : PathLike, optional
         The mass spectrometry data file in mzML, mzXML, or MGF format.
-    metadata_df : DataFrame, optional
-        A `polars.DataFrame` or `pandas.DataFrame` containing additional
+    metadata_df : polars.DataFrame or polars.LazyFrame, optional
+        A `polars.DataFrame` containing additional
         metadata from the spectra. This is merged on the `scan_id` column
-        which must be present.
+        which must be present, and optionally a `peak_file` column,
+        if present.
     ms_level : int, list of int, or None, optional
         The level(s) of tandem mass spectra to keep. `None` will retain
         all spectra.
