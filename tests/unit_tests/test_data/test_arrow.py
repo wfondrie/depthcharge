@@ -68,6 +68,7 @@ def test_to_parquet(
     preprocessing_fn,
     valid_charge,
     custom_fields,
+    metadata_df,
     shape,
 ):
     """Test parsing to DataFrame."""
@@ -78,6 +79,7 @@ def test_to_parquet(
         preprocessing_fn=preprocessing_fn,
         valid_charge=valid_charge,
         custom_fields=custom_fields,
+        metadata_df=metadata_df,
     )
 
     parsed = pl.read_parquet(out)
@@ -86,7 +88,13 @@ def test_to_parquet(
 
 @pytest.mark.parametrize(PARAM_NAMES, PARAM_VALS)
 def test_to_stream(
-    real_mzml, ms_level, preprocessing_fn, valid_charge, custom_fields, shape
+    real_mzml,
+    ms_level,
+    preprocessing_fn,
+    valid_charge,
+    custom_fields,
+    metadata_df,
+    shape,
 ):
     """Test parsing to DataFrame."""
     out = spectra_to_stream(
@@ -96,6 +104,7 @@ def test_to_stream(
         preprocessing_fn=preprocessing_fn,
         valid_charge=valid_charge,
         custom_fields=custom_fields,
+        metadata_df=metadata_df,
     )
 
     out = list(out)
