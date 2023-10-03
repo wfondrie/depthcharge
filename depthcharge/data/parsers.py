@@ -40,6 +40,8 @@ class BaseParser(ABC):
         be the resulting column name and value must be an interable of
         containing the necessary keys to retreive the value from the
         spectrum from the corresponding Pyteomics parser.
+    progress : bool, optional
+        Enable or disable the progress bar.
     id_type : str, optional
         The Hupo-PSI prefix for the spectrum identifier.
     """
@@ -51,10 +53,12 @@ class BaseParser(ABC):
         preprocessing_fn: Callable | Iterable[Callable] | None = None,
         valid_charge: Iterable[int] | None = None,
         custom_fields: dict[str, str | Iterable[str]] | None = None,
+        progress: bool = True,
         id_type: str = "scan",
     ) -> None:
         """Initialize the BaseParser."""
         self.peak_file = Path(peak_file)
+        self.progress = progress
         self.ms_level = (
             ms_level if ms_level is None else set(utils.listify(ms_level))
         )
@@ -160,6 +164,7 @@ class BaseParser(ABC):
         pbar_args = {
             "desc": self.peak_file.name,
             "unit": " spectra",
+            "disable": not self.progress,
         }
 
         n_skipped = 0
@@ -229,6 +234,8 @@ class MzmlParser(BaseParser):
         be the resulting column name and value must be an interable of
         containing the necessary keys to retreive the value from the
         spectrum from the corresponding Pyteomics parser.
+    progress : bool, optional
+        Enable or disable the progress bar.
     """
 
     def sniff(self) -> None:
@@ -326,6 +333,8 @@ class MzxmlParser(BaseParser):
         be the resulting column name and value must be an interable of
         containing the necessary keys to retreive the value from the
         spectrum from the corresponding Pyteomics parser.
+    progress : bool, optional
+        Enable or disable the progress bar.
     """
 
     def sniff(self) -> None:
@@ -403,6 +412,8 @@ class MgfParser(BaseParser):
         be the resulting column name and value must be an interable of
         containing the necessary keys to retreive the value from the
         spectrum from the corresponding Pyteomics parser.
+    progress : bool, optional
+        Enable or disable the progress bar.
     """
 
     def __init__(
@@ -412,6 +423,7 @@ class MgfParser(BaseParser):
         preprocessing_fn: Callable | Iterable[Callable] | None = None,
         valid_charge: Iterable[int] | None = None,
         custom_fields: dict[str, Iterable[str]] | None = None,
+        progress: bool = True,
     ) -> None:
         """Initialize the MgfParser."""
         super().__init__(
@@ -420,6 +432,7 @@ class MgfParser(BaseParser):
             preprocessing_fn=preprocessing_fn,
             valid_charge=valid_charge,
             custom_fields=custom_fields,
+            progress=progress,
             id_type="index",
         )
         self._counter = -1

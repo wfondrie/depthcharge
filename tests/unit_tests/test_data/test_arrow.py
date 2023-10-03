@@ -23,17 +23,18 @@ PARAM_NAMES = [
     "valid_charge",
     "custom_fields",
     "metadata_df",
+    "progress",
     "shape",
 ]
 PARAM_VALS = [
-    (2, None, None, None, None, (4, 7)),
-    (1, None, None, None, None, (4, 7)),
-    (3, None, None, None, None, (3, 7)),
-    (2, None, [3], None, None, (3, 7)),
-    (None, None, None, None, None, (11, 7)),
-    (2, scale_to_unit_norm, None, {"index": ["index"]}, None, (4, 8)),
-    (2, None, None, None, METADATA_DF1, (4, 8)),
-    (2, None, None, None, METADATA_DF2, (4, 8)),
+    (2, None, None, None, None, True, (4, 7)),
+    (1, None, None, None, None, True, (4, 7)),
+    (3, None, None, None, None, True, (3, 7)),
+    (2, None, [3], None, None, True, (3, 7)),
+    (None, None, None, None, None, True, (11, 7)),
+    (2, scale_to_unit_norm, None, {"index": ["index"]}, None, True, (4, 8)),
+    (2, None, None, None, METADATA_DF1, True, (4, 8)),
+    (2, None, None, None, METADATA_DF2, False, (4, 8)),
 ]
 
 
@@ -45,6 +46,7 @@ def test_to_df(
     valid_charge,
     custom_fields,
     metadata_df,
+    progress,
     shape,
 ):
     """Test parsing to DataFrame."""
@@ -55,6 +57,7 @@ def test_to_df(
         valid_charge=valid_charge,
         custom_fields=custom_fields,
         metadata_df=metadata_df,
+        progress=progress,
     )
 
     assert parsed.shape == shape
@@ -69,6 +72,7 @@ def test_to_parquet(
     valid_charge,
     custom_fields,
     metadata_df,
+    progress,
     shape,
 ):
     """Test parsing to DataFrame."""
@@ -80,6 +84,7 @@ def test_to_parquet(
         valid_charge=valid_charge,
         custom_fields=custom_fields,
         metadata_df=metadata_df,
+        progress=progress,
     )
 
     parsed = pl.read_parquet(out)
@@ -94,6 +99,7 @@ def test_to_stream(
     valid_charge,
     custom_fields,
     metadata_df,
+    progress,
     shape,
 ):
     """Test parsing to DataFrame."""
@@ -105,6 +111,7 @@ def test_to_stream(
         valid_charge=valid_charge,
         custom_fields=custom_fields,
         metadata_df=metadata_df,
+        progress=progress,
     )
 
     out = list(out)

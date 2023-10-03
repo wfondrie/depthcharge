@@ -19,6 +19,7 @@ def spectra_to_stream(
     preprocessing_fn: Callable | Iterable[Callable] | None = None,
     valid_charge: Iterable[int] | None = None,
     custom_fields: dict[str, Iterable[str | int]] = None,
+    progress: bool = True,
 ) -> Generator[pa.RecordBatch]:
     """Stream mass spectra in an Apache Arrow format, with preprocessing.
 
@@ -76,6 +77,8 @@ def spectra_to_stream(
         be the resulting column name and value must be an interable of
         containing the necessary keys to retreive the value from the
         spectrum from the corresponding Pyteomics parser.
+    progress : bool, optional
+        Enable or disable the progress bar.
 
     Returns
     -------
@@ -87,6 +90,7 @@ def spectra_to_stream(
         "valid_charge": valid_charge,
         "preprocessing_fn": preprocessing_fn,
         "custom_fields": custom_fields,
+        "progress": progress,
     }
 
     on_cols = ["scan_id"]
@@ -129,6 +133,7 @@ def spectra_to_parquet(
     preprocessing_fn: Callable | Iterable[Callable] | None = None,
     valid_charge: Iterable[int] | None = None,
     custom_fields: dict[str, Iterable[str, int]] = None,
+    progress: bool = True,
 ) -> Path:
     """Stream mass spectra to Apache Parquet, with preprocessing.
 
@@ -188,6 +193,8 @@ def spectra_to_parquet(
         be the resulting column name and value must be an interable of
         containing the necessary keys to retreive the value from the
         spectrum from the corresponding Pyteomics parser.
+    progress : bool, optional
+        Enable or disable the progress bar.
 
     Returns
     -------
@@ -202,6 +209,7 @@ def spectra_to_parquet(
         preprocessing_fn=preprocessing_fn,
         valid_charge=valid_charge,
         custom_fields=custom_fields,
+        progress=progress,
     )
 
     if parquet_file is None:
@@ -225,6 +233,7 @@ def spectra_to_df(
     preprocessing_fn: Callable | Iterable[Callable] | None = None,
     valid_charge: Iterable[int] | None = None,
     custom_fields: dict[str, Iterable[str, int]] = None,
+    progress: bool = True,
 ) -> pl.DataFrame:
     """Read mass spectra into a Polars DataFrame.
 
@@ -279,6 +288,8 @@ def spectra_to_df(
         be the resulting column name and value must be an interable of
         containing the necessary keys to retreive the value from the
         spectrum from the corresponding Pyteomics parser.
+    progress : bool, optional
+        Enable or disable the progress bar.
 
     Returns
     -------
@@ -293,6 +304,7 @@ def spectra_to_df(
         preprocessing_fn=preprocessing_fn,
         valid_charge=valid_charge,
         custom_fields=custom_fields,
+        progress=progress,
     )
 
     return pl.from_arrow(streamer)
