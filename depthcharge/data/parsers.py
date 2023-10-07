@@ -80,6 +80,9 @@ class BaseParser(ABC):
         # Check format:
         self.sniff()
 
+        # Used during parsing:
+        self._batch = None
+
     @abstractmethod
     def sniff(self) -> None:
         """Quickly test a file for the correct type.
@@ -156,11 +159,6 @@ class BaseParser(ABC):
             A batch of spectra and their metadata.
         """
         batch_size = float("inf") if batch_size is None else batch_size
-        metadata = {
-            "peak_file": self.peak_file.name,
-            "id_type": self.id_type,
-        }
-
         pbar_args = {
             "desc": self.peak_file.name,
             "unit": " spectra",
@@ -170,7 +168,7 @@ class BaseParser(ABC):
         n_skipped = 0
         last_exc = None
         with self.open() as spectra:
-            batch = []
+            self._batch = None
             for spectrum in tqdm(spectra, **pbar_args):
                 try:
                     parsed = self.parse_spectrum(spectrum)
@@ -198,21 +196,41 @@ class BaseParser(ABC):
 
                 # Parse custom fields:
                 entry.update(self.parse_custom_fields(spectrum))
-                batch.append(entry)
+                self._update_batch(entry)
 
-                if len(batch) >= batch_size:
-                    yield pa.RecordBatch.from_pylist(batch, metadata=metadata)
-                    batch = []
+                # Update the batch:
+                if len(self._batch["scan_id"]) == batch_size:
+                    yield self._yield_batch()
 
             # Get the remainder:
-            if batch:
-                yield pa.RecordBatch.from_pylist(batch, metadata=metadata)
+            if self._batch is not None:
+                yield self._yield_batch()
 
         if n_skipped:
             LOGGER.warning(
                 "Skipped %d spectra with invalid information", n_skipped
             )
             LOGGER.debug("Last error: %s", str(last_exc))
+
+    def _update_batch(self, entry: dict) -> None:
+        """Update the batch.
+
+        Parameters
+        ----------
+        entry : dict
+            The elemtn to add.
+        """
+        if self._batch is None:
+            self._batch = {k: [v] for k, v in entry.items()}
+        else:
+            for key, val in entry.items():
+                self._batch[key].append(val)
+
+    def _yield_batch(self) -> pa.RecordBatch:
+        """Yield the batch."""
+        out = pa.RecordBatch.from_pydict(self._batch)
+        self._batch = None
+        return out
 
 
 class MzmlParser(BaseParser):

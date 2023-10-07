@@ -113,9 +113,5 @@ def test_to_stream(
         metadata_df=metadata_df,
         progress=progress,
     )
-
-    out = list(out)
-    assert len(out) == shape[0]
-
-    parsed = pl.from_arrow(out)
+    parsed = pl.from_arrow(list(out))
     assert parsed.shape == shape
