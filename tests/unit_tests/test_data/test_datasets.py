@@ -1,4 +1,5 @@
 """Test the datasets."""
+import pickle
 import shutil
 
 import pytest
@@ -154,3 +155,33 @@ def test_peptide_dataset(tokenizer):
 
     torch.testing.assert_close(dset.tokens, tokenizer.tokenize(seqs))
     torch.testing.assert_close(dset.charges, charges)
+
+
+def test_pickle(tokenizer, tmp_path, mgf_small):
+    """Test that datasets can be pickled."""
+    dataset = SpectrumDataset(mgf_small, path=tmp_path / "test")
+    pkl_file = tmp_path / "test.pkl"
+    with pkl_file.open("wb+") as pkl:
+        pickle.dump(dataset, pkl)
+
+    with pkl_file.open("rb") as pkl:
+        loaded = pickle.load(pkl)
+
+    assert len(dataset) == len(loaded)
+
+    dataset = AnnotatedSpectrumDataset(
+        [mgf_small],
+        tokenizer,
+        "seq",
+        tmp_path / "test.lance",
+        custom_fields={"seq": ["params", "seq"]},
+    )
+    pkl_file = tmp_path / "test.pkl"
+
+    with pkl_file.open("wb+") as pkl:
+        pickle.dump(dataset, pkl)
+
+    with pkl_file.open("rb") as pkl:
+        loaded = pickle.load(pkl)
+
+    assert len(dataset) == len(loaded)

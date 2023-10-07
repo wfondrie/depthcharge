@@ -8,7 +8,7 @@ from collections.abc import Generator, Iterable
 from os import PathLike
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, Literal
 
 import lance
 import polars as pl
@@ -27,6 +27,10 @@ LOGGER = logging.getLogger(__name__)
 
 class CollateFnMixin:
     """Define a common collate function."""
+
+    def __init__(self) -> None:
+        """Specify the float precision."""
+        self.precision = torch.float64
 
     def collate_fn(
         self,
@@ -62,10 +66,22 @@ class CollateFnMixin:
         batch = torch.utils.data.default_collate(batch)
         batch["mz_array"] = mz_array
         batch["intensity_array"] = intensity_array
+
+        for key, val in batch.items():
+            if isinstance(val, torch.Tensor) and torch.is_floating_point(val):
+                batch[key] = val.type(self.precision)
+
         return batch
 
-    def loader(self, **kwargs: dict) -> DataLoader:
+    def loader(
+        self,
+        precision: Literal[
+            torch.float16, torch.float32, torch.float64
+        ] = torch.float64,
+        **kwargs: dict,
+    ) -> DataLoader:
         """Create a suitable PyTorch DataLoader."""
+        self.precision = precision
         if kwargs.get("collate_fn", False):
             warnings.warn("The default collate_fn was overridden.")
         else:
