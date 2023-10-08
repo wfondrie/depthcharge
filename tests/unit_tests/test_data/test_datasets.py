@@ -2,11 +2,13 @@
 import pickle
 import shutil
 
+import pyarrow as pa
 import pytest
 import torch
 
 from depthcharge.data import (
     AnnotatedSpectrumDataset,
+    CustomField,
     PeptideDataset,
     SpectrumDataset,
     StreamingSpectrumDataset,
@@ -56,7 +58,9 @@ def test_indexing(mgf_small, tmp_path):
         "seq",
         tmp_path / "test.lance",
         preprocessing_fn=[],
-        custom_fields={"seq": ["params", "seq"]},
+        custom_fields=CustomField(
+            "seq", lambda x: x["params"]["seq"], pa.string()
+        ),
     )
     spec = dataset[0]
     assert len(spec) == 8
@@ -78,7 +82,9 @@ def test_load(tmp_path, mgf_small):
         "seq",
         db_path,
         preprocessing_fn=[],
-        custom_fields={"seq": ["params", "seq"]},
+        custom_fields=CustomField(
+            "seq", lambda x: x["params"]["seq"], pa.string()
+        ),
     )
 
     dataset = AnnotatedSpectrumDataset.from_lance(db_path, "seq", tokenizer)
@@ -174,7 +180,9 @@ def test_pickle(tokenizer, tmp_path, mgf_small):
         tokenizer,
         "seq",
         tmp_path / "test.lance",
-        custom_fields={"seq": ["params", "seq"]},
+        custom_fields=CustomField(
+            "seq", lambda x: x["params"]["seq"], pa.string()
+        ),
     )
     pkl_file = tmp_path / "test.pkl"
 

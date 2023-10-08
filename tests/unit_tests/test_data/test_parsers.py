@@ -1,8 +1,10 @@
 """Test that parsers work."""
 import polars as pl
+import pyarrow as pa
 import pytest
 from polars.testing import assert_frame_equal, assert_series_equal
 
+from depthcharge.data import CustomField
 from depthcharge.data.parsers import (
     MgfParser,
     MzmlParser,
@@ -56,6 +58,10 @@ SMALL_MGF_MZS = [
     ],
 ]
 
+MGF_FIELD = CustomField("t", lambda x: x["params"]["title"], pa.string())
+MZML_FIELD = CustomField("index", lambda x: x["index"], pa.int64())
+MZXML_FIELD = CustomField("CE", lambda x: x["collisionEnergy"], pa.float64())
+
 
 def test_mgf_and_base(mgf_small):
     """MGF file with a missing charge."""
@@ -75,7 +81,13 @@ def test_mgf_and_base(mgf_small):
                 [1.0] * len(SMALL_MGF_MZS[1]),
             ],
         }
-    ).with_columns(pl.col("intensity_array").cast(pl.List(pl.Float32)))
+    ).with_columns(
+        [
+            pl.col("intensity_array").cast(pl.List(pl.Float64)),
+            pl.col("ms_level").cast(pl.UInt8),
+            pl.col("precursor_charge").cast(pl.Int16),
+        ]
+    )
 
     assert parsed.shape == (2, 7)
     assert_frame_equal(parsed, expected)
@@ -95,7 +107,7 @@ def test_mgf_and_base(mgf_small):
         (3, None, None, None, (3, 7)),
         (2, None, [3], None, (3, 7)),
         (None, None, None, None, (11, 7)),
-        (2, scale_to_unit_norm, None, {"index": ["index"]}, (4, 8)),
+        (2, scale_to_unit_norm, None, MZML_FIELD, (4, 8)),
     ],
 )
 def test_mzml(
@@ -122,7 +134,7 @@ def test_mzml(
         (3, None, None, None, (3, 7)),
         (2, None, [3], None, (3, 7)),
         (None, None, None, None, (11, 7)),
-        (2, scale_to_unit_norm, None, {"CE": ["collisionEnergy"]}, (4, 8)),
+        (2, scale_to_unit_norm, None, MZXML_FIELD, (4, 8)),
     ],
 )
 def test_mzxml(
@@ -149,7 +161,7 @@ def test_mzxml(
         (3, None, None, None, (7, 7)),
         (2, None, [3], None, (3, 7)),
         (None, None, None, None, (7, 7)),
-        (2, scale_to_unit_norm, None, {"t": ["params", "title"]}, (7, 8)),
+        (2, scale_to_unit_norm, None, MGF_FIELD, (7, 8)),
     ],
 )
 def test_mgf(
@@ -172,7 +184,10 @@ def test_custom_fields(mgf_small):
     """Test that custom fields are working."""
     parsed = pl.from_arrow(
         MgfParser(
-            mgf_small, custom_fields={"seq": ["params", "seq"]}
+            mgf_small,
+            custom_fields=CustomField(
+                "seq", lambda x: x["params"]["seq"], pa.string()
+            ),
         ).iter_batches(None)
     )
 
@@ -182,7 +197,10 @@ def test_custom_fields(mgf_small):
     with pytest.raises(KeyError):
         pl.from_arrow(
             MgfParser(
-                mgf_small, custom_fields={"seq": ["params", "bar"]}
+                mgf_small,
+                custom_fields=CustomField(
+                    "seq", lambda x: x["params"]["bar"], pa.string()
+                ),
             ).iter_batches(None)
         )
 

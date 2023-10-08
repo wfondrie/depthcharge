@@ -1,9 +1,11 @@
 """Test PyTorch DataLoaders."""
+import pyarrow as pa
 import pytest
 import torch
 
 from depthcharge.data import (
     AnnotatedSpectrumDataset,
+    CustomField,
     PeptideDataset,
     SpectrumDataset,
     StreamingSpectrumDataset,
@@ -46,7 +48,12 @@ def test_ann_spectrum_loader(mgf_small):
     """Test initialization of with a SpectrumIndex."""
     tokenizer = PeptideTokenizer()
     dset = AnnotatedSpectrumDataset(
-        mgf_small, "seq", tokenizer, custom_fields={"seq": ["params", "seq"]}
+        mgf_small,
+        "seq",
+        tokenizer,
+        custom_fields=CustomField(
+            "seq", lambda x: x["params"]["seq"], pa.string()
+        ),
     )
     loader = dset.loader(batch_size=1, num_workers=0)
 

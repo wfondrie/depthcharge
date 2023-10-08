@@ -83,6 +83,26 @@ class BaseParser(ABC):
         # Used during parsing:
         self._batch = None
 
+        # Define the schema
+        self.schema = pa.schema(
+            [
+                pa.field("peak_file", pa.string()),
+                pa.field("scan_id", pa.int64()),
+                pa.field("ms_level", pa.uint8()),
+                pa.field("precursor_mz", pa.float64()),
+                pa.field("precursor_charge", pa.int16()),
+                pa.field("mz_array", pa.list_(pa.float64())),
+                pa.field("intensity_array", pa.list_(pa.float64())),
+            ]
+        )
+
+        if self.custom_fields is not None:
+            self.custom_fields = utils.listify(self.custom_fields)
+            for field in self.custom_fields:
+                self.schema = self.schema.append(
+                    pa.field(field.name, field.dtype)
+                )
+
     @abstractmethod
     def sniff(self) -> None:
         """Quickly test a file for the correct type.
@@ -129,18 +149,8 @@ class BaseParser(ABC):
         if self.custom_fields is None:
             return out
 
-        for field, accessors in self.custom_fields.items():
-            val = spectrum
-            for accessor in accessors:
-                try:
-                    val = val[accessor]
-                except (KeyError, IndexError) as exc:
-                    raise KeyError(
-                        f"'{accessor}' not found in {accessors} for custom field"
-                        f" '{field}'. Current state = {val}"
-                    ) from exc
-
-            out[field] = val
+        for field in self.custom_fields:
+            out[field.name] = field.accessor(spectrum)
 
         return out
 
@@ -228,7 +238,7 @@ class BaseParser(ABC):
 
     def _yield_batch(self) -> pa.RecordBatch:
         """Yield the batch."""
-        out = pa.RecordBatch.from_pydict(self._batch)
+        out = pa.RecordBatch.from_pydict(self._batch, schema=self.schema)
         self._batch = None
         return out
 

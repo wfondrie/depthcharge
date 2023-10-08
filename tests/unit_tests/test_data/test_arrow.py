@@ -1,5 +1,6 @@
 """Test the arrow functionality."""
 import polars as pl
+import pyarrow as pa
 import pytest
 
 from depthcharge.data.arrow import (
@@ -7,6 +8,7 @@ from depthcharge.data.arrow import (
     spectra_to_parquet,
     spectra_to_stream,
 )
+from depthcharge.data.fields import CustomField
 from depthcharge.data.preprocessing import scale_to_unit_norm
 
 METADATA_DF1 = pl.DataFrame({"scan_id": [501, 507, 10], "blah": [True] * 3})
@@ -26,13 +28,15 @@ PARAM_NAMES = [
     "progress",
     "shape",
 ]
+
+custom_field = CustomField("index", lambda x: x["index"], pa.int64())
 PARAM_VALS = [
     (2, None, None, None, None, True, (4, 7)),
     (1, None, None, None, None, True, (4, 7)),
     (3, None, None, None, None, True, (3, 7)),
     (2, None, [3], None, None, True, (3, 7)),
     (None, None, None, None, None, True, (11, 7)),
-    (2, scale_to_unit_norm, None, {"index": ["index"]}, None, True, (4, 8)),
+    (2, scale_to_unit_norm, None, custom_field, None, True, (4, 8)),
     (2, None, None, None, METADATA_DF1, True, (4, 8)),
     (2, None, None, None, METADATA_DF2, False, (4, 8)),
 ]

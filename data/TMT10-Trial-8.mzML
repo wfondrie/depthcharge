@@ -83,7 +83,7 @@
     </dataProcessingList>
     <run id="TMT10-Trial-8" defaultInstrumentConfigurationRef="IC1" startTimeStamp="2018-01-26T22:53:26.1262695Z" defaultSourceFileRef="RAW1">
       <spectrumList count="11" defaultDataProcessingRef="pwiz_Reader_conversion">
-        <spectrum index="0" id="controllerType=0 controllerNumber=1 scan=500" defaultArrayLength="483">
+        <spectrum index="0" id="index=500" defaultArrayLength="483">
           <cvParam cvRef="MS" accession="MS:1000511" name="ms level" value="1"/>
           <cvParam cvRef="MS" accession="MS:1000579" name="MS1 spectrum" value=""/>
           <cvParam cvRef="MS" accession="MS:1000130" name="positive scan" value=""/>

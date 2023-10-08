@@ -7,6 +7,7 @@ import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from .fields import CustomField
 from .parsers import ParserFactory
 
 
@@ -18,7 +19,7 @@ def spectra_to_stream(
     ms_level: int | Iterable[int] | None = 2,
     preprocessing_fn: Callable | Iterable[Callable] | None = None,
     valid_charge: Iterable[int] | None = None,
-    custom_fields: dict[str, Iterable[str | int]] = None,
+    custom_fields: CustomField | Iterable[CustomField] | None = None,
     progress: bool = True,
 ) -> Generator[pa.RecordBatch]:
     """Stream mass spectra in an Apache Arrow format, with preprocessing.
@@ -44,10 +45,10 @@ def spectra_to_stream(
     offset of the mass spectrum in the file.
 
     Finally, custom fields can be extracted from the mass spectrometry
-    data file for advanced use. This must be a dictionary, where the
-    key is the new column name and the value is an interable for
-    extracting a value from the corresponding Pyteomics spectrum
-    dictionarly.
+    data file for advanced use. This must be a CustomField, where the
+    name is the new column and the accessor is a function
+    to extract a value from the corresponding Pyteomics spectrum
+    dictionary. The pyarrow data type must also be specified.
 
     Parameters
     ----------
@@ -72,11 +73,8 @@ def spectra_to_stream(
     valid_charge : int or list of int, optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
-    custom_fields : dict of str to list of str, optional
-        Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
-        containing the necessary keys to retreive the value from the
-        spectrum from the corresponding Pyteomics parser.
+    custom_fields : CustomField or iterable of CustomField
+        Additional fields to extract during peak file parsing.
     progress : bool, optional
         Enable or disable the progress bar.
 
@@ -132,7 +130,7 @@ def spectra_to_parquet(
     ms_level: int | Iterable[int] | None = 2,
     preprocessing_fn: Callable | Iterable[Callable] | None = None,
     valid_charge: Iterable[int] | None = None,
-    custom_fields: dict[str, Iterable[str, int]] = None,
+    custom_fields: CustomField | Iterable[CustomField] | None = None,
     progress: bool = True,
 ) -> Path:
     """Stream mass spectra to Apache Parquet, with preprocessing.
@@ -158,10 +156,10 @@ def spectra_to_parquet(
     offset of the mass spectrum in the file.
 
     Finally, custom fields can be extracted from the mass spectrometry
-    data file for advanced use. This must be a dictionary, where the
-    key is the new column name and the value is an interable for
-    extracting a value from the corresponding Pyteomics spectrum
-    dictionary.
+    data file for advanced use. This must be a CustomField, where the
+    name is the new column and the accessor is a function
+    to extract a value from the corresponding Pyteomics spectrum
+    dictionary. The pyarrow data type must also be specified.
 
     Parameters
     ----------
@@ -188,11 +186,8 @@ def spectra_to_parquet(
     valid_charge : int or list of int, optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
-    custom_fields : dict of str to list of str, optional
-        Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
-        containing the necessary keys to retreive the value from the
-        spectrum from the corresponding Pyteomics parser.
+    custom_fields : CustomField or iterable of CustomField
+        Additional fields to extract during peak file parsing.
     progress : bool, optional
         Enable or disable the progress bar.
 
@@ -232,7 +227,7 @@ def spectra_to_df(
     ms_level: int | Iterable[int] | None = 2,
     preprocessing_fn: Callable | Iterable[Callable] | None = None,
     valid_charge: Iterable[int] | None = None,
-    custom_fields: dict[str, Iterable[str, int]] = None,
+    custom_fields: CustomField | Iterable[CustomField] | None = None,
     progress: bool = True,
 ) -> pl.DataFrame:
     """Read mass spectra into a Polars DataFrame.
@@ -258,10 +253,10 @@ def spectra_to_df(
     offset of the mass spectrum in the file.
 
     Finally, custom fields can be extracted from the mass spectrometry
-    data file for advanced use. This must be a dictionary, where the
-    key is the new column name and the value is an interable for
-    extracting a value from the corresponding Pyteomics spectrum
-    dictionary.
+    data file for advanced use. This must be a CustomField, where the
+    name is the new column and the accessor is a function
+    to extract a value from the corresponding Pyteomics spectrum
+    dictionary. The pyarrow data type must also be specified.
 
     Parameters
     ----------
@@ -283,11 +278,8 @@ def spectra_to_df(
     valid_charge : int or list of int, optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
-    custom_fields : dict of str to list of str, optional
-        Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
-        containing the necessary keys to retreive the value from the
-        spectrum from the corresponding Pyteomics parser.
+    custom_fields : CustomField or iterable of CustomField
+        Additional fields to extract during peak file parsing.
     progress : bool, optional
         Enable or disable the progress bar.
 
