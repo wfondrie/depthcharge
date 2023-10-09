@@ -24,6 +24,8 @@ def assert_dicts_equal(
         Indicates that the two dictionaries are not equal.
     """
     bad_keys = []
+    assert set(dict1.keys()) == set(dict2.keys())
+
     for key, val1 in dict1.items():
         try:
             val2 = dict2[key]
