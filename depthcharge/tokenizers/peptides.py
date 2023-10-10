@@ -94,6 +94,21 @@ class PeptideTokenizer(Tokenizer):
 
         super().__init__(list(self.residues.keys()))
 
+    def __getstate__(self) -> dict:
+        """How to pickle the object."""
+        self.residues = dict(self.residues)
+        return self.__dict__
+
+    def __setstate__(self, state: dict) -> None:
+        """How to unpickle the object."""
+        self.__dict__ = state
+        residues = self.residues
+        self.residues = nb.typed.Dict.empty(
+            nb.types.unicode_type,
+            nb.types.float64,
+        )
+        self.residues.update(residues)
+
     def split(self, sequence: str) -> list[str]:
         """Split a ProForma peptide sequence.
 

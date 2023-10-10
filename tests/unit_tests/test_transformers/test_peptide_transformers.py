@@ -42,7 +42,7 @@ def test_peptide_decoder():
     precursors = torch.tensor([[100.0, 2], [200.0, 3]])
 
     encoder = SpectrumTransformerEncoder(8, 1, 12)
-    memory, mem_mask = encoder(spectra)
+    memory, mem_mask = encoder(spectra[:, :, 0], spectra[:, :, 1])
 
     decoder = PeptideTransformerDecoder(n_tokens, 8, 1, 12, max_charge=3)
     scores = decoder(peptides, precursors, memory, mem_mask)

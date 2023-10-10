@@ -1,44 +1,70 @@
 """Test PyTorch DataLoaders."""
+import pyarrow as pa
+import pytest
 import torch
 
 from depthcharge.data import (
     AnnotatedSpectrumDataset,
+    CustomField,
     PeptideDataset,
     SpectrumDataset,
+    StreamingSpectrumDataset,
 )
+from depthcharge.testing import assert_dicts_equal
 from depthcharge.tokenizers import PeptideTokenizer
 
 
-def test_spectrum_loader(mgf_small):
-    """Test initialization of with a SpectrumIndex."""
-    dset = SpectrumDataset(mgf_small, 2)
+def test_spectrum_loader(mgf_small, tmp_path):
+    """Test a normal spectrum dataset."""
+    dset = SpectrumDataset(mgf_small, tmp_path / "test")
     loader = dset.loader(batch_size=1, num_workers=0)
-
     batch = next(iter(loader))
-    assert len(batch) == 2
-    assert batch[0].shape == (1, 13, 2)
-    assert batch[1].shape == (1, 2)
+    assert len(batch) == 7
+    assert batch["mz_array"].shape == (1, 13)
+    assert isinstance(batch["mz_array"], torch.Tensor)
 
-    dset = SpectrumDataset(mgf_small, 2, [])
-    loader = dset.loader(batch_size=1, num_workers=0)
+    with pytest.warns(UserWarning):
+        dset.loader(collate_fn=torch.utils.data.default_collate)
 
-    batch = next(iter(loader))
-    assert len(batch) == 2
-    assert batch[0].shape == (1, 14, 2)
-    assert batch[1].shape == (1, 2)
+
+def test_streaming_spectrum_loader(mgf_small, tmp_path):
+    """Test streaming spectra."""
+    streamer = StreamingSpectrumDataset(mgf_small, 2)
+    loader = streamer.loader(batch_size=2, num_workers=0)
+    stream_batch = next(iter(loader))
+    with pytest.warns(UserWarning):
+        streamer.loader(collate_fn=torch.utils.data.default_collate)
+
+    with pytest.warns(UserWarning):
+        streamer.loader(num_workers=2)
+
+    dset = SpectrumDataset(mgf_small, tmp_path / "test")
+    loader = dset.loader(batch_size=2, num_workers=0)
+    map_batch = next(iter(loader))
+    assert_dicts_equal(stream_batch, map_batch)
 
 
 def test_ann_spectrum_loader(mgf_small):
     """Test initialization of with a SpectrumIndex."""
     tokenizer = PeptideTokenizer()
-    dset = AnnotatedSpectrumDataset(tokenizer, mgf_small)
+    dset = AnnotatedSpectrumDataset(
+        mgf_small,
+        "seq",
+        tokenizer,
+        custom_fields=CustomField(
+            "seq", lambda x: x["params"]["seq"], pa.string()
+        ),
+    )
     loader = dset.loader(batch_size=1, num_workers=0)
 
     batch = next(iter(loader))
-    assert len(batch) == 3
-    assert batch[0].shape == (1, 13, 2)
-    assert batch[1].shape == (1, 2)
-    assert batch[2].shape == (1, 7)
+    assert len(batch) == 8
+    assert batch["mz_array"].shape == (1, 13)
+    assert isinstance(batch["mz_array"], torch.Tensor)
+    torch.testing.assert_close(batch["seq"], tokenizer.tokenize(["LESLIEK"]))
+
+    with pytest.warns(UserWarning):
+        dset.loader(collate_fn=torch.utils.data.default_collate)
 
 
 def test_peptide_loader():
@@ -55,7 +81,7 @@ def test_peptide_loader():
         batch[0],
         tokenizer.tokenize(seqs)[:2, :],
     )
-    torch.testing.assert_close(batch[1], torch.tensor(charges[:2], dtype=int))
+    torch.testing.assert_close(batch[1], charges[:2])
 
     args = (torch.tensor([1, 2, 3]), torch.tensor([[1, 1], [2, 2], [3, 3]]))
     dset = PeptideDataset(tokenizer, seqs, charges, *args)
@@ -63,6 +89,6 @@ def test_peptide_loader():
 
     batch = next(iter(loader))
     assert len(batch) == 4
-    torch.testing.assert_close(batch[1], torch.tensor(charges[:2], dtype=int))
+    torch.testing.assert_close(batch[1], charges[:2])
     torch.testing.assert_close(batch[2], torch.tensor([1, 2]))
     torch.testing.assert_close(batch[3], args[1][:2, :])
