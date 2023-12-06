@@ -461,8 +461,7 @@ def _get_records(
             except (pa.ArrowInvalid, TypeError):
                 spectra = arrow.spectra_to_stream(spectra, **kwargs)
 
-        for batch in spectra:
-            yield batch
+        yield from spectra
 
 
 def _tensorize(obj: Any) -> Any:  # noqa: ANN401
