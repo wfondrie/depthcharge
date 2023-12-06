@@ -7,15 +7,15 @@ import pytest
 import torch
 
 from depthcharge.data import (
+    AnalyteDataset,
     AnnotatedSpectrumDataset,
     CustomField,
-    PeptideDataset,
     SpectrumDataset,
     StreamingSpectrumDataset,
     arrow,
 )
 from depthcharge.testing import assert_dicts_equal
-from depthcharge.tokenizers import PeptideTokenizer
+from depthcharge.tokenizers import MoleculeTokenizer, PeptideTokenizer
 
 
 @pytest.fixture(scope="module")
@@ -135,22 +135,20 @@ def test_streaming_spectra(mgf_small):
     assert_dicts_equal(spec, expected)
 
 
-def test_peptide_dataset(tokenizer):
+def test_analyte_dataset(tokenizer):
     """Test the peptide dataset."""
     seqs = ["LESLIEK", "EDITHR"]
     charges = torch.tensor([2, 3])
-    dset = PeptideDataset(tokenizer, seqs, charges)
+    dset = AnalyteDataset(tokenizer, seqs)
     torch.testing.assert_close(dset[0][0], tokenizer.tokenize("LESLIEK"))
     torch.testing.assert_close(dset[1][0][:6], tokenizer.tokenize("EDITHR"))
-    assert dset[0][1].item() == 2
-    assert dset[1][1].item() == 3
     assert len(dset) == 2
 
     seqs = ["LESLIEK", "EDITHR"]
     charges = torch.tensor([2, 3])
     target = torch.tensor([1.1, 2.2])
     other = torch.tensor([[1, 1], [2, 2]])
-    dset = PeptideDataset(tokenizer, seqs, charges, target, other)
+    dset = AnalyteDataset(tokenizer, seqs, charges, target, other)
     torch.testing.assert_close(dset[0][0], tokenizer.tokenize("LESLIEK"))
     torch.testing.assert_close(dset[1][0][:6], tokenizer.tokenize("EDITHR"))
     assert dset[0][1].item() == 2
@@ -160,7 +158,17 @@ def test_peptide_dataset(tokenizer):
     assert len(dset) == 2
 
     torch.testing.assert_close(dset.tokens, tokenizer.tokenize(seqs))
-    torch.testing.assert_close(dset.charges, charges)
+    torch.testing.assert_close(dset.tensors[1], charges)
+
+
+def test_with_molecule_tokenizer():
+    """Test analyte dataset with a molecule tokenizer."""
+    tokenizer = MoleculeTokenizer()
+    smiles = ["Cn1cnc2c1c(=O)n(C)c(=O)n2C", "CC=CC(=O)C1=C(CCCC1(C)C)C"]
+    tokens = tokenizer.tokenize(smiles)
+    dset = AnalyteDataset(tokenizer, smiles)
+
+    torch.testing.assert_close(dset.tokens, tokens)
 
 
 def test_pickle(tokenizer, tmp_path, mgf_small):

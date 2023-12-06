@@ -9,11 +9,11 @@ from depthcharge.transformers import (
 )
 
 
-def test_peptide_encoder():
+def test_analyte_encoder():
     """Test that a peptide encoder will run."""
     tokenizer = PeptideIonTokenizer()
     peptides = tokenizer.tokenize(["LESLIEK", "PEPTIDER", "EDITHYKK"])
-    model = AnalyteTransformerEncoder(tokenizer, 8, 1, 12)
+    model = AnalyteTransformerEncoder(tokenizer, 8, 2, 12)
     emb, mask = model(peptides)
 
     # Axis 1 should be 1 longer than the longest peptide.
@@ -24,7 +24,7 @@ def test_peptide_encoder():
     assert (res[1, :] != res[2, :]).all()
 
 
-def test_peptide_decoder():
+def test_analyte_decoder():
     """Test that a peptide decoder will run."""
     tokenizer = PeptideIonTokenizer()
     n_tokens = len(tokenizer)
@@ -37,12 +37,12 @@ def test_peptide_decoder():
     )
 
     peptides = tokenizer.tokenize(["LESLIEK", "PEPTIDER"])
-    encoder = SpectrumTransformerEncoder(8, 1, 12)
+    encoder = SpectrumTransformerEncoder(8, 2, 12)
     memory, mem_mask = encoder(spectra[:, :, 0], spectra[:, :, 1])
 
-    decoder = AnalyteTransformerDecoder(n_tokens, 8, 1, 12)
-    scores = decoder(peptides, memory=memory, memory_mask=mem_mask)
+    decoder = AnalyteTransformerDecoder(n_tokens, 8, 2, 12)
+    scores = decoder(peptides, memory=memory, memory_key_padding_mask=mem_mask)
     assert scores.shape == (2, 9, len(tokenizer))
 
-    scores = decoder(peptides)
+    scores = decoder(peptides, memory=memory)
     assert scores.shape == (2, 9, len(tokenizer))

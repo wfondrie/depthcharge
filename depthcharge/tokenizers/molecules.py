@@ -16,7 +16,7 @@ class MoleculeTokenizer(Tokenizer):
     SELFIES representations and split into tokens.
     """
 
-    def __init__(self, selfies_vocab: Iterable[str] | None) -> None:
+    def __init__(self, selfies_vocab: Iterable[str] | None = None) -> None:
         """Initialize a MoleculeTokenizer."""
         if selfies_vocab is None:
             selfies_vocab = sf.get_semantic_robust_alphabet()

@@ -4,10 +4,14 @@ from collections.abc import Iterable
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from ..tokenizers import PeptideTokenizer
+from ..tokenizers import (
+    MoleculeTokenizer,
+    PeptideIonTokenizer,
+    PeptideTokenizer,
+)
 
 
-class PeptideDataset(TensorDataset):
+class AnalyteDataset(TensorDataset):
     """A dataset for peptide sequences.
 
     Parameters
@@ -24,7 +28,7 @@ class PeptideDataset(TensorDataset):
 
     def __init__(
         self,
-        tokenizer: PeptideTokenizer,
+        tokenizer: PeptideTokenizer | PeptideIonTokenizer | MoleculeTokenizer,
         sequences: Iterable[str],
         *args: torch.Tensor,
     ) -> None:

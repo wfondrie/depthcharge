@@ -4,9 +4,9 @@ import pytest
 import torch
 
 from depthcharge.data import (
+    AnalyteDataset,
     AnnotatedSpectrumDataset,
     CustomField,
-    PeptideDataset,
     SpectrumDataset,
     StreamingSpectrumDataset,
 )
@@ -67,12 +67,12 @@ def test_ann_spectrum_loader(mgf_small):
         dset.loader(collate_fn=torch.utils.data.default_collate)
 
 
-def test_peptide_loader():
+def test_analyte_loader():
     """Test our peptid data loader."""
     seqs = ["LESLIE", "EDITH", "PEPTIDE"]
     charges = torch.tensor([5, 3, 1])
     tokenizer = PeptideTokenizer()
-    dset = PeptideDataset(tokenizer, seqs, charges)
+    dset = AnalyteDataset(tokenizer, seqs, charges)
     loader = dset.loader(batch_size=2, num_workers=0)
 
     batch = next(iter(loader))
@@ -84,7 +84,7 @@ def test_peptide_loader():
     torch.testing.assert_close(batch[1], charges[:2])
 
     args = (torch.tensor([1, 2, 3]), torch.tensor([[1, 1], [2, 2], [3, 3]]))
-    dset = PeptideDataset(tokenizer, seqs, charges, *args)
+    dset = AnalyteDataset(tokenizer, seqs, charges, *args)
     loader = dset.loader(batch_size=2, num_workers=0)
 
     batch = next(iter(loader))

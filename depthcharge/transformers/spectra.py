@@ -124,11 +124,17 @@ class SpectrumTransformerEncoder(
             The memory mask specifying which elements were padding in X.
         """
         spectra = torch.stack([mz_array, intensity_array], dim=2)
-        n_batch = spectra.shape[0]
-        zeros = ~spectra.sum(dim=2).bool()
-        key_mask = torch.cat(
-            [torch.tensor([[False]] * n_batch).type_as(zeros), zeros], dim=1
+
+        # Create the padding mask:
+        src_key_padding_mask = spectra.sum(dim=2) == 0
+        global_token_mask = torch.tensor([[False]] * spectra.shape[0]).type_as(
+            src_key_padding_mask
         )
+        src_key_padding_mask = torch.cat(
+            [global_token_mask, src_key_padding_mask], dim=1
+        )
+
+        # Encode the peaks
         peaks = self.peak_encoder(spectra)
 
         # Add the precursor information:
@@ -141,9 +147,11 @@ class SpectrumTransformerEncoder(
 
         peaks = torch.cat([latent_spectra[:, None, :], peaks], dim=1)
         out = self.transformer_encoder(
-            peaks, mask=mask, src_key_padding_mask=key_mask
+            peaks,
+            mask=mask,
+            src_key_padding_mask=src_key_padding_mask,
         )
-        return out, key_mask
+        return out, src_key_padding_mask
 
     def global_token_hook(
         self,

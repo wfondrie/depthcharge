@@ -208,7 +208,8 @@ class AnalyteTransformerEncoder(_AnalyteTransformer):
         encoded = torch.cat([global_token[:, None, :], encoded], dim=1)
 
         # Create mask
-        key_mask = ~encoded.sum(dim=2).bool()
+        src_key_padding_mask = ~encoded.sum(dim=2).bool()
+        src_key_padding_mask[:, 0] = False
 
         # Add positional encodings
         encoded = self.positional_encoder(encoded)
@@ -217,9 +218,9 @@ class AnalyteTransformerEncoder(_AnalyteTransformer):
         latent = self.transformer_encoder(
             encoded,
             mask=mask,
-            src_key_padding_mask=key_mask,
+            src_key_padding_mask=src_key_padding_mask,
         )
-        return latent, key_mask
+        return latent, src_key_padding_mask
 
 
 class AnalyteTransformerDecoder(_AnalyteTransformer):
@@ -291,7 +292,7 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         self,
         tokens: torch.Tensor | None,
         *args: torch.Tensor,
-        memory: torch.Tensor | None = None,
+        memory: torch.Tensor | None,
         memory_key_padding_mask: torch.Tensor | None = None,
         memory_mask: torch.Tensor | None = None,
         tgt_mask: torch.Tensor | None = None,
@@ -339,11 +340,16 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
 
         # Encode everything:
         encoded = self.token_encoder(tokens)
+
+        # Add the global token
         global_token = self.global_token_hook(tokens, *args, **kwargs)
         encoded = torch.cat([global_token[:, None, :], encoded], dim=1)
 
-        # Feed through model:
+        # Create the padding mask:
         tgt_key_padding_mask = encoded.sum(axis=2) == 0
+        tgt_key_padding_mask[:, 0] = False
+
+        # Feed through model:
         encoded = self.positional_encoder(encoded)
 
         if tgt_mask is None:

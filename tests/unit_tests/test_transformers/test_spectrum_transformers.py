@@ -27,17 +27,17 @@ def batch():
 
 def test_spectrum_encoder(batch):
     """Test that a spectrum encoder will run."""
-    model = SpectrumTransformerEncoder(8, 1, 12)
+    model = SpectrumTransformerEncoder(8, 2, 12)
     emb, mask = model(**batch)
     assert emb.shape == (2, 4, 8)
     assert mask.sum() == 1
 
-    model = SpectrumTransformerEncoder(8, 1, 12, peak_encoder=PeakEncoder(8))
+    model = SpectrumTransformerEncoder(8, 2, 12, peak_encoder=PeakEncoder(8))
     emb, mask = model(**batch)
     assert emb.shape == (2, 4, 8)
     assert mask.sum() == 1
 
-    model = SpectrumTransformerEncoder(8, 1, 12, peak_encoder=False)
+    model = SpectrumTransformerEncoder(8, 2, 12, peak_encoder=False)
     emb, mask = model(**batch)
     assert emb.shape == (2, 4, 8)
     assert mask.sum() == 1
@@ -53,12 +53,12 @@ def test_global_token_hook(batch):
             """A silly hook."""
             return kwargs["charge"].expand(self.d_model, -1).T
 
-    model1 = MyEncoder(8, 1, 12)
+    model1 = MyEncoder(8, 2, 12)
     emb1, mask1 = model1(**batch)
     assert emb1.shape == (2, 4, 8)
     assert mask1.sum() == 1
 
-    model2 = SpectrumTransformerEncoder(8, 1, 12)
+    model2 = SpectrumTransformerEncoder(8, 2, 12)
     emb2, mask2 = model2(**batch)
     assert emb2.shape == (2, 4, 8)
     assert mask2.sum() == 1
