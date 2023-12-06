@@ -134,29 +134,61 @@ def test_precursor_ions():
     close = partial(math.isclose, rel_tol=1e-6)
 
     seq = "LESLIEK"
-    assert close(tokenizer.ions(seq, 1)[0].precursor, pymass(seq, charge=1))
-    assert close(tokenizer.ions(seq, 2)[0].precursor, pymass(seq, charge=2))
-    assert close(tokenizer.ions(seq, 3)[0].precursor, pymass(seq, charge=3))
+    assert close(
+        tokenizer.calculate_ions(seq, 1)[0].precursor, pymass(seq, charge=1)
+    )
+    assert close(
+        tokenizer.calculate_ions(seq, 2)[0].precursor, pymass(seq, charge=2)
+    )
+    assert close(
+        tokenizer.calculate_ions(seq, 3)[0].precursor, pymass(seq, charge=3)
+    )
 
     seq = "[Acetyl]-LESLIM[Oxidation]K"
     with pytest.raises(ValueError):
-        tokenizer.ions(seq, 1)
+        tokenizer.calculate_ions(seq, 1)
 
     tokenizer = PeptideIonTokenizer.from_proforma([seq])
     seq2 = "aLESLIMoK"
-    assert close(tokenizer.ions(seq, 1)[0].precursor, pymass(seq2, charge=1))
-    assert close(tokenizer.ions(seq, 2)[0].precursor, pymass(seq2, charge=2))
-    assert close(tokenizer.ions(seq, 3)[0].precursor, pymass(seq2, charge=3))
+    assert close(
+        tokenizer.calculate_ions(seq, 1)[0].precursor, pymass(seq2, charge=1)
+    )
+    assert close(
+        tokenizer.calculate_ions(seq, 2)[0].precursor, pymass(seq2, charge=2)
+    )
+    assert close(
+        tokenizer.calculate_ions(seq, 3)[0].precursor, pymass(seq2, charge=3)
+    )
+
+
+def test_torch_precursor_ions():
+    """Test the calculation of the precursor m/z."""
+    seqs = ["LESLIEK", "EDITHR"]
+    charges = torch.tensor([2, 3])
+    tokenizer = PeptideIonTokenizer.from_proforma(seqs)
+    expected = torch.tensor(
+        [
+            mass.fast_mass(s, charge=z, ion_type="M")
+            for s, z in zip(seqs, charges)
+        ]
+    )
+
+    ions = tokenizer.calculate_precursor_ions(seqs, charges)
+    torch.testing.assert_close(ions, expected)
+
+    tokens = tokenizer.tokenize(seqs)
+    ions = tokenizer.calculate_precursor_ions(tokens, charges)
+    torch.testing.assert_close(ions, expected)
 
 
 def test_fragment_ions():
     """Test ion calculations."""
     tokenizer = PeptideIonTokenizer()
-    ions = tokenizer.ions(["LESLIEK"], [1])[0]
+    ions = tokenizer.calculate_ions(["LESLIEK"], [1])[0]
     expected = torch.tensor(LESLIEK_PLUS_ONE)[:, :, None]
     torch.testing.assert_close(ions.fragments, expected, check_dtype=False)
 
-    ions = tokenizer.ions(["LESLIEK"], [2])[0]
+    ions = tokenizer.calculate_ions(["LESLIEK"], [2])[0]
     expected = torch.cat(
         [
             torch.tensor(LESLIEK_PLUS_ONE)[:, :, None],
@@ -166,11 +198,11 @@ def test_fragment_ions():
     )
     torch.testing.assert_close(ions.fragments, expected, check_dtype=False)
 
-    ions = tokenizer.ions(["LESLIEK/1"], None)[0]
+    ions = tokenizer.calculate_ions(["LESLIEK/1"], None)[0]
     expected = torch.tensor(LESLIEK_PLUS_ONE)[:, :, None]
     torch.testing.assert_close(ions.fragments, expected, check_dtype=False)
 
-    ions = tokenizer.ions(["LESLIEK/3"], None)[0]
+    ions = tokenizer.calculate_ions(["LESLIEK/3"], None)[0]
     expected = torch.cat(
         [
             torch.tensor(LESLIEK_PLUS_ONE)[:, :, None],
@@ -181,7 +213,7 @@ def test_fragment_ions():
     torch.testing.assert_close(ions.fragments, expected, check_dtype=False)
 
     tokenizer = PeptideIonTokenizer.from_proforma(["[+10]-LESLIEK"])
-    ions = tokenizer.ions(["[+10.000000]-LESLIEK"], 1)[0]
+    ions = tokenizer.calculate_ions(["[+10.000000]-LESLIEK"], 1)[0]
     expected = torch.tensor(LESLIEK_PLUS_ONE)[:, :, None]
     expected[0, :, :] += 10
     torch.testing.assert_close(ions.fragments, expected, check_dtype=False)

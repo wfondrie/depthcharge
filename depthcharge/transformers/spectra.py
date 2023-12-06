@@ -16,7 +16,7 @@ class SpectrumTransformerEncoder(
     other than the m/z and intensity arrays for each mass spectrum are
     considered. However, arbitrary information can be integrated into the
     spectrum representation by subclassing this class and overwriting the
-    `precursor_hook()` method.
+    `global_token_hook()` method.
 
     Parameters
     ----------
@@ -132,7 +132,8 @@ class SpectrumTransformerEncoder(
         peaks = self.peak_encoder(spectra)
 
         # Add the precursor information:
-        latent_spectra = self.precursor_hook(
+        latent_spectra = self.global_token_hook(
+            *args,
             mz_array=mz_array,
             intensity_array=intensity_array,
             **kwargs,

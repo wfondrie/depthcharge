@@ -43,13 +43,13 @@ def test_spectrum_encoder(batch):
     assert mask.sum() == 1
 
 
-def test_precursor_hook(batch):
+def test_global_token_hook(batch):
     """Test that the hook works."""
 
     class MyEncoder(SpectrumTransformerEncoder):
         """A silly class."""
 
-        def precursor_hook(self, mz_array, intensity_array, **kwargs):
+        def global_token_hook(self, mz_array, intensity_array, **kwargs):
             """A silly hook."""
             return kwargs["charge"].expand(self.d_model, -1).T
 

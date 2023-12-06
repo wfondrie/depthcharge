@@ -244,6 +244,10 @@ class PeptideIonTokenizer(PeptideTokenizer):
             reverse=reverse,
         )
 
+        self.masses = torch.tensor(
+            [0.0] * 2 + [self.residues[a] for a in self.reverse_index[2:]]
+        )
+
     def __getstate__(self) -> dict:
         """How to pickle the object."""
         self.residues = dict(self.residues)
@@ -259,7 +263,32 @@ class PeptideIonTokenizer(PeptideTokenizer):
         )
         self.residues.update(residues)
 
-    def ions(  # noqa: C901
+    def calculate_precursor_ions(
+        self,
+        tokens: torch.Tensor | Iterable[str],
+        charges: torch.Tensor,
+    ) -> torch.Tensor:
+        """Calculate the m/z for the precursor without leaving PyTorch.
+
+        Parameters
+        ----------
+        tokens : torch.Tensor of shape (n_sequences, len_seq)
+            The tokens corresponding to the peptide sequence.
+        charges : torch.Tensor of shape (n_sequences,)
+            The charge state for each peptide.
+
+        Returns
+        -------
+        torch.Tensor
+            The monoisotopic m/z for each charged peptide.
+        """
+        if isinstance(tokens[0], str):
+            tokens = self.tokenize(tokens)
+
+        masses = self.masses[tokens].sum(dim=1) + H2O
+        return (masses / charges) + PROTON
+
+    def calculate_ions(  # noqa: C901
         self,
         sequences: Iterable[str],
         precursor_charges: Iterable[int] | str,

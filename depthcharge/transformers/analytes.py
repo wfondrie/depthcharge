@@ -105,7 +105,7 @@ class _AnalyteTransformer(torch.nn.Module, ModelMixin, TransformerMixin):
             The precursor representations.
         """
         return torch.zeros((tokens.shape[0], self.d_model)).type_as(
-            self.token_encoder
+            self.token_encoder.weight
         )
 
 
@@ -205,7 +205,7 @@ class AnalyteTransformerEncoder(_AnalyteTransformer):
         # Encode everything:
         encoded = self.token_encoder(tokens)
         global_token = self.global_token_hook(tokens, *args, **kwargs)
-        encoded = torch.cat([global_token, encoded], dim=1)
+        encoded = torch.cat([global_token[:, None, :], encoded], dim=1)
 
         # Create mask
         key_mask = ~encoded.sum(dim=2).bool()
@@ -284,7 +284,7 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
 
         self.final = torch.nn.Linear(
             d_model,
-            self.aa_encoder.num_embeddings - 1,
+            self.token_encoder.num_embeddings - 1,
         )
 
     def forward(
@@ -308,10 +308,10 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         *args : torch.Tensor, optional
             Additional data. These may be used by overwriting the
             `global_token_hook()` method in a subclass.
-        memory : torch.Tensor of shape (batch_size, n_peaks, d_model)
+        memory : torch.Tensor of shape (batch_size, len_seq, d_model)
             The representations from a ``TransformerEncoder``, such as a
             ``SpectrumTransformerEncoder``.
-        memory_key_padding_mask : torch.Tensor of shape (batch_size, n_peaks)
+        memory_key_padding_mask : torch.Tensor of shape (batch_size, len_seq)
             Passed to `torch.nn.TransformerEncoder.forward()`. The mask that
             indicates which elements of ``memory`` are padding.
         memory_mask : torch.Tensor
@@ -340,7 +340,7 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         # Encode everything:
         encoded = self.token_encoder(tokens)
         global_token = self.global_token_hook(tokens, *args, **kwargs)
-        encoded = torch.cat([global_token, encoded], dim=1)
+        encoded = torch.cat([global_token[:, None, :], encoded], dim=1)
 
         # Feed through model:
         tgt_key_padding_mask = encoded.sum(axis=2) == 0
@@ -356,7 +356,7 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
             memory=memory,
             tgt_mask=tgt_mask,
             tgt_key_padding_mask=tgt_key_padding_mask,
-            memory_key_padding_mask=memory_key_padding_mask.to(self.device),
+            memory_key_padding_mask=memory_key_padding_mask,
             memory_mask=memory_mask,
         )
         return self.final(preds)

@@ -43,3 +43,6 @@ def test_peptide_decoder():
     decoder = AnalyteTransformerDecoder(n_tokens, 8, 1, 12)
     scores = decoder(peptides, memory=memory, memory_mask=mem_mask)
     assert scores.shape == (2, 9, len(tokenizer))
+
+    scores = decoder(peptides)
+    assert scores.shape == (2, 9, len(tokenizer))
