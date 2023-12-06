@@ -21,17 +21,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff
 
-      - name: Run black
-        uses: psf/black@stable
-
       - name: Lint with Ruff
         run: |
-          ruff check . --format=github
+          ruff check . --output-format=github
 
-      - name: Check for debugging print statements
+      - name: Check formatting with Ruff
         run: |
-          if grep -rq "print(" depthcharge; then
-              echo "Found the following print statements:"
-              grep -r "print(" deptchcharge
-              exit 1
-          fi
+          ruff format --check .
