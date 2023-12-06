@@ -140,8 +140,8 @@ class SpectrumDataset(Dataset, CollateFnMixin):
             path = Path(self._tmpdir.name) / f"{uuid.uuid4()}.lance"
 
         self._path = Path(path)
-        if self._path.suffix != "lance":
-            self._path = path.with_suffix(".lance")
+        if self._path.suffix != ".lance":
+            self._path = self._path.with_suffix(".lance")
 
         # Now parse spectra.
         if spectra is not None:
