@@ -27,4 +27,4 @@ jobs:
 
       - name: Check formatting with Ruff
         run: |
-          ruff format --check . --output-format=github
+          ruff format --check .
