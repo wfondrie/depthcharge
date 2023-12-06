@@ -4,9 +4,12 @@ from collections.abc import Callable
 import torch
 
 from ..encoders import PeakEncoder
+from ..mixins import ModelMixin, TransformerMixin
 
 
-class SpectrumTransformerEncoder(torch.nn.Module):
+class SpectrumTransformerEncoder(
+    torch.nn.Module, ModelMixin, TransformerMixin
+):
     """A Transformer encoder for input mass spectra.
 
     Use this PyTorch module to embed mass spectra. By default, nothing
@@ -54,7 +57,7 @@ class SpectrumTransformerEncoder(torch.nn.Module):
         nhead: int = 8,
         dim_feedforward: int = 1024,
         n_layers: int = 1,
-        dropout: float = 0,
+        dropout: float = 0.0,
         peak_encoder: PeakEncoder | Callable | bool = True,
     ) -> None:
         """Initialize a SpectrumEncoder."""
@@ -74,47 +77,24 @@ class SpectrumTransformerEncoder(torch.nn.Module):
 
         # The Transformer layers:
         layer = torch.nn.TransformerEncoderLayer(
-            d_model=d_model,
-            nhead=nhead,
-            dim_feedforward=dim_feedforward,
+            d_model=self.d_model,
+            nhead=self.nhead,
+            dim_feedforward=self.dim_feedforward,
             batch_first=True,
-            dropout=dropout,
+            dropout=self.dropout,
         )
 
         self.transformer_encoder = torch.nn.TransformerEncoder(
             layer,
-            num_layers=n_layers,
+            num_layers=self.n_layers,
         )
-
-    @property
-    def d_model(self) -> int:
-        """The latent dimensionality of the model."""
-        return self._d_model
-
-    @property
-    def nhead(self) -> int:
-        """The number of attention heads."""
-        return self._nhead
-
-    @property
-    def dim_feedforward(self) -> int:
-        """The dimensionality of the Transformer feedforward layers."""
-        return self._dim_feedforward
-
-    @property
-    def n_layers(self) -> int:
-        """The number of Transformer layers."""
-        return self._n_layers
-
-    @property
-    def dropout(self) -> float:
-        """The dropout for the transformer layers."""
-        return self._dropout
 
     def forward(
         self,
         mz_array: torch.Tensor,
         intensity_array: torch.Tensor,
+        *args: torch.Tensor,
+        mask: torch.Tensor | None = None,
         **kwargs: dict,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Embed a batch of mass spectra.
@@ -125,9 +105,15 @@ class SpectrumTransformerEncoder(torch.nn.Module):
             The zero-padded m/z dimension for a batch of mass spectra.
         intensity_array : torch.Tensor of shape (n_spectra, n_peaks)
             The zero-padded intensity dimension for a batch of mass spctra.
+        *args : torch.Tensor
+            Additional data. These may be used by overwriting the
+            `global_token_hook()` method in a subclass.
+        mask : torch.Tensor
+            Passed to `torch.nn.TransformerEncoder.forward()`. The mask
+            for the sequence.
         **kwargs : dict
-            Additional fields provided by the data loader. These may be
-            used by overwriting the `precursor_hook()` method in a subclass.
+            Additional data fields. These may be used by overwriting
+            the `global_token_hook()` method in a subclass.
 
         Returns
         -------
@@ -140,7 +126,7 @@ class SpectrumTransformerEncoder(torch.nn.Module):
         spectra = torch.stack([mz_array, intensity_array], dim=2)
         n_batch = spectra.shape[0]
         zeros = ~spectra.sum(dim=2).bool()
-        mask = torch.cat(
+        key_mask = torch.cat(
             [torch.tensor([[False]] * n_batch).type_as(zeros), zeros], dim=1
         )
         peaks = self.peak_encoder(spectra)
@@ -153,12 +139,16 @@ class SpectrumTransformerEncoder(torch.nn.Module):
         )
 
         peaks = torch.cat([latent_spectra[:, None, :], peaks], dim=1)
-        return self.transformer_encoder(peaks, src_key_padding_mask=mask), mask
+        out = self.transformer_encoder(
+            peaks, mask=mask, src_key_padding_mask=key_mask
+        )
+        return out, key_mask
 
-    def precursor_hook(
+    def global_token_hook(
         self,
         mz_array: torch.Tensor,
         intensity_array: torch.Tensor,
+        *args: torch.Tensor,
         **kwargs: dict,
     ) -> torch.Tensor:
         """Define how additional information in the batch may be used.
@@ -181,8 +171,10 @@ class SpectrumTransformerEncoder(torch.nn.Module):
             The zero-padded m/z dimension for a batch of mass spectra.
         intensity_array : torch.Tensor of shape (n_spectra, n_peaks)
             The zero-padded intensity dimension for a batch of mass spctra.
+        *args : torch.Tensor
+            Additional data passed with the batch.
         **kwargs : dict
-            The additional data passed with the batch.
+            Additional data passed with the batch.
 
         Returns
         -------
@@ -190,8 +182,3 @@ class SpectrumTransformerEncoder(torch.nn.Module):
             The precursor representations.
         """
         return torch.zeros((mz_array.shape[0], self.d_model)).type_as(mz_array)
-
-    @property
-    def device(self) -> torch.device:
-        """The current device for the model."""
-        return next(self.parameters()).device

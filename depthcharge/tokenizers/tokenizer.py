@@ -22,7 +22,11 @@ class Tokenizer(ABC):
         The stop token to use.
     """
 
-    def __init__(self, tokens: Sequence[str], stop_token: str = "$") -> None:
+    def __init__(
+        self,
+        tokens: Sequence[str],
+        stop_token: str | None = "$",
+    ) -> None:
         """Initialize a tokenizer."""
         self.stop_token = stop_token
 
@@ -70,6 +74,9 @@ class Tokenizer(ABC):
             token, padded with 0's, or the list of tokens comprising
             each sequence.
         """
+        if add_stop and self.stop_token is None:
+            raise ValueError("A stop token is required to use add_stop.")
+
         try:
             out = []
             for seq in utils.listify(sequences):

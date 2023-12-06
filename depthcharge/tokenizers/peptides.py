@@ -18,12 +18,170 @@ from .tokenizer import Tokenizer
 class PeptideTokenizer(Tokenizer):
     """A tokenizer for ProForma peptide sequences.
 
+    Parse and tokenize ProForma-compliant peptide sequences.
+
+    residues : iterable of str
+        Residues and modifications to add to the vocabulary byone
+        the standard 20 amino acids.
+    replace_isoleucine_with_leucine : bool
+        Replace I with L residues, because they are isobaric and often
+        indistinguishable by mass spectrometry.
+    reverse : bool
+        Reverse the sequence for tokenization, C-terminus to N-terminus.
+    """
+
+    residues = set("ACDEFGHIKLMNPQRSTVWY")
+
+    # The peptide parsing function:
+    _parse_peptide = Peptide.from_proforma
+
+    def __init__(
+        self,
+        residues: Iterable[str] | None = None,
+        replace_isoleucine_with_leucine: bool = False,
+        reverse: bool = False,
+    ) -> None:
+        """Initialize a PeptideTokenizer."""
+        self.replace_isoleucine_with_leucine = replace_isoleucine_with_leucine
+        self.reverse = reverse
+
+        # Note that these also secretly work on dicts too ;)
+        self.residues = self.residues.copy()
+        if residues is not None:
+            self.residues.update(residues)
+
+        if self.replace_isoleucine_with_leucine:
+            if "I" in self.residues:
+                try:
+                    del self.residues["I"]
+                except TypeError:
+                    self.residues.remove("I")
+
+        super().__init__(self.residues)
+
+    def split(self, sequence: str) -> list[str]:
+        """Split a ProForma peptide sequence.
+
+        Parameters
+        ----------
+        sequence : str
+            The peptide sequence.
+
+        Returns
+        -------
+        list[str]
+            The tokens that comprise the peptide sequence.
+        """
+        pep = self._parse_peptide(sequence)
+        if self.replace_isoleucine_with_leucine:
+            pep.sequence = pep.sequence.replace("I", "L")
+
+        pep = pep.split()
+        if self.reverse:
+            pep.reverse()
+
+        return pep
+
+    @classmethod
+    def from_proforma(
+        cls,
+        sequences: Iterable[str],
+        replace_isoleucine_with_leucine: bool = True,
+        reverse: bool = True,
+    ) -> PeptideTokenizer:
+        """Create a tokenizer with the observed peptide modications.
+
+        Modifications are parsed from ProForma 2.0-compliant peptide strings
+        and added to the vocabulary.
+
+        Parameters
+        ----------
+        sequences : Iterable[str]
+            The peptides from which to parse modifications.
+        replace_isoleucine_with_leucine : bool
+            Replace I with L residues, because they are isobaric and often
+            indistinguishable by mass spectrometry.
+        reverse : bool
+            Reverse the sequence for tokenization, C-terminus to N-terminus.
+
+        Returns
+        -------
+        PeptideTokenizer
+            A tokenizer for peptides with the observed modifications.
+        """
+        if isinstance(sequences, str):
+            sequences = [sequences]
+
+        # Parse modifications:
+        new_res = {}
+        for peptide in sequences:
+            parsed = Peptide.from_proforma(peptide).split()
+            for token in parsed:
+                if token in cls.residues:
+                    continue
+
+                if token == "-":
+                    continue
+
+                try:
+                    res, mod = re.search(r"(.*)\[(.*)\]", token).groups()
+                    try:
+                        mod_mass = MassModification(mod).mass
+                    except ValueError:
+                        mod_mass = GenericModification(mod).mass
+                except AttributeError:
+                    res, mod_mass = token, 0.0
+
+                try:
+                    res_mass = cls.residues.get(res, 0)
+                except KeyError as err:
+                    raise ValueError(f"Unrecognized token {token}.") from err
+                except AttributeError:
+                    res_mass = 0.0  # In case we don't care about ions.
+
+                new_res[token] = res_mass + mod_mass
+
+        return cls(new_res, replace_isoleucine_with_leucine, reverse)
+
+    @staticmethod
+    def from_massivekb(
+        replace_isoleucine_with_leucine: bool = True,
+        reverse: bool = True,
+    ) -> MskbPeptideTokenizer:
+        """Create a tokenizer with the observed peptide modications.
+
+        Modifications are parsed from MassIVE-KB peptide strings
+        and added to the vocabulary.
+
+        Parameters
+        ----------
+        replace_isoleucine_with_leucine : bool
+            Replace I with L residues, because they are isobaric and often
+            indistinguishable by mass spectrometry.
+        reverse : bool
+            Reverse the sequence for tokenization, C-terminus to N-terminus.
+
+        Returns
+        -------
+        MskbPeptideTokenizer
+            A tokenizer for peptides with the observed modifications.
+        """
+        return MskbPeptideTokenizer.from_proforma(
+            [f"{mod}A" for mod in MSKB_TO_UNIMOD.values()],
+            replace_isoleucine_with_leucine,
+            reverse,
+        )
+
+
+class PeptideIonTokenizer(PeptideTokenizer):
+    """A tokenizer for ProForma peptide precursor ions.
+
     Parse and tokenize ProForma-compliant peptide sequences. Additionally,
     use this class to calculate fragment and precursor ion masses.
 
     Parameters
     ----------
-    residues : dict[str, float], optional
+    residues : dict of [str, float], optional
         Residues and modifications to add to the vocabulary beyond the
         standard 20 amino acids.
     replace_isoleucine_with_leucine : bool
@@ -73,9 +231,6 @@ class PeptideTokenizer(Tokenizer):
         W=186.079312980,
     )
 
-    # The peptide parsing function:
-    _parse_peptide = Peptide.from_proforma
-
     def __init__(
         self,
         residues: dict[str, float] | None = None,
@@ -83,16 +238,11 @@ class PeptideTokenizer(Tokenizer):
         reverse: bool = False,
     ) -> None:
         """Initialize a PeptideTokenizer."""
-        self.replace_isoleucine_with_leucine = replace_isoleucine_with_leucine
-        self.reverse = reverse
-        self.residues = self.residues.copy()
-        if residues is not None:
-            self.residues.update(residues)
-
-        if self.replace_isoleucine_with_leucine:
-            del self.residues["I"]
-
-        super().__init__(list(self.residues.keys()))
+        super().__init__(
+            residues=residues,
+            replace_isoleucine_with_leucine=replace_isoleucine_with_leucine,
+            reverse=reverse,
+        )
 
     def __getstate__(self) -> dict:
         """How to pickle the object."""
@@ -108,29 +258,6 @@ class PeptideTokenizer(Tokenizer):
             nb.types.float64,
         )
         self.residues.update(residues)
-
-    def split(self, sequence: str) -> list[str]:
-        """Split a ProForma peptide sequence.
-
-        Parameters
-        ----------
-        sequence : str
-            The peptide sequence.
-
-        Returns
-        -------
-        list[str]
-            The tokens that compprise the peptide sequence.
-        """
-        pep = self._parse_peptide(sequence)
-        if self.replace_isoleucine_with_leucine:
-            pep.sequence = pep.sequence.replace("I", "L")
-
-        pep = pep.split()
-        if self.reverse:
-            pep.reverse()
-
-        return pep
 
     def ions(  # noqa: C901
         self,
@@ -221,66 +348,6 @@ class PeptideTokenizer(Tokenizer):
 
         return out
 
-    @classmethod
-    def from_proforma(
-        cls,
-        sequences: Iterable[str],
-        replace_isoleucine_with_leucine: bool = True,
-        reverse: bool = True,
-    ) -> PeptideTokenizer:
-        """Create a tokenizer with the observed peptide modications.
-
-        Modifications are parsed from ProForma 2.0-compliant peptide strings
-        and added to the vocabulary.
-
-        Parameters
-        ----------
-        sequences : Iterable[str]
-            The peptides from which to parse modifications.
-        replace_isoleucine_with_leucine : bool
-            Replace I with L residues, because they are isobaric and often
-            indistinguishable by mass spectrometry.
-        reverse : bool
-            Reverse the sequence for tokenization, C-terminus to N-terminus.
-
-        Returns
-        -------
-        PeptideTokenizer
-            A tokenizer for peptides with the observed modifications.
-        """
-        if isinstance(sequences, str):
-            sequences = [sequences]
-
-        # Parse modifications:
-        new_res = cls.residues.copy()
-        for peptide in sequences:
-            parsed = Peptide.from_proforma(peptide).split()
-            for token in parsed:
-                if token in new_res.keys():
-                    continue
-
-                if token == "-":
-                    continue
-
-                match = re.search(r"(.*)\[(.*)\]", token)
-                try:
-                    res, mod = match.groups()
-                    if res and res != "-":
-                        res_mass = new_res[res]
-                    else:
-                        res_mass = 0
-                except (AttributeError, KeyError) as err:
-                    raise ValueError("Unrecognized token {token}.") from err
-
-                try:
-                    mod = MassModification(mod)
-                except ValueError:
-                    mod = GenericModification(mod)
-
-                new_res[token] = res_mass + mod.mass
-
-        return cls(new_res, replace_isoleucine_with_leucine, reverse)
-
     @staticmethod
     def from_massivekb(
         replace_isoleucine_with_leucine: bool = True,
@@ -304,7 +371,7 @@ class PeptideTokenizer(Tokenizer):
         MskbPeptideTokenizer
             A tokenizer for peptides with the observed modifications.
         """
-        return MskbPeptideTokenizer.from_proforma(
+        return MskbPeptideIonTokenizer.from_proforma(
             [f"{mod}A" for mod in MSKB_TO_UNIMOD.values()],
             replace_isoleucine_with_leucine,
             reverse,
@@ -313,6 +380,39 @@ class PeptideTokenizer(Tokenizer):
 
 class MskbPeptideTokenizer(PeptideTokenizer):
     """A tokenizer for MassIVE-KB peptide sequences.
+
+    MassIVE-KB includes N-term carbamylation, NH3-loss, acetylation, as well as
+    M oxidation, and deamidation of N and Q, in a manner that does not comply
+    with the ProForma standard.
+
+    Parameters
+    ----------
+    replace_isoleucine_with_leucine : bool
+        Replace I with L residues, because they are isobaric and often
+        indistinguishable by mass spectrometry.
+    reverse : bool
+        Reverse the sequence for tokenization, C-terminus to N-terminus.
+
+    Attributes
+    ----------
+    residues : SortedDict[str, float]
+        The residues and modifications and their associated masses.
+        terminal modifcations are indicated by `-`.
+    index : SortedDicte{str, int}
+        The mapping of residues and modifications to integer representations.
+    reverse_index : list[None | str]
+        The ordered residues and modifications where the list index is the
+        integer representation for a token.
+    stop_token : str
+        The stop token.
+
+    """
+
+    _parse_peptide = Peptide.from_massivekb
+
+
+class MskbPeptideIonTokenizer(PeptideIonTokenizer):
+    """A tokenizer for MassIVE-KB peptide precursor ions.
 
     MassIVE-KB includes N-term carbamylation, NH3-loss, acetylation, as well as
     M oxidation, and deamidation of N and Q, in a manner that does not comply

@@ -18,8 +18,6 @@ class PeptideDataset(TensorDataset):
     sequences : Iterable[str]
         The peptide sequences in a format compatible with
         your tokenizer. ProForma is preferred.
-    charges : torch.Tensor,
-        The charge state for each peptide.
     *args : torch.Tensor, optional
         Additional values to include during data loading.
     """
@@ -28,22 +26,16 @@ class PeptideDataset(TensorDataset):
         self,
         tokenizer: PeptideTokenizer,
         sequences: Iterable[str],
-        charges: torch.Tensor,
         *args: torch.Tensor,
     ) -> None:
         """Initialize a PeptideDataset."""
         tokens = tokenizer.tokenize(sequences)
-        super().__init__(tokens, charges, *args)
+        super().__init__(tokens, *args)
 
     @property
     def tokens(self) -> torch.Tensor:
         """The peptide sequence tokens."""
         return self.tensors[0]
-
-    @property
-    def charges(self) -> torch.Tensor:
-        """The peptide charges."""
-        return self.tensors[1]
 
     def loader(self, *args: tuple, **kwargs: dict) -> DataLoader:
         """A PyTorch DataLoader for peptides.

@@ -1,3 +1,4 @@
 """Deptcharge tokenizers."""
-from .peptides import PeptideTokenizer
+from .molecules import MoleculeTokenizer
+from .peptides import PeptideIonTokenizer, PeptideTokenizer
 from .tokenizer import Tokenizer

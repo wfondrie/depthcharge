@@ -2,6 +2,7 @@
 from typing import Any
 
 import polars as pl
+import torch
 
 
 def listify(obj: Any) -> list[Any]:  # noqa: ANN401
@@ -16,3 +17,14 @@ def listify(obj: Any) -> list[Any]:  # noqa: ANN401
         obj = [obj]
 
     return list(obj)
+
+
+def generate_tgt_mask(sz: int) -> torch.Tensor:
+    """Generate a square mask for the sequence.
+
+    Parameters
+    ----------
+    sz : int
+        The length of the target sequence.
+    """
+    return ~torch.triu(torch.ones(sz, sz, dtype=torch.bool)).transpose(0, 1)

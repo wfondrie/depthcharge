@@ -6,7 +6,10 @@ import pytest
 import torch
 from pyteomics import mass
 
-from depthcharge.tokenizers.peptides import PeptideTokenizer
+from depthcharge.tokenizers.peptides import (
+    PeptideIonTokenizer,
+    PeptideTokenizer,
+)
 
 # Calculated using Pyteomics:
 # These are [b_ions, y_ions]
@@ -49,7 +52,8 @@ LESLIEK_PLUS_TWO = [
 ]
 
 
-def test_proforma_init():
+@pytest.mark.parametrize("tok_class", [PeptideTokenizer, PeptideIonTokenizer])
+def test_proforma_init(tok_class):
     """Test initialization."""
     seqs = ["[+5.]-LES[Phospho]LIE[-10.0]K"]
     expected_tokens = [
@@ -58,14 +62,17 @@ def test_proforma_init():
         ("[+5.000000]-", 5.0),
     ]
 
-    proforma = PeptideTokenizer.from_proforma(
+    proforma = tok_class.from_proforma(
         sequences=seqs,
         replace_isoleucine_with_leucine=True,
         reverse=False,
     )
 
     for key, val in expected_tokens:
-        assert proforma.residues[key] == val
+        if isinstance(proforma, PeptideTokenizer):
+            assert key in proforma.residues
+        else:
+            assert proforma.residues[key] == val
 
     tokens = proforma.tokenize(seqs, to_strings=True)[0]
     expected = [
@@ -81,7 +88,7 @@ def test_proforma_init():
 
     assert tokens == expected
 
-    proforma = PeptideTokenizer.from_proforma(
+    proforma = tok_class.from_proforma(
         sequences=seqs,
         replace_isoleucine_with_leucine=False,
         reverse=False,
@@ -92,7 +99,7 @@ def test_proforma_init():
     orig = proforma.detokenize(tokens)
     assert orig == ["LESLIEK"]
 
-    proforma = PeptideTokenizer.from_proforma(
+    proforma = tok_class.from_proforma(
         sequences=seqs,
         replace_isoleucine_with_leucine=False,
         reverse=True,
@@ -107,17 +114,18 @@ def test_proforma_init():
     assert "".join(tokens) == "KEILSEL$"
 
 
-def test_mskb_init():
+@pytest.mark.parametrize("tok_class", [PeptideTokenizer, PeptideIonTokenizer])
+def test_mskb_init(tok_class):
     """Test that the MassIVE-KB dataset works."""
     seqs = ["+42.011EDITH"]
-    mskb = PeptideTokenizer.from_massivekb(False, False)
+    mskb = tok_class.from_massivekb(False, False)
     tokens = mskb.tokenize(seqs, to_strings=True)[0]
     assert tokens == ["[Acetyl]-", "E", "D", "I", "T", "H"]
 
 
 def test_precursor_ions():
     """Test calculation of precurosr m/z."""
-    tokenizer = PeptideTokenizer()
+    tokenizer = PeptideIonTokenizer()
 
     aa_mass = dict(mass.std_aa_mass)
     aa_mass["a"] = 42.010565
@@ -134,7 +142,7 @@ def test_precursor_ions():
     with pytest.raises(ValueError):
         tokenizer.ions(seq, 1)
 
-    tokenizer = PeptideTokenizer.from_proforma([seq])
+    tokenizer = PeptideIonTokenizer.from_proforma([seq])
     seq2 = "aLESLIMoK"
     assert close(tokenizer.ions(seq, 1)[0].precursor, pymass(seq2, charge=1))
     assert close(tokenizer.ions(seq, 2)[0].precursor, pymass(seq2, charge=2))
@@ -143,7 +151,7 @@ def test_precursor_ions():
 
 def test_fragment_ions():
     """Test ion calculations."""
-    tokenizer = PeptideTokenizer()
+    tokenizer = PeptideIonTokenizer()
     ions = tokenizer.ions(["LESLIEK"], [1])[0]
     expected = torch.tensor(LESLIEK_PLUS_ONE)[:, :, None]
     torch.testing.assert_close(ions.fragments, expected, check_dtype=False)
@@ -172,7 +180,7 @@ def test_fragment_ions():
     )
     torch.testing.assert_close(ions.fragments, expected, check_dtype=False)
 
-    tokenizer = PeptideTokenizer.from_proforma(["[+10]-LESLIEK"])
+    tokenizer = PeptideIonTokenizer.from_proforma(["[+10]-LESLIEK"])
     ions = tokenizer.ions(["[+10.000000]-LESLIEK"], 1)[0]
     expected = torch.tensor(LESLIEK_PLUS_ONE)[:, :, None]
     expected[0, :, :] += 10

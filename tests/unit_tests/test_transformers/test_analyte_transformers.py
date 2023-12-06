@@ -1,22 +1,20 @@
 """Test the peptide transformers."""
 import torch
 
-from depthcharge.tokenizers import PeptideTokenizer
+from depthcharge.tokenizers import PeptideIonTokenizer
 from depthcharge.transformers import (
-    PeptideTransformerDecoder,
-    PeptideTransformerEncoder,
+    AnalyteTransformerDecoder,
+    AnalyteTransformerEncoder,
     SpectrumTransformerEncoder,
 )
 
 
 def test_peptide_encoder():
     """Test that a peptide encoder will run."""
-    tokenizer = PeptideTokenizer()
+    tokenizer = PeptideIonTokenizer()
     peptides = tokenizer.tokenize(["LESLIEK", "PEPTIDER", "EDITHYKK"])
-    charges = torch.tensor([2, 3, 3])
-
-    model = PeptideTransformerEncoder(tokenizer, 8, 1, 12, max_charge=3)
-    emb, mask = model(peptides, charges)
+    model = AnalyteTransformerEncoder(tokenizer, 8, 1, 12)
+    emb, mask = model(peptides)
 
     # Axis 1 should be 1 longer than the longest peptide.
     assert emb.shape == (3, 9, 8)
@@ -28,7 +26,7 @@ def test_peptide_encoder():
 
 def test_peptide_decoder():
     """Test that a peptide decoder will run."""
-    tokenizer = PeptideTokenizer()
+    tokenizer = PeptideIonTokenizer()
     n_tokens = len(tokenizer)
 
     spectra = torch.tensor(
@@ -39,11 +37,9 @@ def test_peptide_decoder():
     )
 
     peptides = tokenizer.tokenize(["LESLIEK", "PEPTIDER"])
-    precursors = torch.tensor([[100.0, 2], [200.0, 3]])
-
     encoder = SpectrumTransformerEncoder(8, 1, 12)
     memory, mem_mask = encoder(spectra[:, :, 0], spectra[:, :, 1])
 
-    decoder = PeptideTransformerDecoder(n_tokens, 8, 1, 12, max_charge=3)
-    scores = decoder(peptides, precursors, memory, mem_mask)
+    decoder = AnalyteTransformerDecoder(n_tokens, 8, 1, 12)
+    scores = decoder(peptides, memory=memory, memory_mask=mem_mask)
     assert scores.shape == (2, 9, len(tokenizer))
