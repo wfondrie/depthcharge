@@ -1,5 +1,6 @@
 """Test peptide tokenizers."""
 
+import pytest
 import torch
 from pyteomics import mass
 
@@ -67,7 +68,8 @@ def test_proforma_init():
     assert "".join(tokens) == "KEILSEL$"
 
     # Test a non-canonical AA:
-    PeptideTokenizer.from_proforma("TOBIN")
+    with pytest.raises(KeyError):
+        PeptideTokenizer.from_proforma("TOBIN")
 
 
 def test_mskb_init():

@@ -178,7 +178,7 @@ class PeptideTokenizer(Tokenizer):
                     except ValueError:
                         mod_mass = GenericModification(mod).mass
                 except AttributeError:
-                    res, mod_mass = token, 0.0
+                    raise KeyError(f"Unknown residue {token}")
 
                 try:
                     res_mass = cls.residues.get(res, 0)
