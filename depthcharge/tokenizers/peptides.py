@@ -73,10 +73,7 @@ class PeptideTokenizer(Tokenizer):
 
         if self.replace_isoleucine_with_leucine:
             if "I" in self.residues:
-                try:
-                    del self.residues["I"]
-                except TypeError:
-                    self.residues.remove("I")
+                del self.residues["I"]
 
         super().__init__(self.residues)
         self.masses = torch.tensor(
@@ -106,9 +103,9 @@ class PeptideTokenizer(Tokenizer):
             tokens = self.tokenize(utils.listify(tokens))
 
         if not isinstance(charges, torch.Tensor):
-            precursor_charges = torch.tensor(charges)
+            charges = torch.tensor(charges)
             if not charges.shape:
-                charges = precursor_charges[None]
+                charges = charges[None]
 
         masses = self.masses[tokens].sum(dim=1) + H2O
         return (masses / charges) + PROTON

@@ -66,6 +66,9 @@ def test_proforma_init():
     tokens = proforma.tokenize("LESLIEK", True, True)[0]
     assert "".join(tokens) == "KEILSEL$"
 
+    # Test a non-canonical AA:
+    PeptideTokenizer.from_proforma("TOBIN")
+
 
 def test_mskb_init():
     """Test that the MassIVE-KB dataset works."""
@@ -100,3 +103,7 @@ def test_single_peptide():
     tokenizer = PeptideTokenizer.from_proforma("[+10]-EDITHR")
     out = tokenizer.tokenize("LESLIEK")
     assert out.shape == (1, 7)
+
+    ion = tokenizer.calculate_precursor_ions("LESLIEK", 2)
+    expected = mass.fast_mass("LESLIEK", charge=2, ion_type="M")
+    torch.testing.assert_close(ion, torch.tensor([expected]))
