@@ -4,11 +4,7 @@ import torch
 from .. import utils
 from ..encoders import PositionalEncoder
 from ..mixins import ModelMixin, TransformerMixin
-from ..tokenizers import (
-    MoleculeTokenizer,
-    PeptideIonTokenizer,
-    PeptideTokenizer,
-)
+from ..tokenizers import MoleculeTokenizer, PeptideTokenizer
 
 
 class _AnalyteTransformer(torch.nn.Module, ModelMixin, TransformerMixin):
@@ -31,10 +27,7 @@ class _AnalyteTransformer(torch.nn.Module, ModelMixin, TransformerMixin):
 
     def __init__(
         self,
-        n_tokens: int
-        | PeptideTokenizer
-        | PeptideIonTokenizer
-        | MoleculeTokenizer,
+        n_tokens: int | PeptideTokenizer | MoleculeTokenizer,
         d_model: int,
         nhead: int,
         dim_feedforward: int,

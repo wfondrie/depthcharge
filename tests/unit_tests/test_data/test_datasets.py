@@ -140,8 +140,8 @@ def test_analyte_dataset(tokenizer):
     seqs = ["LESLIEK", "EDITHR"]
     charges = torch.tensor([2, 3])
     dset = AnalyteDataset(tokenizer, seqs)
-    torch.testing.assert_close(dset[0][0], tokenizer.tokenize("LESLIEK"))
-    torch.testing.assert_close(dset[1][0][:6], tokenizer.tokenize("EDITHR"))
+    torch.testing.assert_close(dset[0][0], tokenizer.tokenize("LESLIEK")[0])
+    torch.testing.assert_close(dset[1][0][:6], tokenizer.tokenize("EDITHR")[0])
     assert len(dset) == 2
 
     seqs = ["LESLIEK", "EDITHR"]
@@ -149,8 +149,8 @@ def test_analyte_dataset(tokenizer):
     target = torch.tensor([1.1, 2.2])
     other = torch.tensor([[1, 1], [2, 2]])
     dset = AnalyteDataset(tokenizer, seqs, charges, target, other)
-    torch.testing.assert_close(dset[0][0], tokenizer.tokenize("LESLIEK"))
-    torch.testing.assert_close(dset[1][0][:6], tokenizer.tokenize("EDITHR"))
+    torch.testing.assert_close(dset[0][0], tokenizer.tokenize("LESLIEK")[0])
+    torch.testing.assert_close(dset[1][0][:6], tokenizer.tokenize("EDITHR")[0])
     assert dset[0][1].item() == 2
     assert dset[1][1].item() == 3
     torch.testing.assert_close(dset[0][2], torch.tensor(1.1))

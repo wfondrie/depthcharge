@@ -51,25 +51,25 @@ class Tokenizer(ABC):
 
     def tokenize(
         self,
-        sequences: Iterable[str],
-        to_strings: bool = False,
+        sequences: Iterable[str] | str,
         add_stop: bool = False,
-    ) -> torch.Tensor | list[list[str]]:
+        to_strings: bool = False,
+    ) -> torch.tensor | list[list[str]]:
         """Tokenize the input sequences.
 
         Parameters
         ----------
-        sequences : Iterable[str]
+        sequences : Iterable[str] or str
             The sequences to tokenize.
+        add_stop : bool, optional
+            Append the stop token to the end of the sequence.
         to_strings : bool, optional
             Return each as a list of token strings rather than a
             tensor. This is useful for debugging.
-        add_stop : bool, optional
-            Append the stop token tothe end of the sequence.
 
         Returns
         -------
-        torch.Tensor of shape (n_sequences, max_length) or list[list[str]]
+        torch.tensor of shape (n_sequences, max_length) or list[list[str]]
             Either a tensor containing the integer values for each
             token, padded with 0's, or the list of tokens comprising
             each sequence.
@@ -92,9 +92,6 @@ class Tokenizer(ABC):
 
             if to_strings:
                 return out
-
-            if isinstance(sequences, str):
-                return out[0]
 
             return nn.utils.rnn.pad_sequence(out, batch_first=True)
         except KeyError as err:

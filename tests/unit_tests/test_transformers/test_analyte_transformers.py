@@ -1,7 +1,7 @@
 """Test the peptide transformers."""
 import torch
 
-from depthcharge.tokenizers import PeptideIonTokenizer
+from depthcharge.tokenizers import PeptideTokenizer
 from depthcharge.transformers import (
     AnalyteTransformerDecoder,
     AnalyteTransformerEncoder,
@@ -11,7 +11,7 @@ from depthcharge.transformers import (
 
 def test_analyte_encoder():
     """Test that a peptide encoder will run."""
-    tokenizer = PeptideIonTokenizer()
+    tokenizer = PeptideTokenizer()
     peptides = tokenizer.tokenize(["LESLIEK", "PEPTIDER", "EDITHYKK"])
     model = AnalyteTransformerEncoder(tokenizer, 8, 2, 12)
     emb, mask = model(peptides)
@@ -26,7 +26,7 @@ def test_analyte_encoder():
 
 def test_analyte_decoder():
     """Test that a peptide decoder will run."""
-    tokenizer = PeptideIonTokenizer()
+    tokenizer = PeptideTokenizer()
     n_tokens = len(tokenizer)
 
     spectra = torch.tensor(
