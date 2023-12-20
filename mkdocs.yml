@@ -65,3 +65,5 @@ extra:
   social:
     - icon: fontawesome/brands/twitter
       link: https://twitter.com/wfondrie
+  version:
+    provider: mike

@@ -2,17 +2,29 @@ name: Push docs
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  release:
+    types: [created, edited]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        run: git fetch origin gh-pages --depth=1
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      - run: pip install ".[docs]"
-      - run: mkdocs gh-deploy --force
+      - name: Install Dependencies
+        run: pip install ".[docs]"
+
+      - name: Deploy Docs
+        run: mike deploy ${{ github.ref_name }}
+
+      - name: Tag with latest
+        if: github.event_name == "release" && github.event.action == "created"
+        run: mike alias -u ${{ github.ref_name }} latest
