@@ -87,12 +87,8 @@ class Tokenizer(ABC):
             token, padded with 0's, or the list of tokens comprising
             each sequence.
         """
-        if add_start and self.start_token is None:
-            raise ValueError("A start token is required to use add_start.")
-
-        if add_stop and self.stop_token is None:
-            raise ValueError("A stop token is required to use add_stop.")
-
+        add_start = add_start and self.start_token is not None
+        add_stop = add_stop and self.stop_token is not None
         try:
             out = []
             for seq in utils.listify(sequences):
