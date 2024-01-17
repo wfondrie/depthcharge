@@ -20,15 +20,42 @@ class MoleculeTokenizer(Tokenizer):
     ----------
     selfies_vocab : Iterable[str]
         The SELFIES tokens to be considered.
+    start_token : str, optional
+        The start token to use.
+    stop_token : str, optional
+        The stop token to use.
+
+    Attributes
+    ----------
+    index : SortedDicte{str, int}
+        The mapping of residues and modifications to integer representations.
+    reverse_index : list[None | str]
+        The ordered residues and modifications where the list index is the
+        integer representation for a token.
+    start_token : str
+        The start token
+    stop_token : str
+        The stop token.
+    start_int : int
+        The integer representation of the start token
+    stop_int : int
+        The integer representation of the stop token.
+    padding_int : int
+        The integer used to represent padding.
     """
 
-    def __init__(self, selfies_vocab: Iterable[str] | None = None) -> None:
+    def __init__(
+        self,
+        selfies_vocab: Iterable[str] | None = None,
+        start_token: str | None = None,
+        stop_token: str | None = "$",
+    ) -> None:
         """Initialize a MoleculeTokenizer."""
         if selfies_vocab is None:
             selfies_vocab = sf.get_semantic_robust_alphabet()
 
         self.selfies_vocab = selfies_vocab
-        super().__init__(selfies_vocab)
+        super().__init__(selfies_vocab, start_token, stop_token)
 
     def split(self, sequence: str) -> list[str]:
         """Split a SMILES or SELFIES string into SELFIES tokens.
@@ -49,13 +76,22 @@ class MoleculeTokenizer(Tokenizer):
             return sf.split_selfies(Molecule(sequence).to_selfies())
 
     @classmethod
-    def from_smiles(cls, smiles: Iterable[str] | str) -> MoleculeTokenizer:
+    def from_smiles(
+        cls,
+        smiles: Iterable[str] | str,
+        start_token: str | None = None,
+        stop_token: str | None = "$",
+    ) -> MoleculeTokenizer:
         """Learn the vocabulary from SMILES strings.
 
         Parameters
         ----------
         smiles : Iterable[str] | str
             Create a vocabulary from all unique tokens in these SMILES strings.
+        start_token : str, optional
+            The start token to use.
+        stop_token : str, optional
+            The stop token to use.
 
         Returns
         -------
@@ -67,10 +103,15 @@ class MoleculeTokenizer(Tokenizer):
             Molecule(s).to_selfies() for s in utils.listify(smiles)
         )
 
-        return cls(vocab)
+        return cls(vocab, start_token, stop_token)
 
     @classmethod
-    def from_selfies(cls, selfies: Iterable[str] | str) -> MoleculeTokenizer:
+    def from_selfies(
+        cls,
+        selfies: Iterable[str] | str,
+        start_token: str | None = None,
+        stop_token: str | None = "$",
+    ) -> MoleculeTokenizer:
         """Learn the vocabulary from SELFIES strings.
 
         Parameters
@@ -78,6 +119,10 @@ class MoleculeTokenizer(Tokenizer):
         selfies : Iterable[str] | str
             Create a vocabulary from all unique tokens in these SELFIES
             strings.
+        start_token : str, optional
+            The start token to use.
+        stop_token : str, optional
+            The stop token to use.
 
         Returns
         -------
@@ -86,4 +131,4 @@ class MoleculeTokenizer(Tokenizer):
             input SMILES strings.
         """
         vocab = sf.get_alphabet_from_selfies(utils.listify(selfies))
-        return cls(vocab)
+        return cls(vocab, start_token, stop_token)

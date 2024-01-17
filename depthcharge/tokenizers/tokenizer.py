@@ -18,6 +18,8 @@ class Tokenizer(ABC):
     ----------
     tokens : Sequence[str]
         The tokens to consider.
+    start_token : str, optional
+        The start token to use.
     stop_token : str, optional
         The stop token to use.
     """
@@ -25,9 +27,11 @@ class Tokenizer(ABC):
     def __init__(
         self,
         tokens: Sequence[str],
+        start_token: str | None = None,
         stop_token: str | None = "$",
     ) -> None:
         """Initialize a tokenizer."""
+        self.start_token = start_token
         self.stop_token = stop_token
 
         tokens = SortedSet(tokens)
@@ -36,10 +40,16 @@ class Tokenizer(ABC):
                 f"Stop token {stop_token} already exists in tokens.",
             )
 
-        tokens.add(self.stop_token)
+        if start_token is not None:
+            tokens.add(self.start_token)
+        if stop_token is not None:
+            tokens.add(self.stop_token)
+
         self.index = SortedDict({k: i + 1 for i, k in enumerate(tokens)})
-        self.reverse_index = [None] + list(tokens)
-        self.stop_int = self.index[self.stop_token]
+        self.reverse_index = [None] + list(tokens)  # 0 is padding.
+        self.start_int = self.index.get(self.start_token, None)
+        self.stop_int = self.index.get(self.stop_token, None)
+        self.padding_int = 0
 
     def __len__(self) -> int:
         """The number of tokens."""
@@ -52,6 +62,7 @@ class Tokenizer(ABC):
     def tokenize(
         self,
         sequences: Iterable[str] | str,
+        add_start: bool = False,
         add_stop: bool = False,
         to_strings: bool = False,
     ) -> torch.tensor | list[list[str]]:
@@ -61,6 +72,8 @@ class Tokenizer(ABC):
         ----------
         sequences : Iterable[str] or str
             The sequences to tokenize.
+        add_start : bool, optional
+            Prepend the start token to the beginning of the sequence.
         add_stop : bool, optional
             Append the stop token to the end of the sequence.
         to_strings : bool, optional
@@ -74,6 +87,9 @@ class Tokenizer(ABC):
             token, padded with 0's, or the list of tokens comprising
             each sequence.
         """
+        if add_start and self.start_token is None:
+            raise ValueError("A start token is required to use add_start.")
+
         if add_stop and self.stop_token is None:
             raise ValueError("A stop token is required to use add_stop.")
 
@@ -81,6 +97,9 @@ class Tokenizer(ABC):
             out = []
             for seq in utils.listify(sequences):
                 tokens = self.split(seq)
+                if add_start and tokens[0] != self.start_token:
+                    tokens.insert(0, self.start_token)
+
                 if add_stop and tokens[-1] != self.stop_token:
                     tokens.append(self.stop_token)
 
@@ -101,6 +120,7 @@ class Tokenizer(ABC):
         self,
         tokens: torch.Tensor,
         join: bool = True,
+        trim_start_token: bool = True,
         trim_stop_token: bool = True,
     ) -> list[str] | list[list[str]]:
         """Retreive sequences from tokens.
@@ -111,6 +131,8 @@ class Tokenizer(ABC):
             The zero-padded tensor of integerized tokens to decode.
         join : bool, optional
             Join tokens into strings?
+        trim_start_token : bool, optional
+            Remove the start token from the beginning of a sequence.
         trim_stop_token : bool, optional
             Remove the stop token from the end of a sequence.
 
@@ -127,6 +149,8 @@ class Tokenizer(ABC):
                 if self.reverse_index[i] is not None
             ]
 
+            if trim_start_token and seq[0] == self.start_token:
+                seq.pop(0)
             if trim_stop_token and seq[-1] == self.stop_token:
                 seq.pop(-1)
 

@@ -28,6 +28,31 @@ class PeptideTokenizer(Tokenizer):
         indistinguishable by mass spectrometry.
     reverse : bool
         Reverse the sequence for tokenization, C-terminus to N-terminus.
+    start_token : str, optional
+        The start token to use.
+    stop_token : str, optional
+        The stop token to use.
+
+    Attributes
+    ----------
+    residues : SortedDict[str, float]
+        The residues and modifications and their associated masses.
+        terminal modifcations are indicated by `-`.
+    index : SortedDicte{str, int}
+        The mapping of residues and modifications to integer representations.
+    reverse_index : list[None | str]
+        The ordered residues and modifications where the list index is the
+        integer representation for a token.
+    start_token : str
+        The start token
+    stop_token : str
+        The stop token.
+    start_int : int
+        The integer representation of the start token
+    stop_int : int
+        The integer representation of the stop token.
+    padding_int : int
+        The integer used to represent padding.
     """
 
     residues = {
@@ -61,6 +86,8 @@ class PeptideTokenizer(Tokenizer):
         residues: Iterable[str] | None = None,
         replace_isoleucine_with_leucine: bool = False,
         reverse: bool = False,
+        start_token: str | None = None,
+        stop_token: str | None = "$",
     ) -> None:
         """Initialize a PeptideTokenizer."""
         self.replace_isoleucine_with_leucine = replace_isoleucine_with_leucine
@@ -75,7 +102,7 @@ class PeptideTokenizer(Tokenizer):
             if "I" in self.residues:
                 del self.residues["I"]
 
-        super().__init__(self.residues)
+        super().__init__(self.residues, start_token, stop_token)
         self.masses = torch.tensor(
             [self.residues.get(a, 0.0) for a in self.reverse_index]
         )
@@ -137,8 +164,10 @@ class PeptideTokenizer(Tokenizer):
     def from_proforma(
         cls,
         sequences: Iterable[str],
-        replace_isoleucine_with_leucine: bool = True,
+        replace_isoleucine_with_leucine: bool = False,
         reverse: bool = True,
+        start_token: str | None = None,
+        stop_token: str | None = "$",
     ) -> PeptideTokenizer:
         """Create a tokenizer with the observed peptide modications.
 
@@ -149,11 +178,15 @@ class PeptideTokenizer(Tokenizer):
         ----------
         sequences : Iterable[str]
             The peptides from which to parse modifications.
-        replace_isoleucine_with_leucine : bool
+        replace_isoleucine_with_leucine : bool, optional
             Replace I with L residues, because they are isobaric and often
             indistinguishable by mass spectrometry.
-        reverse : bool
+        reverse : bool, optional
             Reverse the sequence for tokenization, C-terminus to N-terminus.
+        start_token : str, optional
+            The start token to use.
+        stop_token : str, optional
+            The stop token to use.
 
         Returns
         -------
@@ -177,8 +210,8 @@ class PeptideTokenizer(Tokenizer):
                         mod_mass = MassModification(mod).mass
                     except ValueError:
                         mod_mass = GenericModification(mod).mass
-                except AttributeError:
-                    raise KeyError(f"Unknown residue {token}")
+                except AttributeError as err:
+                    raise KeyError(f"Unknown residue {token}") from err
 
                 try:
                     res_mass = cls.residues.get(res, 0)
@@ -189,12 +222,20 @@ class PeptideTokenizer(Tokenizer):
 
                 new_res[token] = res_mass + mod_mass
 
-        return cls(new_res, replace_isoleucine_with_leucine, reverse)
+        return cls(
+            new_res,
+            replace_isoleucine_with_leucine,
+            reverse,
+            start_token,
+            stop_token,
+        )
 
     @staticmethod
     def from_massivekb(
-        replace_isoleucine_with_leucine: bool = True,
+        replace_isoleucine_with_leucine: bool = False,
         reverse: bool = True,
+        start_token: str | None = None,
+        stop_token: str | None = "$",
     ) -> MskbPeptideTokenizer:
         """Create a tokenizer with the observed peptide modications.
 
@@ -203,11 +244,15 @@ class PeptideTokenizer(Tokenizer):
 
         Parameters
         ----------
-        replace_isoleucine_with_leucine : bool
+        replace_isoleucine_with_leucine : bool, optional
             Replace I with L residues, because they are isobaric and often
             indistinguishable by mass spectrometry.
-        reverse : bool
+        reverse : bool, optional
             Reverse the sequence for tokenization, C-terminus to N-terminus.
+        start_token : str, optional
+            The start token to use.
+        stop_token : str, optional
+            The stop token to use.
 
         Returns
         -------
@@ -218,6 +263,8 @@ class PeptideTokenizer(Tokenizer):
             [f"{mod}A" for mod in MSKB_TO_UNIMOD.values()],
             replace_isoleucine_with_leucine,
             reverse,
+            start_token,
+            stop_token,
         )
 
 
@@ -235,6 +282,10 @@ class MskbPeptideTokenizer(PeptideTokenizer):
         indistinguishable by mass spectrometry.
     reverse : bool
         Reverse the sequence for tokenization, C-terminus to N-terminus.
+    start_token : str, optional
+        The start token to use.
+    stop_token : str, optional
+        The stop token to use.
 
     Attributes
     ----------
@@ -246,9 +297,12 @@ class MskbPeptideTokenizer(PeptideTokenizer):
     reverse_index : list[None | str]
         The ordered residues and modifications where the list index is the
         integer representation for a token.
-    stop_token : str
-        The stop token.
-
+    start_int : int
+        The integer representation of the start token
+    stop_int : int
+        The integer representation of the stop token.
+    padding_int : int
+        The integer used to represent padding.
     """
 
     _parse_peptide = Peptide.from_massivekb
