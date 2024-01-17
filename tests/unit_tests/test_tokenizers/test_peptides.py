@@ -64,7 +64,7 @@ def test_proforma_init():
     orig = proforma.detokenize(tokens)
     assert orig == ["KEILSEL"]
 
-    tokens = proforma.tokenize("LESLIEK", True, True)[0]
+    tokens = proforma.tokenize("LESLIEK", True, True, True)[0]
     assert "".join(tokens) == "KEILSEL$"
 
     # Test a non-canonical AA:
