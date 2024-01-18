@@ -281,6 +281,101 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
             self.token_encoder.num_embeddings - 1,
         )
 
+    def embed(
+        self,
+        tokens: torch.Tensor | None,
+        *args: torch.Tensor,
+        memory: torch.Tensor | None,
+        memory_key_padding_mask: torch.Tensor | None = None,
+        memory_mask: torch.Tensor | None = None,
+        tgt_mask: torch.Tensor | None = None,
+        **kwargs: dict,
+    ) -> torch.Tensor:
+        """Embed a collection of sequences.
+
+        Parameters
+        ----------
+        tokens : list of str, torch.Tensor, or None
+            The partial peptide sequences for which to predict the next
+            amino acid. Optionally, these may be the token indices instead
+            of a string.
+        *args : torch.Tensor, optional
+            Additional data. These may be used by overwriting the
+            `global_token_hook()` method in a subclass.
+        memory : torch.Tensor of shape (batch_size, len_seq, d_model)
+            The representations from a ``TransformerEncoder``, such as a
+            ``SpectrumTransformerEncoder``.
+        memory_key_padding_mask : torch.Tensor of shape (batch_size, len_seq)
+            Passed to `torch.nn.TransformerEncoder.forward()`. The mask that
+            indicates which elements of ``memory`` are padding.
+        memory_mask : torch.Tensor
+            Passed to `torch.nn.TransformerEncoder.forward()`. The mask
+            for the memory sequence.
+        tgt_mask : torch.Tensor or None
+            Passed to `torch.nn.TransformerEncoder.forward()`. The default
+            is a mask that is suitable for predicting the next element in
+            the sequence.
+        **kwargs : dict
+            Additional data fields. These may be used by overwriting
+            the `global_token_hook()` method in a subclass.
+
+        Returns
+        -------
+        embeddings : torch.Tensor of size (batch_size, len_sequence, d_model)
+            The output of the Transformer layer containing the embeddings
+            of the tokens in the sequence. These may be tranformed to yield
+            scores for token predictions using the `.score_embeddings()`
+            method.
+        """
+        # Prepare sequences
+        if tokens is None:
+            tokens = torch.tensor([[]]).to(self.device)
+
+        # Encode everything:
+        encoded = self.token_encoder(tokens)
+
+        # Add the global token
+        global_token = self.global_token_hook(tokens, *args, **kwargs)
+        encoded = torch.cat([global_token[:, None, :], encoded], dim=1)
+
+        # Create the padding mask:
+        tgt_key_padding_mask = encoded.sum(axis=2) == 0
+        tgt_key_padding_mask[:, 0] = False
+
+        # Feed through model:
+        encoded = self.positional_encoder(encoded)
+
+        if tgt_mask is None:
+            tgt_mask = utils.generate_tgt_mask(encoded.shape[1]).to(
+                self.device
+            )
+
+        return self.transformer_decoder(
+            tgt=encoded,
+            memory=memory,
+            tgt_mask=tgt_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+            memory_key_padding_mask=memory_key_padding_mask,
+            memory_mask=memory_mask,
+        )
+
+    def score_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
+        """Score the embeddings to find the most confident tokens.
+
+        Parameters
+        ----------
+        embeddings: torch.Tensor of shape (batch_size, len_seq, d_model)
+            The embeddings from the Transformer layer.
+
+        Returns
+        -------
+        scores : torch.Tensor of size (batch_size, len_sequence, n_tokens)
+            The raw output for the final linear layer. These can be Softmax
+            transformed to yield the probability of each token for the
+            prediction.
+        """
+        return self.final(embeddings)
+
     def forward(
         self,
         tokens: torch.Tensor | None,
@@ -290,7 +385,7 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         memory_mask: torch.Tensor | None = None,
         tgt_mask: torch.Tensor | None = None,
         **kwargs: dict,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> torch.Tensor:
         """Decode a collection of sequences.
 
         Parameters
@@ -323,39 +418,17 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         -------
         scores : torch.Tensor of size (batch_size, len_sequence, n_tokens)
             The raw output for the final linear layer. These can be Softmax
-            transformed to yield the probability of each amino acid for the
+            transformed to yield the probability of each token for the
             prediction.
 
         """
-        # Prepare sequences
-        if tokens is None:
-            tokens = torch.tensor([[]]).to(self.device)
-
-        # Encode everything:
-        encoded = self.token_encoder(tokens)
-
-        # Add the global token
-        global_token = self.global_token_hook(tokens, *args, **kwargs)
-        encoded = torch.cat([global_token[:, None, :], encoded], dim=1)
-
-        # Create the padding mask:
-        tgt_key_padding_mask = encoded.sum(axis=2) == 0
-        tgt_key_padding_mask[:, 0] = False
-
-        # Feed through model:
-        encoded = self.positional_encoder(encoded)
-
-        if tgt_mask is None:
-            tgt_mask = utils.generate_tgt_mask(encoded.shape[1]).to(
-                self.device
-            )
-
-        preds = self.transformer_decoder(
-            tgt=encoded,
+        emb = self.embed(
+            tokens,
+            *args,
             memory=memory,
-            tgt_mask=tgt_mask,
-            tgt_key_padding_mask=tgt_key_padding_mask,
             memory_key_padding_mask=memory_key_padding_mask,
             memory_mask=memory_mask,
+            tgt_mask=tgt_mask,
+            **kwargs,
         )
-        return self.final(preds)
+        return self.score_embeddings(emb)
