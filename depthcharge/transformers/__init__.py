@@ -1,4 +1,5 @@
 """Transformer models."""
+
 from .analytes import (
     AnalyteTransformerDecoder,
     AnalyteTransformerEncoder,

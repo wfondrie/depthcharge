@@ -1,4 +1,5 @@
 """Simple encoders for input into Transformers and the like."""
+
 import math
 
 import einops

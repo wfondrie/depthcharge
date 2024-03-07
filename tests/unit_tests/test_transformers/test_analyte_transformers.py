@@ -1,4 +1,5 @@
 """Test the peptide transformers."""
+
 import pytest
 import torch
 

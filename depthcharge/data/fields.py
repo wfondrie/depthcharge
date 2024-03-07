@@ -1,4 +1,5 @@
 """Custom fields for the Arrow Schema."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 

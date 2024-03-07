@@ -1,4 +1,5 @@
 """Fundamental dataclasses for depthcharge."""
+
 from __future__ import annotations
 
 import re

@@ -1,4 +1,5 @@
 """Test the molecule tokenizer."""
+
 import pytest
 
 from depthcharge.tokenizers import MoleculeTokenizer

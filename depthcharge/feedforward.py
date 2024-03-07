@@ -1,4 +1,5 @@
 """A flexible feed-forward neural network."""
+
 from collections.abc import Iterable
 
 import numpy as np

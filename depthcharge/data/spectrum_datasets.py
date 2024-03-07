@@ -1,4 +1,5 @@
 """Serve mass spectra to neural networks."""
+
 from __future__ import annotations
 
 import logging

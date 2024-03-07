@@ -1,4 +1,5 @@
 """Ironically test that the testing functions are working."""
+
 import numpy as np
 import pytest
 import torch

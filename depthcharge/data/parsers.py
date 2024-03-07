@@ -1,4 +1,5 @@
 """Mass spectrometry data parsers."""
+
 from __future__ import annotations
 
 import logging

@@ -1,4 +1,5 @@
 """Store spectrum data as Arrow tables."""
+
 from collections.abc import Callable, Generator, Iterable
 from os import PathLike
 from pathlib import Path

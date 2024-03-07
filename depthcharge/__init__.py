@@ -1,4 +1,5 @@
 """Initialize the depthcharge package."""
+
 # Ignore a bunch of pkg_resources warnings from dependencies:
 import warnings
 

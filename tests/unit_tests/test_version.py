@@ -1,4 +1,5 @@
 """Test getting the version."""
+
 from importlib.metadata import PackageNotFoundError
 
 import depthcharge

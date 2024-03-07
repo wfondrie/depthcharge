@@ -1,4 +1,5 @@
 """Tranformer models to handle mass spectra."""
+
 from collections.abc import Callable
 
 import torch
