@@ -1,4 +1,5 @@
 """Test that parsers work."""
+
 import polars as pl
 import pyarrow as pa
 import pytest

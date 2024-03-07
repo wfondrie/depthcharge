@@ -1,4 +1,5 @@
 """Test that our fundamental dataclasses work."""
+
 import numpy as np
 import pytest
 import torch

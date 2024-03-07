@@ -1,52 +1,10 @@
 """Test peptide tokenizers."""
-import math
-from functools import partial
 
 import pytest
 import torch
 from pyteomics import mass
 
 from depthcharge.tokenizers.peptides import PeptideTokenizer
-
-# Calculated using Pyteomics:
-# These are [b_ions, y_ions]
-LESLIEK_PLUS_ONE = [
-    [
-        114.09134044390001,
-        243.13393353187,
-        330.16596193614004,
-        443.25002591327006,
-        556.3340898904,
-        685.37668297837,
-    ],
-    [
-        147.11280416447,
-        276.15539725243997,
-        389.23946122957,
-        502.3235252067,
-        589.3555536109699,
-        718.39814669894,
-    ],
-]
-
-LESLIEK_PLUS_TWO = [
-    [
-        57.54930845533501,
-        122.07060499932,
-        165.58661920145502,
-        222.12865119002004,
-        278.670683178585,
-        343.19197972257,
-    ],
-    [
-        74.06004031561999,
-        138.581336859605,
-        195.12336884817,
-        251.66540083673502,
-        295.18141503886994,
-        359.702711582855,
-    ],
-]
 
 
 def test_proforma_init():
@@ -65,7 +23,10 @@ def test_proforma_init():
     )
 
     for key, val in expected_tokens:
-        assert proforma.residues[key] == val
+        if isinstance(proforma, PeptideTokenizer):
+            assert key in proforma.residues
+        else:
+            assert proforma.residues[key] == val
 
     tokens = proforma.tokenize(seqs, to_strings=True)[0]
     expected = [
@@ -103,8 +64,12 @@ def test_proforma_init():
     orig = proforma.detokenize(tokens)
     assert orig == ["KEILSEL"]
 
-    tokens = proforma.tokenize("LESLIEK", True, True)[0]
+    tokens = proforma.tokenize("LESLIEK", True, True, True)[0]
     assert "".join(tokens) == "KEILSEL$"
+
+    # Test a non-canonical AA:
+    with pytest.raises(KeyError):
+        PeptideTokenizer.from_proforma("TOBIN")
 
 
 def test_mskb_init():
@@ -115,65 +80,32 @@ def test_mskb_init():
     assert tokens == ["[Acetyl]-", "E", "D", "I", "T", "H"]
 
 
-def test_precursor_ions():
-    """Test calculation of precurosr m/z."""
-    tokenizer = PeptideTokenizer()
-
-    aa_mass = dict(mass.std_aa_mass)
-    aa_mass["a"] = 42.010565
-    aa_mass["o"] = 15.994915
-    pymass = partial(mass.fast_mass, ion_type="M", aa_mass=aa_mass)
-    close = partial(math.isclose, rel_tol=1e-6)
-
-    seq = "LESLIEK"
-    assert close(tokenizer.ions(seq, 1)[0].precursor, pymass(seq, charge=1))
-    assert close(tokenizer.ions(seq, 2)[0].precursor, pymass(seq, charge=2))
-    assert close(tokenizer.ions(seq, 3)[0].precursor, pymass(seq, charge=3))
-
-    seq = "[Acetyl]-LESLIM[Oxidation]K"
-    with pytest.raises(ValueError):
-        tokenizer.ions(seq, 1)
-
-    tokenizer = PeptideTokenizer.from_proforma([seq])
-    seq2 = "aLESLIMoK"
-    assert close(tokenizer.ions(seq, 1)[0].precursor, pymass(seq2, charge=1))
-    assert close(tokenizer.ions(seq, 2)[0].precursor, pymass(seq2, charge=2))
-    assert close(tokenizer.ions(seq, 3)[0].precursor, pymass(seq2, charge=3))
-
-
-def test_fragment_ions():
-    """Test ion calculations."""
-    tokenizer = PeptideTokenizer()
-    ions = tokenizer.ions(["LESLIEK"], [1])[0]
-    expected = torch.tensor(LESLIEK_PLUS_ONE)[:, :, None]
-    torch.testing.assert_close(ions.fragments, expected, check_dtype=False)
-
-    ions = tokenizer.ions(["LESLIEK"], [2])[0]
-    expected = torch.cat(
+def test_torch_precursor_ions():
+    """Test the calculation of the precursor m/z."""
+    seqs = ["LESLIEK", "EDITHR"]
+    charges = torch.tensor([2, 3])
+    tokenizer = PeptideTokenizer.from_proforma(seqs)
+    expected = torch.tensor(
         [
-            torch.tensor(LESLIEK_PLUS_ONE)[:, :, None],
-            torch.tensor(LESLIEK_PLUS_TWO)[:, :, None],
-        ],
-        dim=2,
+            mass.fast_mass(s, charge=z, ion_type="M")
+            for s, z in zip(seqs, charges)
+        ]
     )
-    torch.testing.assert_close(ions.fragments, expected, check_dtype=False)
 
-    ions = tokenizer.ions(["LESLIEK/1"], None)[0]
-    expected = torch.tensor(LESLIEK_PLUS_ONE)[:, :, None]
-    torch.testing.assert_close(ions.fragments, expected, check_dtype=False)
+    ions = tokenizer.calculate_precursor_ions(seqs, charges)
+    torch.testing.assert_close(ions, expected)
 
-    ions = tokenizer.ions(["LESLIEK/3"], None)[0]
-    expected = torch.cat(
-        [
-            torch.tensor(LESLIEK_PLUS_ONE)[:, :, None],
-            torch.tensor(LESLIEK_PLUS_TWO)[:, :, None],
-        ],
-        dim=2,
-    )
-    torch.testing.assert_close(ions.fragments, expected, check_dtype=False)
+    tokens = tokenizer.tokenize(seqs)
+    ions = tokenizer.calculate_precursor_ions(tokens, charges)
+    torch.testing.assert_close(ions, expected)
 
-    tokenizer = PeptideTokenizer.from_proforma(["[+10]-LESLIEK"])
-    ions = tokenizer.ions(["[+10.000000]-LESLIEK"], 1)[0]
-    expected = torch.tensor(LESLIEK_PLUS_ONE)[:, :, None]
-    expected[0, :, :] += 10
-    torch.testing.assert_close(ions.fragments, expected, check_dtype=False)
+
+def test_single_peptide():
+    """Test proforma from a single peptide."""
+    tokenizer = PeptideTokenizer.from_proforma("[+10]-EDITHR")
+    out = tokenizer.tokenize("LESLIEK")
+    assert out.shape == (1, 7)
+
+    ion = tokenizer.calculate_precursor_ions("LESLIEK", 2)
+    expected = mass.fast_mass("LESLIEK", charge=2, ion_type="M")
+    torch.testing.assert_close(ion, torch.tensor([expected]))

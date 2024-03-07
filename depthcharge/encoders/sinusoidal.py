@@ -1,4 +1,5 @@
 """Simple encoders for input into Transformers and the like."""
+
 import math
 
 import einops
@@ -20,6 +21,7 @@ class FloatEncoder(torch.nn.Module):
     learnable_wavelengths : bool, optional
         Allow the selected wavelengths to be fine-tuned
         by the model.
+
     """
 
     def __init__(
@@ -71,6 +73,7 @@ class FloatEncoder(torch.nn.Module):
         -------
         torch.Tensor of shape (batch_size, n_float, d_model)
             The encoded features for the floating point numbers.
+
         """
         sin_mz = torch.sin(X[:, :, None] / self.sin_term)
         cos_mz = torch.cos(X[:, :, None] / self.cos_term)
@@ -97,6 +100,7 @@ class PeakEncoder(torch.nn.Module):
     learnable_wavelengths : bool, optional
         Allow the selected wavelengths to be fine-tuned
         by the model.
+
     """
 
     def __init__(
@@ -146,6 +150,7 @@ class PeakEncoder(torch.nn.Module):
         -------
         torch.Tensor of shape (n_spectra, n_peaks, d_model)
             The encoded features for the mass spectra.
+
         """
         encoded = torch.cat(
             [
@@ -169,6 +174,7 @@ class PositionalEncoder(FloatEncoder):
         The shortest wavelength in the geometric progression.
     max_wavelength : float, optional
         The longest wavelength in the geometric progression.
+
     """
 
     def __init__(
@@ -198,6 +204,7 @@ class PositionalEncoder(FloatEncoder):
         -------
         torch.Tensor of shape (batch_size, n_sequence, n_features)
             The encoded features for the mass spectra.
+
         """
         pos = torch.arange(X.shape[1]).type_as(self.sin_term)
         pos = einops.repeat(pos, "n -> b n", b=X.shape[0])

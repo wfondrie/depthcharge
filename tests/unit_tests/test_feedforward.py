@@ -1,4 +1,5 @@
 """Test the feedforward model."""
+
 import torch
 
 from depthcharge.feedforward import FeedForward

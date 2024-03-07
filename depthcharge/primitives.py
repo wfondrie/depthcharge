@@ -1,4 +1,5 @@
 """Fundamental dataclasses for depthcharge."""
+
 from __future__ import annotations
 
 import re
@@ -46,6 +47,7 @@ class Peptide:
         that no modifications are present.
     charge : int, optional
         The charge of the peptide.
+
     """
 
     sequence: str
@@ -139,6 +141,7 @@ class Peptide:
         -------
         Peptide
             The parsed ProForma peptide.
+
         """
         pep, meta = proforma.parse(sequence)
         try:
@@ -191,6 +194,7 @@ class Peptide:
         Peptide
             The parsed MassIVE peptide after conversion to a ProForma
             format.
+
         """
         sequence = cls.massivekb_to_proforma(sequence, charge)
         return cls.from_proforma(sequence)
@@ -217,6 +221,7 @@ class Peptide:
         str
             The parsed MassIVE peptide after conversion to a ProForma
             format.
+
         """
         sequence = "".join(
             [
@@ -242,6 +247,7 @@ class PeptideIons:
         The monoisotopic m/z of the precursor ion.
     fragments : torch.Tensor[float]
         The generated fragment ions originated from the peptide.
+
     """
 
     tokens: list[str]
@@ -274,6 +280,7 @@ class Molecule:
         A SMILES string defining the molecule.
     charge : int, optional
         The charge of the molecule.
+
     """
 
     smiles: str
@@ -295,6 +302,7 @@ class Molecule:
         ----------
         **kwargs : dict
             Keyword arguments passed to ``rdkit.Chem.Draw.MolToImage``
+
         """
         return Draw.MolToImage(self._mol, **kwargs)
 
@@ -321,6 +329,7 @@ class Molecule:
         -------
         Molecule
             The parsed Molecule.
+
         """
         return cls(sf.decoder(selfies), charge)
 
@@ -350,6 +359,7 @@ class MassSpectrum(MsmsSpectrum):
         A label for the mass spectrum. This is typically an
         annotation, such as the generating peptide sequence,
         but is distinct from spectrum_utils' annotation.
+
     """
 
     def __init__(
@@ -421,5 +431,6 @@ class MassSpectrum(MsmsSpectrum):
         -------
         torch.tensor of shape (n_peaks, 2)
             The mass spectrum information.
+
         """
         return torch.tensor(np.vstack([self.mz, self.intensity]).T)

@@ -1,6 +1,7 @@
 """Transformer models."""
-from .peptides import (
-    PeptideTransformerDecoder,
-    PeptideTransformerEncoder,
+
+from .analytes import (
+    AnalyteTransformerDecoder,
+    AnalyteTransformerEncoder,
 )
 from .spectra import SpectrumTransformerEncoder

@@ -39,6 +39,7 @@ SpectrumDataset(
 ```
 
 """
+
 from collections.abc import Callable
 from functools import wraps
 
@@ -79,6 +80,7 @@ def _spectrum_utils_fn(func: str) -> Callable:
         -------
         Callable
             A valid deptcharge preprocessing function.
+
         """
 
         @wraps(wrapper)
@@ -94,6 +96,7 @@ def _spectrum_utils_fn(func: str) -> Callable:
             -------
             MassSpectrum
                 The processed mass spectrum.
+
             """
             # Call the spectrum_utils method:
             getattr(spec, func)(*args, **kwargs)

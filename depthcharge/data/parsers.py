@@ -1,4 +1,5 @@
 """Mass spectrometry data parsers."""
+
 from __future__ import annotations
 
 import logging
@@ -44,6 +45,7 @@ class BaseParser(ABC):
         Enable or disable the progress bar.
     id_type : str, optional
         The Hupo-PSI prefix for the spectrum identifier.
+
     """
 
     def __init__(
@@ -111,6 +113,7 @@ class BaseParser(ABC):
         ------
         IOError
             Raised if the file is not the expected format.
+
         """
 
     @abstractmethod
@@ -130,6 +133,7 @@ class BaseParser(ABC):
         -------
         MassSpectrum or None
             The parsed mass spectrum or None if it is skipped.
+
         """
 
     def parse_custom_fields(self, spectrum: dict) -> dict[str, Any]:
@@ -144,6 +148,7 @@ class BaseParser(ABC):
         -------
         dict
             The parsed value of each, whatever it may be.
+
         """
         out = {}
         if self.custom_fields is None:
@@ -167,6 +172,7 @@ class BaseParser(ABC):
         ------
         RecordBatch
             A batch of spectra and their metadata.
+
         """
         batch_size = float("inf") if batch_size is None else batch_size
         pbar_args = {
@@ -229,6 +235,7 @@ class BaseParser(ABC):
         ----------
         entry : dict
             The elemtn to add.
+
         """
         if self._batch is None:
             self._batch = {k: [v] for k, v in entry.items()}
@@ -264,6 +271,7 @@ class MzmlParser(BaseParser):
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
+
     """
 
     def sniff(self) -> None:
@@ -273,6 +281,7 @@ class MzmlParser(BaseParser):
         ------
         IOError
             Raised if the file is not the expected format.
+
         """
         with self.peak_file.open() as mzdat:
             next(mzdat)
@@ -295,6 +304,7 @@ class MzmlParser(BaseParser):
         -------
         MassSpectrum or None
             The parsed mass spectrum or None if not at the correct MS level.
+
         """
         ms_level = spectrum["ms level"]
         if self.ms_level is not None and ms_level not in self.ms_level:
@@ -363,6 +373,7 @@ class MzxmlParser(BaseParser):
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
+
     """
 
     def sniff(self) -> None:
@@ -372,6 +383,7 @@ class MzxmlParser(BaseParser):
         ------
         IOError
             Raised if the file is not the expected format.
+
         """
         scent = "http://sashimi.sourceforge.net/schema_revision/mzXML"
         with self.peak_file.open() as mzdat:
@@ -395,6 +407,7 @@ class MzxmlParser(BaseParser):
         -------
         MassSpectrum
             The parsed mass spectrum.
+
         """
         ms_level = spectrum["msLevel"]
         if self.ms_level is not None and ms_level not in self.ms_level:
@@ -442,6 +455,7 @@ class MgfParser(BaseParser):
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
+
     """
 
     def __init__(
@@ -476,6 +490,7 @@ class MgfParser(BaseParser):
         ------
         IOError
             Raised if the file is not the expected format.
+
         """
         with self.peak_file.open() as mzdat:
             if not next(mzdat).startswith("BEGIN IONS"):
@@ -492,6 +507,7 @@ class MgfParser(BaseParser):
         ----------
         spectrum : dict
             The dictionary defining the spectrum in MGF format.
+
         """
         self._counter += 1
         if self.ms_level is not None and 1 not in self.ms_level:
@@ -531,6 +547,7 @@ def _parse_scan_id(scan_str: str | int) -> int:
     -------
     int
         The scan ID number.
+
     """
     try:
         return int(scan_str)
@@ -565,6 +582,7 @@ class ParserFactory:
             The peak file to parse.
         kwargs : dict
             Keyword arguments to pass to the parser.
+
         """
         for parser in cls.parsers:
             try:
