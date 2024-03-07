@@ -53,6 +53,7 @@ class PeptideTokenizer(Tokenizer):
         The integer representation of the stop token.
     padding_int : int
         The integer used to represent padding.
+
     """
 
     residues = {
@@ -125,6 +126,7 @@ class PeptideTokenizer(Tokenizer):
         -------
         torch.Tensor
             The monoisotopic m/z for each charged peptide.
+
         """
         if isinstance(tokens[0], str):
             tokens = self.tokenize(utils.listify(tokens))
@@ -149,6 +151,7 @@ class PeptideTokenizer(Tokenizer):
         -------
         list[str]
             The tokens that comprise the peptide sequence.
+
         """
         pep = self._parse_peptide(sequence)
         if self.replace_isoleucine_with_leucine:
@@ -192,6 +195,7 @@ class PeptideTokenizer(Tokenizer):
         -------
         PeptideTokenizer
             A tokenizer for peptides with the observed modifications.
+
         """
         if isinstance(sequences, str):
             sequences = [sequences]
@@ -258,6 +262,7 @@ class PeptideTokenizer(Tokenizer):
         -------
         MskbPeptideTokenizer
             A tokenizer for peptides with the observed modifications.
+
         """
         return MskbPeptideTokenizer.from_proforma(
             [f"{mod}A" for mod in MSKB_TO_UNIMOD.values()],
@@ -303,6 +308,7 @@ class MskbPeptideTokenizer(PeptideTokenizer):
         The integer representation of the stop token.
     padding_int : int
         The integer used to represent padding.
+
     """
 
     _parse_peptide = Peptide.from_massivekb

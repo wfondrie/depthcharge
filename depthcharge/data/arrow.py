@@ -82,6 +82,7 @@ def spectra_to_stream(
     -------
     Generator of pyarrow.RecordBatch
         Batches of parsed spectra.
+
     """
     parser_args = {
         "ms_level": ms_level,
@@ -195,6 +196,7 @@ def spectra_to_parquet(
     -------
     Path
         The Parquet file that was written.
+
     """
     streamer = spectra_to_stream(
         peak_file=peak_file,
@@ -290,6 +292,7 @@ def spectra_to_df(
     -------
     Path
         The Parquet file that was written.
+
     """
     streamer = spectra_to_stream(
         peak_file=peak_file,

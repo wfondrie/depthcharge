@@ -52,6 +52,7 @@ class CollateFnMixin:
         dict of str, tensor or list
             A dictionary mapping the columns of the lance dataset
             to a PyTorch tensor or list of values.
+
         """
         mz_array = nn.utils.rnn.pad_sequence(
             [s.pop("mz_array") for s in batch],
@@ -124,6 +125,7 @@ class SpectrumDataset(Dataset, CollateFnMixin):
     ----------
     peak_files : list of str
     path : Path
+
     """
 
     def __init__(
@@ -180,6 +182,7 @@ class SpectrumDataset(Dataset, CollateFnMixin):
             Keyword arguments passed `depthcharge.spectra_to_stream()` for
             peak files that are provided. This argument has no affect for
             DataFrame or parquet file inputs.
+
         """
         spectra = utils.listify(spectra)
         batch = next(_get_records(spectra, **kwargs))
@@ -207,6 +210,7 @@ class SpectrumDataset(Dataset, CollateFnMixin):
             key is a column and the value is the value for that
             row. List columns are automatically converted to
             PyTorch tensors if the nested data type is compatible.
+
         """
         return {
             k: _tensorize(v[0])
@@ -249,6 +253,7 @@ class SpectrumDataset(Dataset, CollateFnMixin):
             Keyword arguments passed `depthcharge.spectra_to_stream()` for
             peak files that are added. This argument has no affect for
             DataFrame or parquet file inputs.
+
         """
         return cls(spectra=None, path=path, **kwargs)
 
@@ -295,6 +300,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         The tokenizer for the annotations.
     annotations : str
         The annotation column in the dataset.
+
     """
 
     def __init__(
@@ -333,6 +339,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         dict of str, tensor or list
             A dictionary mapping the columns of the lance dataset
             to a PyTorch tensor or list of values.
+
         """
         batch = super().collate_fn(batch)
         batch[self.annotations] = self.tokenizer.tokenize(
@@ -363,6 +370,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             Keyword arguments passed `depthcharge.spectra_to_stream()` for
             peak files that are added. This argument has no affect for
             DataFrame or parquet file inputs.
+
         """
         return cls(
             spectra=None,
@@ -408,6 +416,7 @@ class StreamingSpectrumDataset(IterableDataset, CollateFnMixin):
     ----------
     batch_size : int
         The batch size to use for loading mass spectra.
+
     """
 
     def __init__(
@@ -451,6 +460,7 @@ def _get_records(
         The data to add.
     **kwargs : dict
         Keyword arguments for the parser.
+
     """
     for spectra in data:
         try:
@@ -478,6 +488,7 @@ def _tensorize(obj: Any) -> Any:  # noqa: ANN401
     Any
         Whatever type the object is, unless its been transformed to
         a PyTorch tensor.
+
     """
     if not isinstance(obj, list):
         return obj

@@ -26,5 +26,6 @@ def generate_tgt_mask(sz: int) -> torch.Tensor:
     ----------
     sz : int
         The length of the target sequence.
+
     """
     return ~torch.triu(torch.ones(sz, sz, dtype=torch.bool)).transpose(0, 1)

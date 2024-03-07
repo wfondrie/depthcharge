@@ -22,6 +22,7 @@ class Tokenizer(ABC):
         The start token to use.
     stop_token : str, optional
         The stop token to use.
+
     """
 
     def __init__(
@@ -86,6 +87,7 @@ class Tokenizer(ABC):
             Either a tensor containing the integer values for each
             token, padded with 0's, or the list of tokens comprising
             each sequence.
+
         """
         add_start = add_start and self.start_token is not None
         add_stop = add_stop and self.stop_token is not None
@@ -136,6 +138,7 @@ class Tokenizer(ABC):
         -------
         list[str] or list[list[str]]
             The decoded sequences each as a string or list or strings.
+
         """
         decoded = []
         for row in tokens:

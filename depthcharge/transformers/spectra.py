@@ -49,6 +49,7 @@ class SpectrumTransformerEncoder(
         spectrum.
     transformer_encoder : torch.nn.TransformerEncoder
         The Transformer encoder layers.
+
     """
 
     def __init__(
@@ -122,6 +123,7 @@ class SpectrumTransformerEncoder(
             peaks.
         mem_mask : torch.Tensor
             The memory mask specifying which elements were padding in X.
+
         """
         spectra = torch.stack([mz_array, intensity_array], dim=2)
 
@@ -189,5 +191,6 @@ class SpectrumTransformerEncoder(
         -------
         torch.Tensor of shape (batch_size, d_model)
             The precursor representations.
+
         """
         return torch.zeros((mz_array.shape[0], self.d_model)).type_as(mz_array)

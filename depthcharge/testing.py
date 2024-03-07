@@ -22,6 +22,7 @@ def assert_dicts_equal(
     ------
     AssertionError
         Indicates that the two dictionaries are not equal.
+
     """
     bad_keys = []
     assert set(dict1.keys()) == set(dict2.keys())

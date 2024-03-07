@@ -20,6 +20,7 @@ class AnalyteDataset(TensorDataset):
         your tokenizer. ProForma is preferred.
     *args : torch.Tensor, optional
         Additional values to include during data loading.
+
     """
 
     def __init__(
@@ -53,5 +54,6 @@ class AnalyteDataset(TensorDataset):
         -------
         torch.utils.data.DataLoader
             A DataLoader for the peptide.
+
         """
         return DataLoader(self, *args, **kwargs)

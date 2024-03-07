@@ -42,6 +42,7 @@ class MoleculeTokenizer(Tokenizer):
         The integer representation of the stop token.
     padding_int : int
         The integer used to represent padding.
+
     """
 
     def __init__(
@@ -69,6 +70,7 @@ class MoleculeTokenizer(Tokenizer):
         -------
         List[str]
             The SELFIES tokens representing the molecule.
+
         """
         try:
             return list(sf.split_selfies(sf.encoder(sequence)))
@@ -98,6 +100,7 @@ class MoleculeTokenizer(Tokenizer):
         MoleculeTokenizer
             The tokenizer restricted to the vocabulary present in the
             input SMILES strings.
+
         """
         vocab = sf.get_alphabet_from_selfies(
             Molecule(s).to_selfies() for s in utils.listify(smiles)
@@ -129,6 +132,7 @@ class MoleculeTokenizer(Tokenizer):
         MoleculeTokenizer
             The tokenizer restricted to the vocabulary present in the
             input SMILES strings.
+
         """
         vocab = sf.get_alphabet_from_selfies(utils.listify(selfies))
         return cls(vocab, start_token, stop_token)

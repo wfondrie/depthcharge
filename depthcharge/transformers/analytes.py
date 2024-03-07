@@ -36,6 +36,7 @@ class _AnalyteTransformer(torch.nn.Module, ModelMixin, TransformerMixin):
     padding_int : int, optional
         The index that represents padding in the input sequence. Required
         only if ``n_tokens`` was provided as an ``int``.
+
     """
 
     def __init__(
@@ -122,6 +123,7 @@ class _AnalyteTransformer(torch.nn.Module, ModelMixin, TransformerMixin):
         -------
         torch.Tensor of shape (batch_size, d_model)
             The global token representations.
+
         """
         return torch.zeros((tokens.shape[0], self.d_model)).type_as(
             self.token_encoder.weight
@@ -155,6 +157,7 @@ class AnalyteTransformerEncoder(_AnalyteTransformer):
     padding_int : int, optional
         The index that represents padding in the input sequence. Required
         only if ``n_tokens`` was provided as an ``int``.
+
     """
 
     def __init__(
@@ -225,6 +228,7 @@ class AnalyteTransformerEncoder(_AnalyteTransformer):
             peaks.
         mem_mask : torch.Tensor
             The memory mask specifying which elements were padding in X.
+
         """
         # Encode everything:
         encoded = self.token_encoder(tokens)
@@ -273,6 +277,7 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
     padding_int : int, optional
         The index that represents padding in the input sequence. Required
         only if ``n_tokens`` was provided as an ``int``.
+
     """
 
     def __init__(
@@ -362,6 +367,7 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
             of the tokens in the sequence. These may be tranformed to yield
             scores for token predictions using the `.score_embeddings()`
             method.
+
         """
         # Prepare sequences
         if tokens is None:
@@ -409,6 +415,7 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
             The raw output for the final linear layer. These can be Softmax
             transformed to yield the probability of each token for the
             prediction.
+
         """
         return self.final(embeddings)
 
