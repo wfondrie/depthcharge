@@ -25,3 +25,44 @@ def test_init(mode, vocab, len_vocab):
         tokenizer = MoleculeTokenizer(vocab)
 
     assert len(tokenizer.selfies_vocab) == len_vocab
+
+
+@pytest.mark.parametrize(
+    "molecule",
+    [
+        "Cn1cnc2c1c(=O)n(C)c(=O)n2C",
+        "[C][N][C][=N][C][=C][Ring1][Branch1][C][=Branch1][C][=O][N][Branch1]"
+        "[C][C][C][=Branch1][C][=O][N][Ring1][=Branch2][C]",
+    ],
+)
+def test_split(molecule):
+    """Test that split works as expected."""
+    expected = [
+        "[C]",
+        "[N]",
+        "[C]",
+        "[=N]",
+        "[C]",
+        "[=C]",
+        "[Ring1]",
+        "[Branch1]",
+        "[C]",
+        "[=Branch1]",
+        "[C]",
+        "[=O]",
+        "[N]",
+        "[Branch1]",
+        "[C]",
+        "[C]",
+        "[C]",
+        "[=Branch1]",
+        "[C]",
+        "[=O]",
+        "[N]",
+        "[Ring1]",
+        "[=Branch2]",
+        "[C]",
+    ]
+
+    tokenizer = MoleculeTokenizer()
+    assert expected == tokenizer.split(molecule)

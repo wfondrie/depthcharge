@@ -71,9 +71,9 @@ class MoleculeTokenizer(Tokenizer):
             The SELFIES tokens representing the molecule.
         """
         try:
-            return sf.split_selfies(sequence)
-        except AttributeError:
-            return sf.split_selfies(Molecule(sequence).to_selfies())
+            return list(sf.split_selfies(sf.encoder(sequence)))
+        except sf.EncoderError:
+            return list(sf.split_selfies(sequence))
 
     @classmethod
     def from_smiles(

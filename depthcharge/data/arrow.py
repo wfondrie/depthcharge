@@ -210,12 +210,15 @@ def spectra_to_parquet(
     if parquet_file is None:
         parquet_file = Path(Path(peak_file).stem).with_suffix(".parquet")
 
-    writer = None
-    for batch in streamer:
-        if writer is None:
-            writer = pq.ParquetWriter(parquet_file, schema=batch.schema)
+    try:
+        writer = None
+        for batch in streamer:
+            if writer is None:
+                writer = pq.ParquetWriter(parquet_file, schema=batch.schema)
 
-        writer.write_batch(batch)
+            writer.write_batch(batch)
+    finally:
+        writer.close()
 
     return parquet_file
 
