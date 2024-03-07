@@ -20,13 +20,13 @@ class PeptideTokenizer(Tokenizer):
 
     Parameters
     ----------
-    residues : iterable of str
-        Residues and modifications to add to the vocabulary byone
+    residues : dict[str, float], optional
+        Residues and modifications to add to the vocabulary beyond
         the standard 20 amino acids.
-    replace_isoleucine_with_leucine : bool
-        Replace I with L residues, because they are isobaric and often
+    replace_isoleucine_with_leucine : bool, optional
+        Replace I with L residues, because they are isomeric and often
         indistinguishable by mass spectrometry.
-    reverse : bool
+    reverse : bool, optional
         Reverse the sequence for tokenization, C-terminus to N-terminus.
     start_token : str, optional
         The start token to use.
@@ -38,7 +38,7 @@ class PeptideTokenizer(Tokenizer):
     residues : SortedDict[str, float]
         The residues and modifications and their associated masses.
         terminal modifcations are indicated by `-`.
-    index : SortedDicte{str, int}
+    index : SortedDict{str, int}
         The mapping of residues and modifications to integer representations.
     reverse_index : list[None | str]
         The ordered residues and modifications where the list index is the

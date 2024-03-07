@@ -27,7 +27,7 @@ class MoleculeTokenizer(Tokenizer):
 
     Attributes
     ----------
-    index : SortedDicte{str, int}
+    index : SortedDict{str, int}
         The mapping of residues and modifications to integer representations.
     reverse_index : list[None | str]
         The ordered residues and modifications where the list index is the
