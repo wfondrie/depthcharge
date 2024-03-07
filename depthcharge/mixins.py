@@ -12,7 +12,7 @@ class ModelMixin:
 
 
 class TransformerMixin:
-    """Properties shard by Transformer models."""
+    """Properties shared by Transformer models."""
 
     @property
     def d_model(self) -> int:

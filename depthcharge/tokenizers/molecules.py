@@ -13,8 +13,8 @@ from .tokenizer import Tokenizer
 class MoleculeTokenizer(Tokenizer):
     """A tokenizer for small molecules.
 
-    SMILES strings representing small molecules are parsed as
-    SELFIES representations and split into tokens.
+    Tokenize SMILES and SELFIES representations of small molecules.
+    SMILES are internally converted to SELFIES representations.
 
     Parameters
     ----------

@@ -66,7 +66,7 @@ line-length = 79
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "C", "I", "D", "UP", "N", "ANN", "T20"]
+select = ["E", "F", "W", "C", "I", "D", "UP", "N", "T20"]
 
 # ANN101 Missing type annotation for `self` in method
 # D213 Multi-line docstring summary should start at the second lin
