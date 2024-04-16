@@ -4,20 +4,20 @@ from __future__ import annotations
 
 import logging
 import uuid
-import warnings
 from collections.abc import Generator, Iterable
 from os import PathLike
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Literal
+from typing import Any
 
 import lance
 import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
 import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset, IterableDataset
+from lance.torch.data import LanceDataset
+from torch import nn
+from torch.utils.data import IterableDataset
 
 from .. import utils
 from ..tokenizers import PeptideTokenizer
@@ -26,84 +26,26 @@ from . import arrow
 LOGGER = logging.getLogger(__name__)
 
 
-class CollateFnMixin:
-    """Define a common collate function."""
-
-    def __init__(self) -> None:
-        """Specify the float precision."""
-        self.precision = torch.float64
-
-    def collate_fn(
-        self,
-        batch: Iterable[dict[Any]],
-    ) -> dict[str, torch.Tensor | list[Any]]:
-        """The collate function for a SpectrumDataset.
-
-        Transform compatible data types into PyTorch tensors and
-        pad the m/z and intensities arrays of each mass spectrum with
-        zeros to be stacked into tensor.
-
-        Parameters
-        ----------
-        batch : iterable of dict
-            A batch of data.
-
-        Returns
-        -------
-        dict of str, tensor or list
-            A dictionary mapping the columns of the lance dataset
-            to a PyTorch tensor or list of values.
-
-        """
-        mz_array = nn.utils.rnn.pad_sequence(
-            [s.pop("mz_array") for s in batch],
-            batch_first=True,
-        )
-
-        intensity_array = nn.utils.rnn.pad_sequence(
-            [s.pop("intensity_array") for s in batch],
-            batch_first=True,
-        )
-
-        batch = torch.utils.data.default_collate(batch)
-        batch["mz_array"] = mz_array
-        batch["intensity_array"] = intensity_array
-
-        for key, val in batch.items():
-            if isinstance(val, torch.Tensor) and torch.is_floating_point(val):
-                batch[key] = val.type(self.precision)
-
-        return batch
-
-    def loader(
-        self,
-        precision: Literal[
-            torch.float16, torch.float32, torch.float64
-        ] = torch.float64,
-        **kwargs: dict,
-    ) -> DataLoader:
-        """Create a suitable PyTorch DataLoader."""
-        self.precision = precision
-        if kwargs.get("collate_fn", False):
-            warnings.warn("The default collate_fn was overridden.")
-        else:
-            kwargs["collate_fn"] = self.collate_fn
-
-        return DataLoader(self, **kwargs)
-
-
-class SpectrumDataset(Dataset, CollateFnMixin):
+class SpectrumDataset(LanceDataset):
     """Store and access a collection of mass spectra.
 
     Parse and/or add mass spectra to an index in the
     [lance data format](https://lancedb.github.io/lance/index.html).
     This format enables fast random access to spectra for training.
-    This file is then served as a PyTorch Dataset, allowing spectra
-    to be accessed efficiently for training and inference.
+    This file is then served as a PyTorch IterableDataset, allowing
+    spectra to be accessed efficiently for training and inference.
+    This is accomplished using the
+    [Lance PyTorch integration](https://lancedb.github.io/lance/integrations/pytorch.html).
+
+    The `batch_size` parameter for this class indepedent of the `batch_size`
+    of the PyTorch DataLoader. Generally, we only want the former parameter to
+    greater than 1. Additionally, this dataset should not be
+    used with a DataLoader set to `max_workers` > 1, unless specific care is
+    used to handle the
+    [caveats of a PyTorch IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset)
 
     If you wish to use an existing lance dataset, use the `from_lance()`
     method.
-
 
     Parameters
     ----------
@@ -113,14 +55,20 @@ class SpectrumDataset(Dataset, CollateFnMixin):
         `depthcharge.spectra_to_parquet()`, or a peak file in the mzML,
         mzXML, or MGF format. Additional spectra can be added later using
         the `.add_spectra()` method.
+    batch_size : int
+        The batch size to use for loading mass spectra. Note that this is
+        independent from the batch size for the PyTorch DataLoader.
     path : PathLike, optional.
         The name and path of the lance dataset. If the path does
         not contain the `.lance` then it will be added.
         If `None`, a file will be created in a temporary directory.
-    **kwargs : dict
+    parse_kwargs : dict, optional
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
         peak files that are provided. This argument has no affect for
         DataFrame or parquet file inputs.
+    **kwargs : dict
+        Keyword arguments to initialize a
+        `[lance.torch.data.LanceDataset](https://lancedb.github.io/lance/api/python/lance.torch.html#lance.torch.data.LanceDataset)`.
 
     Attributes
     ----------
@@ -132,10 +80,13 @@ class SpectrumDataset(Dataset, CollateFnMixin):
     def __init__(
         self,
         spectra: pl.DataFrame | PathLike | Iterable[PathLike],
+        batch_size: int,
         path: PathLike | None = None,
+        parse_kwargs: dict | None = None,
         **kwargs: dict,
     ) -> None:
         """Initialize a SpectrumDataset."""
+        self._parse_kwargs = {} if parse_kwargs is None else parse_kwargs
         self._tmpdir = None
         if path is None:
             # Create a random temporary file:
@@ -149,9 +100,9 @@ class SpectrumDataset(Dataset, CollateFnMixin):
         # Now parse spectra.
         if spectra is not None:
             spectra = utils.listify(spectra)
-            batch = next(_get_records(spectra, **kwargs))
+            batch = next(_get_records(spectra, **self._parse_kwargs))
             lance.write_dataset(
-                _get_records(spectra, **kwargs),
+                _get_records(spectra, **self._parse_kwargs),
                 self._path,
                 mode="overwrite",
                 schema=batch.schema,
@@ -161,11 +112,14 @@ class SpectrumDataset(Dataset, CollateFnMixin):
             raise ValueError("No spectra were provided")
 
         self._dataset = lance.dataset(self._path)
+        if "to_tensor_fn" not in kwargs:
+            kwargs["to_tensor_fn"] = self._to_tensor
+
+        super().__init__(self._dataset, batch_size, **kwargs)
 
     def add_spectra(
         self,
         spectra: pl.DataFrame | PathLike | Iterable[PathLike],
-        **kwargs: dict,
     ) -> SpectrumDataset:
         """Add mass spectrometry data to the lance dataset.
 
@@ -179,16 +133,12 @@ class SpectrumDataset(Dataset, CollateFnMixin):
             with `depthcharge.spectra_to_df()`, parquet files created with
             `depthcharge.spectra_to_parquet()`, or a peak file in the mzML,
             mzXML, or MGF format.
-        **kwargs : dict
-            Keyword arguments passed `depthcharge.spectra_to_stream()` for
-            peak files that are provided. This argument has no affect for
-            DataFrame or parquet file inputs.
 
         """
         spectra = utils.listify(spectra)
-        batch = next(_get_records(spectra, **kwargs))
+        batch = next(_get_records(spectra, **self._parse_kwargs))
         self._dataset = lance.write_dataset(
-            _get_records(spectra, **kwargs),
+            _get_records(spectra, **self._parse_kwargs),
             self._path,
             mode="append",
             schema=batch.schema,
@@ -213,10 +163,7 @@ class SpectrumDataset(Dataset, CollateFnMixin):
             PyTorch tensors if the nested data type is compatible.
 
         """
-        return {
-            k: _tensorize(v[0])
-            for k, v in self._dataset.take([idx]).to_pydict().items()
-        }
+        return self._to_tensor(self._dataset.take(utils.listify(idx)))
 
     def __len__(self) -> int:
         """The number of spectra in the lance dataset."""
@@ -243,20 +190,70 @@ class SpectrumDataset(Dataset, CollateFnMixin):
         return self._path
 
     @classmethod
-    def from_lance(cls, path: PathLike, **kwargs: dict) -> SpectrumDataset:
+    def from_lance(
+        cls,
+        path: PathLike,
+        batch_size: int,
+        parse_kwargs: dict | None = None,
+        **kwargs: dict,
+    ) -> SpectrumDataset:
         """Load a previously created lance dataset.
 
         Parameters
         ----------
         path : PathLike
             The path of the lance dataset.
-        **kwargs : dict
+        batch_size : int
+            The batch size to use for loading mass spectra. Note that this is
+            independent from the batch size for the PyTorch DataLoader.
+        parse_kwargs : dict, optional
             Keyword arguments passed `depthcharge.spectra_to_stream()` for
-            peak files that are added. This argument has no affect for
-            DataFrame or parquet file inputs.
+            peak files that are provided.
+        **kwargs : dict
+            Keyword arguments to initialize a
+            `[lance.torch.data.LanceDataset](https://lancedb.github.io/lance/api/python/lance.torch.html#lance.torch.data.LanceDataset)`.
+
+        Returns
+        -------
+        SpectrumDataset
+            The dataset of mass spectra.
 
         """
-        return cls(spectra=None, path=path, **kwargs)
+        return cls(
+            spectra=None,
+            batch_size=batch_size,
+            path=path,
+            parse_kwargs=parse_kwargs,
+            **kwargs,
+        )
+
+    def _to_tensor(
+        self,
+        batch: pa.RecordBatch,
+    ) -> dict[str, torch.Tensor | list[str | torch.Tensor]]:
+        """Convert a record batch to tensors.
+
+        Parameters
+        ----------
+        batch : pyarrow.RecordBatch
+            The batch of data.
+
+        Returns
+        -------
+        dict of str to tensors or lists
+            The batch of data as a Python dict.
+
+        """
+        batch = {k: _tensorize(v) for k, v in batch.to_pydict().items()}
+        batch["mz_array"] = nn.utils.rnn.pad_sequence(
+            batch["mz_array"],
+            batch_first=True,
+        )
+        batch["intensity_array"] = nn.utils.rnn.pad_sequence(
+            batch["intensity_array"],
+            batch_first=True,
+        )
+        return batch
 
 
 class AnnotatedSpectrumDataset(SpectrumDataset):
@@ -265,8 +262,17 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     Parse and/or add mass spectra to an index in the
     [lance data format](https://lancedb.github.io/lance/index.html).
     This format enables fast random access to spectra for training.
-    This file is then served as a PyTorch Dataset, allowing spectra
-    to be accessed efficiently for training and inference.
+    This file is then served as a PyTorch IterableDataset, allowing
+    spectra to be accessed efficiently for training and inference.
+    This is accomplished using the
+    [Lance PyTorch integration](https://lancedb.github.io/lance/integrations/pytorch.html).
+
+    The `batch_size` parameter for this class indepedent of the `batch_size`
+    of the PyTorch DataLoader. Generally, we only want the former parameter to
+    greater than 1. Additionally, this dataset should not be
+    used with a DataLoader set to `max_workers` > 1, unless specific care is
+    used to handle the
+    [caveats of a PyTorch IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset)
 
     If you wish to use an existing lance dataset, use the `from_lance()`
     method.
@@ -284,14 +290,20 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     tokenizer : PeptideTokenizer
         The tokenizer used to transform the annotations into PyTorch
         tensors.
+    batch_size : int
+        The batch size to use for loading mass spectra. Note that this is
+        independent from the batch size for the PyTorch DataLoader.
     path : PathLike, optional.
         The name and path of the lance dataset. If the path does
         not contain the `.lance` then it will be added.
         If ``None``, a file will be created in a temporary directory.
-    **kwargs : dict
+    parse_kwargs : dict, optional
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
         peak files that are provided. This argument has no affect for
         DataFrame or parquet file inputs.
+    **kwargs : dict
+        Keyword arguments to initialize a
+        `[lance.torch.data.LanceDataset](https://lancedb.github.io/lance/api/python/lance.torch.html#lance.torch.data.LanceDataset)`.
 
     Attributes
     ----------
@@ -309,7 +321,9 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         spectra: pl.DataFrame | PathLike | Iterable[PathLike],
         annotations: str,
         tokenizer: PeptideTokenizer,
+        batch_size: int,
         path: PathLike = None,
+        parse_kwargs: dict | None = None,
         **kwargs: dict,
     ) -> None:
         """Initialize an AnnotatedSpectrumDataset."""
@@ -317,32 +331,30 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         self.annotations = annotations
         super().__init__(
             spectra=spectra,
+            batch_size=batch_size,
             path=path,
+            parse_kwargs=parse_kwargs,
             **kwargs,
         )
 
-    def collate_fn(
+    def _to_tensor(
         self,
-        batch: Iterable[dict[Any]],
-    ) -> dict[Any]:
-        """The collate function for a AnnotatedSpectrumDataset.
-
-        The mass spectra must be padded so that they fit nicely as a tensor.
-        However, the padded elements are ignored during the subsequent steps.
+        batch: pa.RecordBatch,
+    ) -> dict[str, torch.Tensor | list[str | torch.Tensor]]:
+        """Convert a record batch to tensors.
 
         Parameters
         ----------
-        batch : tuple of tuple of torch.Tensor
-            A batch of data from an AnnotatedSpectrumDataset.
+        batch : pyarrow.RecordBatch
+            The batch of data.
 
         Returns
         -------
-        dict of str, tensor or list
-            A dictionary mapping the columns of the lance dataset
-            to a PyTorch tensor or list of values.
+        dict of str to tensors or lists
+            The batch of data as a Python dict.
 
         """
-        batch = super().collate_fn(batch)
+        batch = super()._to_tensor(batch)
         batch[self.annotations] = self.tokenizer.tokenize(
             batch[self.annotations]
         )
@@ -354,6 +366,8 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         path: PathLike,
         annotations: str,
         tokenizer: PeptideTokenizer,
+        batch_size: int,
+        parse_kwargs: dict | None = None,
         **kwargs: dict,
     ) -> AnnotatedSpectrumDataset:
         """Load a previously created lance dataset.
@@ -367,22 +381,34 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         tokenizer : PeptideTokenizer
             The tokenizer used to transform the annotations into PyTorch
             tensors.
-        **kwargs : dict
+        batch_size : int
+            The batch size to use for loading mass spectra. Note that this is
+            independent from the batch size for the PyTorch DataLoader.
+        parse_kwargs : dict, optional
             Keyword arguments passed `depthcharge.spectra_to_stream()` for
-            peak files that are added. This argument has no affect for
-            DataFrame or parquet file inputs.
+            peak files that are provided.
+        **kwargs : dict
+            Keyword arguments to initialize a
+            `[lance.torch.data.LanceDataset](https://lancedb.github.io/lance/api/python/lance.torch.html#lance.torch.data.LanceDataset)`.
+
+        Returns
+        -------
+        AnnotatedSpectrumDataset
+            The dataset of annotated mass spectra.
 
         """
         return cls(
             spectra=None,
             annotations=annotations,
             tokenizer=tokenizer,
+            batch_size=batch_size,
             path=path,
+            parse_kwargs=parse_kwargs,
             **kwargs,
         )
 
 
-class StreamingSpectrumDataset(IterableDataset, CollateFnMixin):
+class StreamingSpectrumDataset(IterableDataset):
     """Stream mass spectra from a file or DataFrame.
 
     While the on-disk dataset provided by `depthcharge.data.SpectrumDataset`
@@ -393,10 +419,11 @@ class StreamingSpectrumDataset(IterableDataset, CollateFnMixin):
     cannot be shuffled.
 
     The `batch_size` parameter for this class indepedent of the `batch_size`
-    of the PyTorch DataLoader. The former specified how many spectra are
-    simultaneously read into memory, whereas the latter specifies the batch
-    size served to a model. Additionally, this dataset should not be
-    used with a DataLoader set to `max_workers` > 1.
+    of the PyTorch DataLoader. Generally, we only want the former parameter to
+    greater than 1. Additionally, this dataset should not be
+    used with a DataLoader set to `max_workers` > 1, unless specific care is
+    used to handle the
+    [caveats of a PyTorch IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset)
 
     Parameters
     ----------
@@ -408,7 +435,7 @@ class StreamingSpectrumDataset(IterableDataset, CollateFnMixin):
     batch_size : int
         The batch size to use for loading mass spectra. Note that this is
         independent from the batch size for the PyTorch DataLoader.
-    **kwargs : dict
+    **parse_kwargs : dict
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
         peak files that are provided. This argument has no affect for
         DataFrame or parquet file inputs.
@@ -424,30 +451,23 @@ class StreamingSpectrumDataset(IterableDataset, CollateFnMixin):
         self,
         spectra: pl.DataFrame | PathLike | Iterable[PathLike],
         batch_size: int,
-        **kwargs: dict,
+        **parse_kwargs: dict,
     ) -> None:
         """Initialize a StreamingSpectrumDataset."""
+        super().__init__()
         self.batch_size = batch_size
         self._spectra = utils.listify(spectra)
-        self._kwargs = kwargs
+        self._parse_kwargs = parse_kwargs
 
     def __iter__(self) -> dict[str, Any]:
         """Yield a batch mass spectra."""
         records = _get_records(
             self._spectra,
             batch_size=self.batch_size,
-            **self._kwargs,
+            **self._parse_kwargs,
         )
         for batch in records:
-            for row in batch.to_pylist():
-                yield {k: _tensorize(v) for k, v in row.items()}
-
-    def loader(self, **kwargs: dict) -> DataLoader:
-        """Create a suitable PyTorch DataLoader."""
-        if kwargs.get("num_workers", 0) > 1:
-            warnings.warn("'num_workers' > 1 may have unexpected behavior.")
-
-        return super().loader(**kwargs)
+            yield _to_tensor(batch)
 
 
 def _get_records(
@@ -475,6 +495,35 @@ def _get_records(
         yield from spectra
 
 
+def _to_tensor(
+    batch: pa.RecordBatch,
+) -> dict[str, torch.Tensor | list[str | torch.Tensor]]:
+    """Convert a record batch to tensors.
+
+    Parameters
+    ----------
+    batch : pyarrow.RecordBatch
+        The batch of data.
+
+    Returns
+    -------
+    dict of str to tensors or lists
+        The batch of data as a Python dict.
+
+    """
+    batch = {k: _tensorize(v) for k, v in batch.to_pydict().items()}
+    batch["mz_array"] = nn.utils.rnn.pad_sequence(
+        batch["mz_array"],
+        batch_first=True,
+    )
+
+    batch["intensity_array"] = nn.utils.rnn.pad_sequence(
+        batch["intensity_array"],
+        batch_first=True,
+    )
+    return batch
+
+
 def _tensorize(obj: Any) -> Any:  # noqa: ANN401
     """Turn lists into tensors.
 
@@ -497,6 +546,6 @@ def _tensorize(obj: Any) -> Any:  # noqa: ANN401
     try:
         return torch.tensor(obj)
     except ValueError:
-        pass
+        obj = [_tensorize(x) for x in obj]
 
     return obj
