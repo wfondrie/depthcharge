@@ -1,10 +1,12 @@
-# Changelog for depthcharge
+# Changelog for Depthcharge
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v1.0.0]
 
 We have completely reworked of the data module.
 Depthcharge now uses Apache Arrow-based formats instead of HDF5; spectra are converted either Parquet or streamed with PyArrow, optionally into Lance datasets.
@@ -18,6 +20,7 @@ We now also have full support for small molecules, with the `MoleculeTokenizer`,
 - Parsers can now be told to read arbitrary fields from their respective file formats with the `custom_fields` parameter.
 - The parsing functionality of `SpctrumDataset` and its subclasses have been moved to the `spectra_to_*` functions in the data module.
 - `SpectrumDataset` and its subclasses now return dictionaries of data rather than a tuple of data. This allows us to incorporate arbitrary additional data
+- `SpectrumDataset` and its subclasses are now `lance.torch.data.LanceDataset` subclasses, providing native PyTorch integration.
 
 ### Added
 - Support for small molecules.
