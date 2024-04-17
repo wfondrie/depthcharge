@@ -30,8 +30,13 @@ jobs:
           pip install uv
           uv pip install ".[docs]" --system
 
-      - name: Deploy Docs
+      - name: Build Docs
+        if: github.event_name != 'pull_request'
         run: mike deploy ${{ github.ref_name }}
+
+      - name: Test Build Docs
+        if: github.event_name == 'pull_request'
+        run: mike deploy pr_test
 
       - name: Tag with latest
         if: github.event_name == 'release' && github.event.action == 'created'
