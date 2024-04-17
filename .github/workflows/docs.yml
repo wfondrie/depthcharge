@@ -28,7 +28,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install uv
-          uv pip install ".[docs]"
+          uv pip install ".[docs]" --system
 
       - name: Deploy Docs
         run: mike deploy ${{ github.ref_name }}
