@@ -39,6 +39,7 @@ plugins:
           options:
             docstring_style: numpy
             show_root_heading: true
+            show_root_full_path: false
             heading_level: 3
             docstring_section_style: spacy
             show_source: false
@@ -46,8 +47,10 @@ plugins:
             docstring_options:
               ignore_init_summary: true
               trim_doctest_flags: true
-            options:
-              members: true
+
+            inherited_members: true
+            members:
+            filters: ["!^_", "!^__"]
 
 markdown_extensions:
   - attr_list

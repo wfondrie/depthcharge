@@ -2,4 +2,5 @@
 
 ::: depthcharge.data.SpectrumDataset
 ::: depthcharge.data.AnnotatedSpectrumDataset
-::: depthcharge.data.PeptideDataset
+::: depthcharge.data.StreamingSpectrumDataset
+::: depthcharge.data.AnalyteDataset
