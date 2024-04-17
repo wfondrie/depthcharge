@@ -1,4 +1,5 @@
 """A flexible feed-forward neural network."""
+
 from collections.abc import Iterable
 
 import numpy as np
@@ -25,6 +26,7 @@ class FeedForward(torch.nn.Module):
         The activation function to place between layers.
     append : torch.nn.Module or None, optional
         A final layer to append, such as a sigmoid or tanh.
+
     """
 
     def __init__(
@@ -73,5 +75,6 @@ class FeedForward(torch.nn.Module):
         -------
         torch.Tensor of shape (..., out_features)
             The output tensor.
+
         """
         return self.layers(X)

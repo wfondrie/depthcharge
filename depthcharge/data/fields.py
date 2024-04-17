@@ -1,4 +1,5 @@
 """Custom fields for the Arrow Schema."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -24,6 +25,7 @@ class CustomField:
         each spectrum.
     dtype: pyarrow.DataType
         The expected Arrow data type for the column in the schema.
+
     """
 
     name: str

@@ -1,4 +1,5 @@
 """Pytest fixtures."""
+
 from pathlib import Path
 
 import numpy as np
@@ -55,6 +56,7 @@ def _create_mgf_entry(peptide, charge=2):
     -------
     str
         The PSM entry in an MGF file format.
+
     """
     missing = not charge
     charge = 2 if not charge else charge
@@ -108,6 +110,7 @@ def _create_mgf(peptides, mgf_file, add_problems=False, random_state=42):
     -------
     PathLike
         The MGF file.
+
     """
     rng = np.random.default_rng(random_state)
     peptides = list(peptides)
@@ -146,6 +149,7 @@ def _random_peptides(n_peptides, random_state=42):
     ------
     str
         A peptide sequence
+
     """
     rng = np.random.default_rng(random_state)
     residues = "ACDEFGHIKLMNPQRSTUVWY"

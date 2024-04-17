@@ -1,4 +1,5 @@
 """Test the arrow functionality."""
+
 import polars as pl
 import pyarrow as pa
 import pytest

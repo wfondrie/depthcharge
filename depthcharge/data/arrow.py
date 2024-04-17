@@ -1,4 +1,5 @@
 """Store spectrum data as Arrow tables."""
+
 from collections.abc import Callable, Generator, Iterable
 from os import PathLike
 from pathlib import Path
@@ -82,6 +83,7 @@ def spectra_to_stream(
     -------
     Generator of pyarrow.RecordBatch
         Batches of parsed spectra.
+
     """
     parser_args = {
         "ms_level": ms_level,
@@ -195,6 +197,7 @@ def spectra_to_parquet(
     -------
     Path
         The Parquet file that was written.
+
     """
     streamer = spectra_to_stream(
         peak_file=peak_file,
@@ -210,12 +213,15 @@ def spectra_to_parquet(
     if parquet_file is None:
         parquet_file = Path(Path(peak_file).stem).with_suffix(".parquet")
 
-    writer = None
-    for batch in streamer:
-        if writer is None:
-            writer = pq.ParquetWriter(parquet_file, schema=batch.schema)
+    try:
+        writer = None
+        for batch in streamer:
+            if writer is None:
+                writer = pq.ParquetWriter(parquet_file, schema=batch.schema)
 
-        writer.write_batch(batch)
+            writer.write_batch(batch)
+    finally:
+        writer.close()
 
     return parquet_file
 
@@ -287,6 +293,7 @@ def spectra_to_df(
     -------
     Path
         The Parquet file that was written.
+
     """
     streamer = spectra_to_stream(
         peak_file=peak_file,
