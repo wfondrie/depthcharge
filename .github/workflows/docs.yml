@@ -12,9 +12,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        run: git fetch origin gh-pages --depth=1
+      - uses: actions/checkout@v4
+
+      - name: Checkout Repo
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git fetch origin gh-pages --depth=1
 
       - name: Setup Python
         uses: actions/setup-python@v4
