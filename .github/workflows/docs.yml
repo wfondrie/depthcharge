@@ -2,22 +2,24 @@ name: Push docs
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   release:
     types: [created, edited]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         run: git fetch origin gh-pages --depth=1
 
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Install Dependencies
         run: pip install ".[docs]"
@@ -28,3 +30,7 @@ jobs:
       - name: Tag with latest
         if: github.event_name == "release" && github.event.action == "created"
         run: mike alias -u ${{ github.ref_name }} latest
+
+      - name: Push deployment
+        if: github.event_name == "pull_request"
+        run: git push origin gh-pages
