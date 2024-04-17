@@ -3,7 +3,7 @@
 from collections.abc import Iterable
 
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import TensorDataset
 
 from ..tokenizers import Tokenizer
 
@@ -38,23 +38,3 @@ class AnalyteDataset(TensorDataset):
     def tokens(self) -> torch.Tensor:
         """The peptide sequence tokens."""
         return self.tensors[0]
-
-    def loader(self, *args: tuple, **kwargs: dict) -> DataLoader:
-        """A PyTorch DataLoader for peptides.
-
-        Parameters
-        ----------
-        *args : tuple
-            Arguments passed initialize a torch.utils.data.DataLoader,
-            excluding ``dataset``.
-        **kwargs : dict
-            Keyword arguments passed initialize a torch.utils.data.DataLoader,
-            excluding ``dataset``.
-
-        Returns
-        -------
-        torch.utils.data.DataLoader
-            A DataLoader for the peptide.
-
-        """
-        return DataLoader(self, *args, **kwargs)
