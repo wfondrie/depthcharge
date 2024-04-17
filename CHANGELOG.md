@@ -21,6 +21,7 @@ We now also have full support for small molecules, with the `MoleculeTokenizer`,
 - The parsing functionality of `SpctrumDataset` and its subclasses have been moved to the `spectra_to_*` functions in the data module.
 - `SpectrumDataset` and its subclasses now return dictionaries of data rather than a tuple of data. This allows us to incorporate arbitrary additional data
 - `SpectrumDataset` and its subclasses are now `lance.torch.data.LanceDataset` subclasses, providing native PyTorch integration.
+- All dataset classes now do not have a `loader()` method.
 
 ### Added
 - Support for small molecules.

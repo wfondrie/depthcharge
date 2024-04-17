@@ -68,7 +68,7 @@ def test_analyte_loader():
     charges = torch.tensor([5, 3, 1])
     tokenizer = PeptideTokenizer()
     dset = AnalyteDataset(tokenizer, seqs, charges)
-    loader = dset.loader(batch_size=2)
+    loader = DataLoader(dset, batch_size=2)
 
     batch = next(iter(loader))
     assert len(batch) == 2
@@ -80,7 +80,7 @@ def test_analyte_loader():
 
     args = (torch.tensor([1, 2, 3]), torch.tensor([[1, 1], [2, 2], [3, 3]]))
     dset = AnalyteDataset(tokenizer, seqs, charges, *args)
-    loader = dset.loader(batch_size=2)
+    loader = DataLoader(dset, batch_size=2)
 
     batch = next(iter(loader))
     assert len(batch) == 4
