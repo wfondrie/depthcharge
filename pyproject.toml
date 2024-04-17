@@ -45,6 +45,7 @@ Documentation = "https://wfondrie.github.io/depthcharge"
 
 [project.optional-dependencies]
 docs = [
+     "mike",
      "mkdocs",
      "mkdocs-material",
      "mkdocstrings[python]>=0.18",
