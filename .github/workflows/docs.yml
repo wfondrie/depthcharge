@@ -26,7 +26,9 @@ jobs:
           python-version: "3.11"
 
       - name: Install Dependencies
-        run: pip install ".[docs]"
+        run: |
+          pip install uv
+          uv pip install ".[docs]"
 
       - name: Deploy Docs
         run: mike deploy ${{ github.ref_name }}
