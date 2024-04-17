@@ -32,5 +32,5 @@ jobs:
         run: mike alias -u ${{ github.ref_name }} latest
 
       - name: Push deployment
-        if: github.event_name == "pull_request"
+        if: github.event_name != "pull_request"
         run: git push origin gh-pages
