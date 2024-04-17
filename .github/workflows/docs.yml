@@ -32,9 +32,9 @@ jobs:
         run: mike deploy ${{ github.ref_name }}
 
       - name: Tag with latest
-        if: github.event_name == "release" && github.event.action == "created"
+        if: github.event_name == 'release' && github.event.action == 'created'
         run: mike alias -u ${{ github.ref_name }} latest
 
       - name: Push deployment
-        if: github.event_name != "pull_request"
+        if: github.event_name != 'pull_request'
         run: git push origin gh-pages
