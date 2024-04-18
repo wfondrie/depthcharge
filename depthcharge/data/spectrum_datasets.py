@@ -17,6 +17,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import torch
 import torch.nn as nn
+from cloudpathlib import AnyPath
 from torch.utils.data import DataLoader, Dataset, IterableDataset
 
 from .. import utils
@@ -142,7 +143,7 @@ class SpectrumDataset(Dataset, CollateFnMixin):
             self._tmpdir = TemporaryDirectory()
             path = Path(self._tmpdir.name) / f"{uuid.uuid4()}.lance"
 
-        self._path = Path(path)
+        self._path = AnyPath(path)
         if self._path.suffix != ".lance":
             self._path = self._path.with_suffix(".lance")
 
@@ -152,7 +153,7 @@ class SpectrumDataset(Dataset, CollateFnMixin):
             batch = next(_get_records(spectra, **kwargs))
             lance.write_dataset(
                 _get_records(spectra, **kwargs),
-                self._path,
+                str(self._path),
                 mode="overwrite",
                 schema=batch.schema,
             )
@@ -160,7 +161,7 @@ class SpectrumDataset(Dataset, CollateFnMixin):
         elif not self._path.exists():
             raise ValueError("No spectra were provided")
 
-        self._dataset = lance.dataset(self._path)
+        self._dataset = lance.dataset(str(self._path))
 
     def add_spectra(
         self,

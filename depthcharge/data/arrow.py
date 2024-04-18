@@ -7,6 +7,7 @@ from pathlib import Path
 import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
+from cloudpathlib import AnyPath
 
 from .fields import CustomField
 from .parsers import ParserFactory
@@ -211,7 +212,7 @@ def spectra_to_parquet(
     )
 
     if parquet_file is None:
-        parquet_file = Path(Path(peak_file).stem).with_suffix(".parquet")
+        parquet_file = Path(AnyPath(peak_file).stem).with_suffix(".parquet")
 
     try:
         writer = None
@@ -291,8 +292,8 @@ def spectra_to_df(
 
     Returns
     -------
-    Path
-        The Parquet file that was written.
+    polars.DataFrame
+        A dataframe containing the parsed mass spectra.
 
     """
     streamer = spectra_to_stream(
