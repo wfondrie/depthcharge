@@ -1,8 +1,8 @@
 """Test PyTorch DataLoaders."""
 
 import pyarrow as pa
-import pytest
 import torch
+from torch.utils.data import DataLoader
 
 from depthcharge.data import (
     AnalyteDataset,
@@ -17,30 +17,22 @@ from depthcharge.tokenizers import PeptideTokenizer
 
 def test_spectrum_loader(mgf_small, tmp_path):
     """Test a normal spectrum dataset."""
-    dset = SpectrumDataset(mgf_small, tmp_path / "test")
-    loader = dset.loader(batch_size=1, num_workers=0)
+    dset = SpectrumDataset(mgf_small, batch_size=2, path=tmp_path / "test")
+    loader = DataLoader(dset)
     batch = next(iter(loader))
     assert len(batch) == 7
-    assert batch["mz_array"].shape == (1, 13)
+    assert batch["mz_array"].shape == (1, 2, 20)
     assert isinstance(batch["mz_array"], torch.Tensor)
-
-    with pytest.warns(UserWarning):
-        dset.loader(collate_fn=torch.utils.data.default_collate)
 
 
 def test_streaming_spectrum_loader(mgf_small, tmp_path):
     """Test streaming spectra."""
-    streamer = StreamingSpectrumDataset(mgf_small, 2)
-    loader = streamer.loader(batch_size=2, num_workers=0)
+    streamer = StreamingSpectrumDataset(mgf_small, batch_size=2)
+    loader = DataLoader(streamer)
     stream_batch = next(iter(loader))
-    with pytest.warns(UserWarning):
-        streamer.loader(collate_fn=torch.utils.data.default_collate)
 
-    with pytest.warns(UserWarning):
-        streamer.loader(num_workers=2)
-
-    dset = SpectrumDataset(mgf_small, tmp_path / "test")
-    loader = dset.loader(batch_size=2, num_workers=0)
+    dset = SpectrumDataset(mgf_small, batch_size=2, path=tmp_path / "test")
+    loader = DataLoader(dset)
     map_batch = next(iter(loader))
     assert_dicts_equal(stream_batch, map_batch)
 
@@ -52,20 +44,22 @@ def test_ann_spectrum_loader(mgf_small):
         mgf_small,
         "seq",
         tokenizer,
-        custom_fields=CustomField(
-            "seq", lambda x: x["params"]["seq"], pa.string()
+        batch_size=1,
+        parse_kwargs=dict(
+            custom_fields=CustomField(
+                "seq", lambda x: x["params"]["seq"], pa.string()
+            ),
         ),
     )
-    loader = dset.loader(batch_size=1, num_workers=0)
-
+    loader = DataLoader(dset, num_workers=0)
     batch = next(iter(loader))
     assert len(batch) == 8
-    assert batch["mz_array"].shape == (1, 13)
+    assert batch["mz_array"].shape == (1, 1, 13)
     assert isinstance(batch["mz_array"], torch.Tensor)
-    torch.testing.assert_close(batch["seq"], tokenizer.tokenize(["LESLIEK"]))
-
-    with pytest.warns(UserWarning):
-        dset.loader(collate_fn=torch.utils.data.default_collate)
+    torch.testing.assert_close(
+        batch["seq"][0, ...],
+        tokenizer.tokenize(["LESLIEK"]),
+    )
 
 
 def test_analyte_loader():
@@ -74,7 +68,7 @@ def test_analyte_loader():
     charges = torch.tensor([5, 3, 1])
     tokenizer = PeptideTokenizer()
     dset = AnalyteDataset(tokenizer, seqs, charges)
-    loader = dset.loader(batch_size=2, num_workers=0)
+    loader = DataLoader(dset, batch_size=2)
 
     batch = next(iter(loader))
     assert len(batch) == 2
@@ -86,7 +80,7 @@ def test_analyte_loader():
 
     args = (torch.tensor([1, 2, 3]), torch.tensor([[1, 1], [2, 2], [3, 3]]))
     dset = AnalyteDataset(tokenizer, seqs, charges, *args)
-    loader = dset.loader(batch_size=2, num_workers=0)
+    loader = DataLoader(dset, batch_size=2)
 
     batch = next(iter(loader))
     assert len(batch) == 4

@@ -28,7 +28,7 @@ jobs:
 
     - name: Run unit and system tests
       run: |
-        pytest --cov=depthcharge tests/
+        pytest --cov=depthcharge --verbose tests/
 
     - name: Upload coverage to codecov
       uses: codecov/codecov-action@v3

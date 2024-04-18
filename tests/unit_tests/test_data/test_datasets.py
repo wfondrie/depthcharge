@@ -27,82 +27,95 @@ def tokenizer():
 
 def test_addition(mgf_small, tmp_path):
     """Testing adding a file."""
-    dataset = SpectrumDataset(mgf_small, path=tmp_path / "test")
+    dataset = SpectrumDataset(mgf_small, path=tmp_path / "test", batch_size=1)
     assert len(dataset) == 2
 
     dataset = dataset.add_spectra(mgf_small)
     assert len(dataset) == 4
 
 
-def test_indexing(mgf_small, tmp_path):
+def test_indexing(tokenizer, mgf_small, tmp_path):
     """Test retrieving spectra."""
     mgf_small2 = tmp_path / "mgf_small2.mgf"
     shutil.copy(mgf_small, mgf_small2)
 
     dataset = SpectrumDataset(
-        [mgf_small, mgf_small2],
-        path=tmp_path / "test",
+        [mgf_small, mgf_small2], path=tmp_path / "test", batch_size=1
     )
 
     assert dataset.path == tmp_path / "test.lance"
 
     spec = dataset[0]
     assert len(spec) == 7
-    assert spec["peak_file"] == "small.mgf"
-    assert spec["scan_id"] == 0
-    assert spec["ms_level"] == 2
-    assert (spec["precursor_mz"] - 416.2448) < 0.001
+    assert spec["peak_file"] == ["small.mgf"]
+    assert spec["scan_id"].item() == 0
+    assert spec["ms_level"].item() == 2
+    assert (spec["precursor_mz"].item() - 416.2448) < 0.001
 
-    dataset = AnnotatedSpectrumDataset(
-        [mgf_small, mgf_small2],
-        tokenizer,
-        "seq",
-        tmp_path / "test.lance",
+    parse_kwargs = dict(
         preprocessing_fn=[],
         custom_fields=CustomField(
             "seq", lambda x: x["params"]["seq"], pa.string()
         ),
     )
+
+    dataset = AnnotatedSpectrumDataset(
+        [mgf_small, mgf_small2],
+        "seq",
+        tokenizer,
+        path=tmp_path / "test.lance",
+        batch_size=1,
+        parse_kwargs=parse_kwargs,
+    )
     spec = dataset[0]
     assert len(spec) == 8
-    assert spec["seq"] == "LESLIEK"
-    assert spec["mz_array"].shape == (14,)
+    assert spec["mz_array"].shape == (
+        1,
+        14,
+    )
+    torch.testing.assert_close(spec["seq"], tokenizer.tokenize(["LESLIEK"]))
 
     spec2 = dataset[3]
-    assert spec2["seq"] == "EDITHR"
-    assert spec2["mz_array"].shape == (24,)
+    assert spec2["mz_array"].shape == (
+        1,
+        24,
+    )
+    torch.testing.assert_close(spec2["seq"], tokenizer.tokenize(["EDITHR"]))
 
 
-def test_load(tmp_path, mgf_small):
+def test_load(tokenizer, tmp_path, mgf_small):
     """Test saving and loading a dataset."""
     db_path = tmp_path / "test.lance"
 
     AnnotatedSpectrumDataset(
         mgf_small,
-        tokenizer,
         "seq",
+        tokenizer,
+        1,
         db_path,
-        preprocessing_fn=[],
-        custom_fields=CustomField(
-            "seq", lambda x: x["params"]["seq"], pa.string()
+        parse_kwargs=dict(
+            preprocessing_fn=[],
+            custom_fields=CustomField(
+                "seq", lambda x: x["params"]["seq"], pa.string()
+            ),
         ),
     )
 
-    dataset = AnnotatedSpectrumDataset.from_lance(db_path, "seq", tokenizer)
+    dataset = AnnotatedSpectrumDataset.from_lance(db_path, "seq", tokenizer, 1)
 
     spec = dataset[0]
     assert len(spec) == 8
-    assert spec["seq"] == "LESLIEK"
-    assert spec["mz_array"].shape == (14,)
+    assert spec["mz_array"].shape == (1, 14)
+    torch.testing.assert_close(spec["seq"], tokenizer.tokenize(["LESLIEK"]))
 
     spec2 = dataset[1]
-    assert spec2["seq"] == "EDITHR"
-    assert spec2["mz_array"].shape == (24,)
+    assert spec2["mz_array"].shape == (1, 24)
+    torch.testing.assert_close(spec2["seq"], tokenizer.tokenize(["EDITHR"]))
 
-    dataset = SpectrumDataset.from_lance(db_path)
+    dataset = SpectrumDataset.from_lance(db_path, 1)
     spec = dataset[0]
     assert len(spec) == 8
-    assert spec["peak_file"] == "small.mgf"
+    assert spec["peak_file"] == ["small.mgf"]
     assert spec["scan_id"] == 0
     assert spec["ms_level"] == 2
     assert (spec["precursor_mz"] - 416.2448) < 0.001
@@ -121,6 +134,7 @@ def test_formats(tmp_path, real_mgf, real_mzml, real_mzxml):
         SpectrumDataset(
             spectra=input_type,
             path=tmp_path / "test",
+            batch_size=1,
         )
 
 
@@ -128,11 +142,12 @@ def test_streaming_spectra(mgf_small):
     """Test the streaming dataset."""
     streamer = StreamingSpectrumDataset(mgf_small, batch_size=1)
     spec = next(iter(streamer))
-    expected = SpectrumDataset(mgf_small)[0]
+    expected = SpectrumDataset(mgf_small, batch_size=1)[0]
     assert_dicts_equal(spec, expected)
 
     streamer = StreamingSpectrumDataset(mgf_small, batch_size=2)
     spec = next(iter(streamer))
+    expected = SpectrumDataset(mgf_small, batch_size=1)[[0, 1]]
     assert_dicts_equal(spec, expected)
 
 
@@ -174,7 +189,7 @@ def test_with_molecule_tokenizer():
 
 def test_pickle(tokenizer, tmp_path, mgf_small):
     """Test that datasets can be pickled."""
-    dataset = SpectrumDataset(mgf_small, path=tmp_path / "test")
+    dataset = SpectrumDataset(mgf_small, batch_size=1, path=tmp_path / "test")
     pkl_file = tmp_path / "test.pkl"
     with pkl_file.open("wb+") as pkl:
         pickle.dump(dataset, pkl)
@@ -188,10 +203,8 @@ def test_pickle(tokenizer, tmp_path, mgf_small):
         [mgf_small],
         tokenizer,
         "seq",
-        tmp_path / "test.lance",
-        custom_fields=CustomField(
-            "seq", lambda x: x["params"]["seq"], pa.string()
-        ),
+        batch_size=1,
+        path=tmp_path / "test.lance",
     )
     pkl_file = tmp_path / "test.pkl"
 
