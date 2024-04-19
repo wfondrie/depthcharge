@@ -1,5 +1,7 @@
 """Test the arrow functionality."""
 
+import os
+
 import polars as pl
 import pyarrow as pa
 import pytest
@@ -94,6 +96,19 @@ def test_to_parquet(
 
     parsed = pl.read_parquet(out)
     assert parsed.shape == shape
+
+
+def test_to_parquet_with_default_file(real_mzml, tmp_path):
+    """Test that a default file can be created."""
+    os.chdir(tmp_path)
+
+    out = spectra_to_parquet(
+        real_mzml,
+        parquet_file=None,
+        progress=False,
+    )
+
+    assert out.exists()
 
 
 @pytest.mark.parametrize(PARAM_NAMES, PARAM_VALS)
