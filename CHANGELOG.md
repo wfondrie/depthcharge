@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Migrated to Mike for mkdocs to manage multiple versions.
+- Moved test GitHub Action from pip to uv.
 
 ## [v0.4.0]
 
