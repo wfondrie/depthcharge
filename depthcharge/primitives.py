@@ -419,6 +419,16 @@ class MassSpectrum(MsmsSpectrum):
         )
         return ":".join([fname, index_type, scan])
 
+    @MsmsSpectrum.intensity.setter
+    def intensity(self, values):
+        """Set the intensity array."""
+        self._inner._intensity = values
+
+    @MsmsSpectrum.mz.setter
+    def mz(self, values):
+        """Set the m/z array."""
+        self._inner._mz = values
+
     @property
     def precursor_mass(self) -> float:
         """The monoisotopic mass."""

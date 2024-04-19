@@ -1,5 +1,5 @@
 # Transformers (`depthcharge.transformers`)
 
 ::: depthcharge.transformers.SpectrumTransformerEncoder
-::: depthcharge.transformers.PeptideTransformerEncoder
-::: depthcharge.transformers.PeptideTransformerDecoder
+::: depthcharge.transformers.AnalyteTransformerEncoder
+::: depthcharge.transformers.AnalyteTransformerDecoder

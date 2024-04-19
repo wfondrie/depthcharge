@@ -15,6 +15,7 @@ import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
 import torch
+from cloudpathlib import AnyPath
 from lance.torch.data import LanceDataset
 from torch import nn
 from torch.utils.data import IterableDataset
@@ -93,7 +94,7 @@ class SpectrumDataset(LanceDataset):
             self._tmpdir = TemporaryDirectory()
             path = Path(self._tmpdir.name) / f"{uuid.uuid4()}.lance"
 
-        self._path = Path(path)
+        self._path = AnyPath(path)
         if self._path.suffix != ".lance":
             self._path = self._path.with_suffix(".lance")
 
@@ -103,15 +104,15 @@ class SpectrumDataset(LanceDataset):
             batch = next(_get_records(spectra, **self._parse_kwargs))
             lance.write_dataset(
                 _get_records(spectra, **self._parse_kwargs),
-                self._path,
-                mode="overwrite",
+                str(self._path),
+                mode="overwrite" if self._path.exists() else "create",
                 schema=batch.schema,
             )
 
         elif not self._path.exists():
             raise ValueError("No spectra were provided")
 
-        self._dataset = lance.dataset(self._path)
+        self._dataset = lance.dataset(str(self._path))
         if "to_tensor_fn" not in kwargs:
             kwargs["to_tensor_fn"] = self._to_tensor
 

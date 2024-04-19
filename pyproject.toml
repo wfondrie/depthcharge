@@ -32,6 +32,7 @@ dependencies = [
     "rdkit>=2023.03.1",
     "pillow>=9.4.0",
     "spectrum-utils>=0.4.1",
+    "cloudpathlib>=0.18.1",
 ]
 dynamic = ["version"]
 
@@ -45,9 +46,11 @@ Documentation = "https://wfondrie.github.io/depthcharge"
 
 [project.optional-dependencies]
 docs = [
+     "mike",
      "mkdocs",
      "mkdocs-material",
      "mkdocstrings[python]>=0.18",
+     "mkquartodocs",
 ]
 dev = [
     "pre-commit>=2.7.1"

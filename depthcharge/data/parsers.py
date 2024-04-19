@@ -6,10 +6,10 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from os import PathLike
-from pathlib import Path
 from typing import Any
 
 import pyarrow as pa
+from cloudpathlib import AnyPath
 from pyteomics.mgf import MGF
 from pyteomics.mzml import MzML
 from pyteomics.mzxml import MzXML
@@ -59,7 +59,7 @@ class BaseParser(ABC):
         id_type: str = "scan",
     ) -> None:
         """Initialize the BaseParser."""
-        self.peak_file = Path(peak_file)
+        self.peak_file = AnyPath(peak_file)
         self.progress = progress
         self.ms_level = (
             ms_level if ms_level is None else set(utils.listify(ms_level))
