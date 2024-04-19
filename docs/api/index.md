@@ -1,8 +1,7 @@
 # The depthcharge Python API
 
-The depthcharge package provides utilities and classes to parse, store, and use mass spectra, peptides, and small molecules in Transformer models.
-Although depthcharge is primarly focused Transformers, many of these classes can be used as building blocks for models of your own choice.
-
+The depthcharge package provides utilities and classes to parse, store, and use mass spectra, peptides, and small molecules in PyTorch models.
+Although depthcharge is primarily focused on PyTorch Transformer modules as a starting point, many of these classes and utilities can be used as building blocks for models of your own choice.
 
 ## Tokenizers
 
@@ -12,11 +11,16 @@ In addition to specifying how tokens are created, the tokenizer classes also aid
 
 Tokenizers live in the [tokenizers submodule](tokenizers).
 
-## Datasets
+## Data
+
+Depthcharge provides several utilities for interacting with data such as mass spectra, small molecules and peptides.
+
+The [data submodule](datasets) contains functions for parsing and preprocessing mass spectra.
+It also contains dataset classes for loading data into models built with PyTorch.
 
 Datasets are subclasses of PyTorch Datasets, specifically designed to store and retrieve mass spectrometry data, including the mass spectra themselves and analyte representations.
 
-Datasets live in the [datasets submodule](datsets).
+Datasets and parsing functions live in the [data submodule](datasets).
 
 ## Encoders
 

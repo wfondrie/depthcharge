@@ -50,7 +50,7 @@ from ..primitives import MassSpectrum
 
 def scale_to_unit_norm(spectrum: MassSpectrum) -> MassSpectrum:
     """Scale intensities to unit norm."""
-    spectrum._inner._intensity = (
+    spectrum.intensity = (
         spectrum.intensity / np.sqrt(spectrum.intensity**2).sum()
     )
     return spectrum

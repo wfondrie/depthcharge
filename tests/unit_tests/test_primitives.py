@@ -125,3 +125,11 @@ def test_mass_spectrum():
         precursor_charge=3,
     )
     assert spec.to_tensor().shape == (10, 2)
+
+    new_mzs = np.ones_like(spec.mz)
+    new_intensities = np.ones_like(spec.intensity)
+    spec.mz = new_mzs
+    spec.intensity = new_intensities
+
+    np.testing.assert_equal(spec.mz, new_mzs)
+    np.testing.assert_equal(spec.intensity, new_intensities)

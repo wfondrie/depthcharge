@@ -105,7 +105,7 @@ class SpectrumDataset(LanceDataset):
             lance.write_dataset(
                 _get_records(spectra, **self._parse_kwargs),
                 str(self._path),
-                mode="overwrite",
+                mode="overwrite" if self._path.exists() else "create",
                 schema=batch.schema,
             )
 

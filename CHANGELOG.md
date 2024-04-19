@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.1]
+
+### Added
+- Significant updates to documentation. Add how to model mass spectra.
+- Reading and writing from cloud storage on everything!
+
+### Changed
+- Migrated to Mike for mkdocs to manage multiple versions.
+
 ## [v0.4.0]
 
 We have completely reworked of the data module.
