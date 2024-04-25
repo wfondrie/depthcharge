@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.2]
+
+### Changed
+- The length of `SpectrumDataset` and `AnnotatedSpectrumDataset` is now the number of batches, not the number of spectra. This let's tools like PyTorch Lighting create their progress bars properly.
+- Parsing a dataset now no longer requires reading essentially the whole first file. Now the schema is inferred from the first 128 spectra.
+
 ## [v0.4.1]
 
 ### Added
