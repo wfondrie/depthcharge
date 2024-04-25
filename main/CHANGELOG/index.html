@@ -16,7 +16,7 @@
       
       
       <link rel="icon" href="../static/icon.svg">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.18">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.19">
     
     
       
@@ -624,6 +624,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#v042" class="md-nav__link">
+    <span class="md-ellipsis">
+      [v0.4.2]
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[v0.4.2]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#v041" class="md-nav__link">
     <span class="md-ellipsis">
       [v0.4.1]
@@ -643,7 +667,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#changed" class="md-nav__link">
+  <a href="#changed_1" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -685,7 +709,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#changed_1" class="md-nav__link">
+  <a href="#changed_2" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -751,7 +775,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#changed_2" class="md-nav__link">
+  <a href="#changed_3" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -823,7 +847,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_3" class="md-nav__link">
+  <a href="#changed_4" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -865,7 +889,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#changed_4" class="md-nav__link">
+  <a href="#changed_5" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -898,7 +922,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_5" class="md-nav__link">
+  <a href="#changed_6" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -1019,6 +1043,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#v042" class="md-nav__link">
+    <span class="md-ellipsis">
+      [v0.4.2]
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[v0.4.2]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#v041" class="md-nav__link">
     <span class="md-ellipsis">
       [v0.4.1]
@@ -1038,7 +1086,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#changed" class="md-nav__link">
+  <a href="#changed_1" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -1080,7 +1128,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#changed_1" class="md-nav__link">
+  <a href="#changed_2" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -1146,7 +1194,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#changed_2" class="md-nav__link">
+  <a href="#changed_3" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -1218,7 +1266,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_3" class="md-nav__link">
+  <a href="#changed_4" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -1260,7 +1308,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#changed_4" class="md-nav__link">
+  <a href="#changed_5" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -1293,7 +1341,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_5" class="md-nav__link">
+  <a href="#changed_6" class="md-nav__link">
     <span class="md-ellipsis">
       Changed
     </span>
@@ -1353,13 +1401,19 @@
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
 <h2 id="unreleased">[Unreleased]</h2>
+<h2 id="v042">[v0.4.2]</h2>
+<h3 id="changed">Changed</h3>
+<ul>
+<li>The length of <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code> is now the number of batches, not the number of spectra. This let's tools like PyTorch Lighting create their progress bars properly.</li>
+<li>Parsing a dataset now no longer requires reading essentially the whole first file. Now the schema is inferred from the first 128 spectra.</li>
+</ul>
 <h2 id="v041">[v0.4.1]</h2>
 <h3 id="added">Added</h3>
 <ul>
 <li>Significant updates to documentation. Add how to model mass spectra.</li>
 <li>Reading and writing from cloud storage on everything!</li>
 </ul>
-<h3 id="changed">Changed</h3>
+<h3 id="changed_1">Changed</h3>
 <ul>
 <li>Migrated to Mike for mkdocs to manage multiple versions.</li>
 <li>Moved test GitHub Action from pip to uv.</li>
@@ -1385,7 +1439,7 @@ Depthcharge now uses Apache Arrow-based formats instead of HDF5; spectra are con
 <li>Added the <code>StreamingSpectrumDataset</code> for fast inference.</li>
 <li>Added <code>spectra_to_df</code>, <code>spectra_to_df</code>, <code>spectra_to_stream</code> to the <code>depthcharge.data</code> module.</li>
 </ul>
-<h3 id="changed_1">Changed</h3>
+<h3 id="changed_2">Changed</h3>
 <ul>
 <li>Determining the mass spectrometry data file format is now less fragile.
   It now looks for known line contents, rather than relying on the extension.</li>
@@ -1411,7 +1465,7 @@ Depthcharge now uses Apache Arrow-based formats instead of HDF5; spectra are con
 <li>Adding a ton of tests.</li>
 <li>Tight integration with <code>spectrum_utils</code> 💪</li>
 </ul>
-<h3 id="changed_2">Changed</h3>
+<h3 id="changed_3">Changed</h3>
 <ul>
 <li>Moving preprocessing onto parsing instead of data loading (similar to @bittremieux's proposal in #31)</li>
 <li>Combining the SpectrumIndex and SpectrumDataset classes into one.</li>
@@ -1428,7 +1482,7 @@ Depthcharge now uses Apache Arrow-based formats instead of HDF5; spectra are con
 <li>Fixed retrieving version information.</li>
 </ul>
 <h2 id="v021-2023-05-13">[v0.2.1] - 2023-05-13</h2>
-<h3 id="changed_3">Changed</h3>
+<h3 id="changed_4">Changed</h3>
 <ul>
 <li>Change target mask from float to boolean.</li>
 <li>Log the number spectra that are skipped due to an invalid precursor charge.</li>
@@ -1446,7 +1500,7 @@ Depthcharge now uses Apache Arrow-based formats instead of HDF5; spectra are con
 <ul>
 <li>pre-commit hooks and linting with Ruff.</li>
 </ul>
-<h3 id="changed_4">Changed</h3>
+<h3 id="changed_5">Changed</h3>
 <ul>
 <li>Tensorboard is now an optional dependency.</li>
 </ul>
@@ -1455,7 +1509,7 @@ Depthcharge now uses Apache Arrow-based formats instead of HDF5; spectra are con
 <li>The example de novo peptide sequencing model.</li>
 </ul>
 <h2 id="v010-2022-11-15">[v0.1.0] - 2022-11-15</h2>
-<h3 id="changed_5">Changed</h3>
+<h3 id="changed_6">Changed</h3>
 <ul>
 <li>The <code>detokenize()</code> method now returns a list instead of a string.</li>
 </ul>
@@ -1569,7 +1623,7 @@ Depthcharge now uses Apache Arrow-based formats instead of HDF5; spectra are con
     <script id="__config" type="application/json">{"base": "..", "features": ["navigation.tabs", "navigation.footer", "content.code.copy"], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.3220b9d7.min.js"></script>
+      <script src="../assets/javascripts/bundle.dd8806f2.min.js"></script>
       
     
   </body>
