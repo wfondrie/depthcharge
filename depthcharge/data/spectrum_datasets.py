@@ -174,7 +174,11 @@ class SpectrumDataset(LanceDataset):
 
     def __len__(self) -> int:
         """The number of batches in the lance dataset."""
-        return math.ceil(self._dataset.count_rows() / self.batch_size)
+        num = self._dataset.count_rows()
+        if self.samples is not None:
+            num = min(self.samples, num)
+
+        return math.ceil(num / self.batch_size)
 
     def __del__(self) -> None:
         """Cleanup the temporary directory."""

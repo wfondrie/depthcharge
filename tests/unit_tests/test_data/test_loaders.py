@@ -1,6 +1,7 @@
 """Test PyTorch DataLoaders."""
 
 import pyarrow as pa
+import pytest
 import torch
 from torch.utils.data import DataLoader
 
@@ -23,6 +24,21 @@ def test_spectrum_loader(mgf_small, tmp_path):
     assert len(batch) == 7
     assert batch["mz_array"].shape == (1, 2, 20)
     assert isinstance(batch["mz_array"], torch.Tensor)
+
+
+@pytest.mark.parametrize(["samples", "batches"], [(1, 1), (50, 2), (4, 2)])
+def test_spectrum_loader_samples(mgf_small, tmp_path, samples, batches):
+    """Test sampling."""
+    dset = SpectrumDataset(
+        mgf_small,
+        batch_size=1,
+        path=tmp_path / "test",
+        samples=samples,
+    )
+
+    loaded = list(DataLoader(dset))
+    assert len(dset) == batches
+    assert len(loaded) == batches
 
 
 def test_streaming_spectrum_loader(mgf_small, tmp_path):
