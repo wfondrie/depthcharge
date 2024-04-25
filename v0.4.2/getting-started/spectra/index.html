@@ -1,0 +1,1344 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../installation/">
+      
+      
+        <link rel="next" href="../../api/">
+      
+      
+      <link rel="icon" href="../../static/icon.svg">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.19">
+    
+    
+      
+        <title>Modeling Mass Spectra - depthcharge</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.66ac8b77.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Fira+Code:300,300i,400,400i,700,700i%7CFira+Code:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Fira Code";--md-code-font:"Fira Code"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="depthcharge" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#parsing-mass-spectra" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="depthcharge" class="md-header__button md-logo" aria-label="depthcharge" data-md-component="logo">
+      
+  <img src="../../static/icon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            depthcharge
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Modeling Mass Spectra
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/wfondrie/depthcharge" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+  API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../CHANGELOG/" class="md-tabs__link">
+        
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../CONTRIBUTING/" class="md-tabs__link">
+        
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../CODE_OF_CONDUCT/" class="md-tabs__link">
+        
+  
+    
+  
+  Code of Conduct
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="depthcharge" class="md-nav__button md-logo" aria-label="depthcharge" data-md-component="logo">
+      
+  <img src="../../static/icon.svg" alt="logo">
+
+    </a>
+    depthcharge
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/wfondrie/depthcharge" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Introduction
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Modeling Mass Spectra
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Modeling Mass Spectra
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#parsing-mass-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parsing Mass Spectra
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parsing Mass Spectra">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spectrum-preprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spectrum Preprocessing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extracting-additional-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Extracting Additional Data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adding-additional-outside-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adding Additional Outside Data
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-pytorch-datasets-from-mass-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building PyTorch Datasets from Mass Spectra
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transfomer-models-for-mass-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transfomer Models for Mass Spectra
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    API
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            API
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/tokenizers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tokenizers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/datasets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Datasets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/encoders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Encoders
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/transformers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Transformers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/primitives/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Primitives
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../CHANGELOG/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Changelog
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../CONTRIBUTING/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../CODE_OF_CONDUCT/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Code of Conduct
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#parsing-mass-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parsing Mass Spectra
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parsing Mass Spectra">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spectrum-preprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spectrum Preprocessing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extracting-additional-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Extracting Additional Data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adding-additional-outside-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adding Additional Outside Data
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-pytorch-datasets-from-mass-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building PyTorch Datasets from Mass Spectra
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transfomer-models-for-mass-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transfomer Models for Mass Spectra
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+  <h1>Modeling Mass Spectra</h1>
+
+<p>We think that the biggest barriers to building deep learning models for
+mass spectra are (1) parsing the data into a reasonable format, (2)
+representing the mass spectra in an efficient manner for learning, (3)
+constructing models that leverage the structure of the data in a mass
+spectrum.</p>
+<h2 id="parsing-mass-spectra">Parsing Mass Spectra</h2>
+<p>Depthcharge supports reading mass spectra from a variety of open
+formats: mzML, mzXML, and MGF.<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup> Under the hood, Depthcharge uses the
+Apache Arrow data format to store mass spectrometry data in a tabular
+manner, and likewise Apache Parquet to store individual mass
+spectrometry data files on disk. This means that standard data science
+tools like Pandas or Polars can be used to interact with our mass
+spectra after it is parsed by Depthcharge.</p>
+<p>For example, we can read an mzML file into a <code>polars.DataFrame</code> using
+<code>spectra_to_df()</code>:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span> <span class="nn">polars</span> <span class="k">as</span> <span class="nn">pl</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span> <span class="nn">depthcharge</span> <span class="k">as</span> <span class="nn">dc</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">mzml_file</span> <span class="o">=</span> <span class="s2">&quot;../../data/TMT10-Trial-8.mzML&quot;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Read an mzML into a DataFramoe:</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">df</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_df</span><span class="p">(</span><span class="n">mzml_file</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">output</p>
+<p>shape: (4, 7)
++---------------+---------+----------+--------------+---------------+---------------+--------------+
+| peak_file     | scan_id | ms_level | precursor_mz | precursor_cha | mz_array      | intensity_ar |
+| ---           | ---     | ---      | ---          | rge           | ---           | ray          |
+| str           | i64     | u8       | f64          | ---           | list[f64]     | ---          |
+|               |         |          |              | i16           |               | list[f64]    |
++==================================================================================================+
+| TMT10-Trial-8 | 501     | 2        | 804.774963   | 3             | [284.917023,  | [0.004933,   |
+| .mzML         |         |          |              |               | 312.908997, … | 0.005314, …  |
+|               |         |          |              |               | 1570.…        | 0.008071]    |
+| TMT10-Trial-8 | 504     | 2        | 1001.6693    | 2             | [311.863007,  | [0.008258,   |
+| .mzML         |         |          |              |               | 330.019012, … | 0.008424, …  |
+|               |         |          |              |               | 1731.…        | 0.006442]    |
+| TMT10-Trial-8 | 507     | 2        | 1047.6174    | 3             | [338.669006,  | [0.011869,   |
+| .mzML         |         |          |              |               | 354.175995, … | 0.010293, …  |
+|               |         |          |              |               | 1859.…        | 0.012427]    |
+| TMT10-Trial-8 | 510     | 2        | 800.4349     | 3             | [247.792007,  | [0.005207,   |
+| .mzML         |         |          |              |               | 313.678009, … | 0.004437, …  |
+|               |         |          |              |               | 1943.…        | 0.00915]     |
++---------------+---------+----------+--------------+---------------+---------------+--------------+</p>
+</div>
+<p>We can write the mass spectra directly to a Parquet file:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">pq_file</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_parquet</span><span class="p">(</span><span class="n">mzml_file</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">pq_file</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">output</p>
+<p>shape: (4, 7)
++---------------+---------+----------+--------------+---------------+---------------+--------------+
+| peak_file     | scan_id | ms_level | precursor_mz | precursor_cha | mz_array      | intensity_ar |
+| ---           | ---     | ---      | ---          | rge           | ---           | ray          |
+| str           | i64     | u8       | f64          | ---           | list[f64]     | ---          |
+|               |         |          |              | i16           |               | list[f64]    |
++==================================================================================================+
+| TMT10-Trial-8 | 501     | 2        | 804.774963   | 3             | [284.917023,  | [0.004933,   |
+| .mzML         |         |          |              |               | 312.908997, … | 0.005314, …  |
+|               |         |          |              |               | 1570.…        | 0.008071]    |
+| TMT10-Trial-8 | 504     | 2        | 1001.6693    | 2             | [311.863007,  | [0.008258,   |
+| .mzML         |         |          |              |               | 330.019012, … | 0.008424, …  |
+|               |         |          |              |               | 1731.…        | 0.006442]    |
+| TMT10-Trial-8 | 507     | 2        | 1047.6174    | 3             | [338.669006,  | [0.011869,   |
+| .mzML         |         |          |              |               | 354.175995, … | 0.010293, …  |
+|               |         |          |              |               | 1859.…        | 0.012427]    |
+| TMT10-Trial-8 | 510     | 2        | 800.4349     | 3             | [247.792007,  | [0.005207,   |
+| .mzML         |         |          |              |               | 313.678009, … | 0.004437, …  |
+|               |         |          |              |               | 1943.…        | 0.00915]     |
++---------------+---------+----------+--------------+---------------+---------------+--------------+</p>
+</div>
+<p>Or we can stream them from the original file in batches:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">batch</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_stream</span><span class="p">(</span><span class="n">mzml_file</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">from_arrow</span><span class="p">(</span><span class="n">batch</span><span class="p">))</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">output</p>
+<p>shape: (4, 7)
++---------------+---------+----------+--------------+---------------+---------------+--------------+
+| peak_file     | scan_id | ms_level | precursor_mz | precursor_cha | mz_array      | intensity_ar |
+| ---           | ---     | ---      | ---          | rge           | ---           | ray          |
+| str           | i64     | u8       | f64          | ---           | list[f64]     | ---          |
+|               |         |          |              | i16           |               | list[f64]    |
++==================================================================================================+
+| TMT10-Trial-8 | 501     | 2        | 804.774963   | 3             | [284.917023,  | [0.004933,   |
+| .mzML         |         |          |              |               | 312.908997, … | 0.005314, …  |
+|               |         |          |              |               | 1570.…        | 0.008071]    |
+| TMT10-Trial-8 | 504     | 2        | 1001.6693    | 2             | [311.863007,  | [0.008258,   |
+| .mzML         |         |          |              |               | 330.019012, … | 0.008424, …  |
+|               |         |          |              |               | 1731.…        | 0.006442]    |
+| TMT10-Trial-8 | 507     | 2        | 1047.6174    | 3             | [338.669006,  | [0.011869,   |
+| .mzML         |         |          |              |               | 354.175995, … | 0.010293, …  |
+|               |         |          |              |               | 1859.…        | 0.012427]    |
+| TMT10-Trial-8 | 510     | 2        | 800.4349     | 3             | [247.792007,  | [0.005207,   |
+| .mzML         |         |          |              |               | 313.678009, … | 0.004437, …  |
+|               |         |          |              |               | 1943.…        | 0.00915]     |
++---------------+---------+----------+--------------+---------------+---------------+--------------+</p>
+</div>
+<h3 id="spectrum-preprocessing">Spectrum Preprocessing</h3>
+<p>Preprocessing steps, such as filtering peaks and transforming
+intensities is performed during parsing using and controlled using the
+<code>preprocessing_fn</code> parameter in all of the above functions. Depthcharge
+is closely tied into the <a href="https://spectrum-utils.readthedocs.io/en/latest/">spectrum_utils
+package</a> and any of
+the processing methods within spectrum_utils may be applied to spectra
+in Depthcharge as well. Additionally, custom functions can be specified
+that accept a <code>depthcharge.MassSpectrum</code> as input and return a
+<code>depthcharge.MassSpectrum</code> as output.</p>
+<p>The <code>preprocessing_fn</code> parameter defines collection of functions to
+apply to each mass spectrum in sequence. The default <code>preprocessing_fn</code>
+is:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">[</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">preprocessing</span><span class="o">.</span><span class="n">set_mz_range</span><span class="p">(</span><span class="n">min_mz</span><span class="o">=</span><span class="mi">140</span><span class="p">),</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">preprocessing</span><span class="o">.</span><span class="n">filter_intensity</span><span class="p">(</span><span class="n">max_num_peaks</span><span class="o">=</span><span class="mi">200</span><span class="p">),</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">preprocessing</span><span class="o">.</span><span class="n">scale_intensity</span><span class="p">(</span><span class="n">scaling</span><span class="o">=</span><span class="s2">&quot;root&quot;</span><span class="p">),</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">preprocessing</span><span class="o">.</span><span class="n">scale_to_unit_norm</span><span class="p">,</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">]</span>
+</span></code></pre></div>
+<p>However, we can change this process to meet our needs. As an example,
+let's create rather useless preprocessing function that sets the
+intensity of all the peaks to a value of one:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="k">def</span> <span class="nf">scale_to_one</span><span class="p">(</span><span class="n">spec</span><span class="p">):</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Set intensities to one.</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="sd">    Parameters</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="sd">    ----------</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="sd">    spec : depthcharge.MassSpectrum</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="sd">        The mass spectrum to transform.</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="sd">    Returns</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="sd">    -------</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="sd">    depthcharge.MassSpectrum</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="sd">        The transformed mass spectrum.</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>    <span class="n">spec</span><span class="o">.</span><span class="n">intensity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">intensity</span><span class="p">)</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>    <span class="k">return</span> <span class="n">spec</span>
+</span></code></pre></div>
+<p>We can then use our preprocessing function, either by itself or in
+combination with other functions:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">df</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_df</span><span class="p">(</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="n">mzml_file</span><span class="p">,</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">preprocessing_fn</span><span class="o">=</span><span class="p">[</span><span class="n">scale_to_one</span><span class="p">]</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="p">)</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">output</p>
+<p>shape: (4, 7)
++---------------+---------+----------+--------------+---------------+---------------+--------------+
+| peak_file     | scan_id | ms_level | precursor_mz | precursor_cha | mz_array      | intensity_ar |
+| ---           | ---     | ---      | ---          | rge           | ---           | ray          |
+| str           | i64     | u8       | f64          | ---           | list[f64]     | ---          |
+|               |         |          |              | i16           |               | list[f64]    |
++==================================================================================================+
+| TMT10-Trial-8 | 501     | 2        | 804.774963   | 3             | [284.917023,  | [1.0, 1.0, … |
+| .mzML         |         |          |              |               | 312.908997, … | 1.0]         |
+|               |         |          |              |               | 1570.…        |              |
+| TMT10-Trial-8 | 504     | 2        | 1001.6693    | 2             | [311.863007,  | [1.0, 1.0, … |
+| .mzML         |         |          |              |               | 330.019012, … | 1.0]         |
+|               |         |          |              |               | 1731.…        |              |
+| TMT10-Trial-8 | 507     | 2        | 1047.6174    | 3             | [338.669006,  | [1.0, 1.0, … |
+| .mzML         |         |          |              |               | 354.175995, … | 1.0]         |
+|               |         |          |              |               | 1859.…        |              |
+| TMT10-Trial-8 | 510     | 2        | 800.4349     | 3             | [247.792007,  | [1.0, 1.0, … |
+| .mzML         |         |          |              |               | 313.678009, … | 1.0]         |
+|               |         |          |              |               | 1943.…        |              |
++---------------+---------+----------+--------------+---------------+---------------+--------------+</p>
+</div>
+<h3 id="extracting-additional-data">Extracting Additional Data</h3>
+<p>By default, Depthcharge only extracts a minimal amount of information
+from a mass spectrometry data file. Additional fields can be retrieved
+using the <code>custom_fields</code> parameter in the above parsing functions.
+However, we have to tell Depthcharge exactly what data we want to
+extract and how to extract it.</p>
+<p>Currently, all mass spectrometry data file parsing is handled using the
+corresponding parser from
+<a href="https://pyteomics.readthedocs.io/en/latest/">Pyteomics</a>, which yield a
+Python dictionary for each spectrum. The function we define to extract
+data must operate on this spectrum dictionary. Below, we define a custom
+field to extract the retention time for each spectrum:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span> <span class="nn">pyarrow</span> <span class="k">as</span> <span class="nn">pa</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">ce_field</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">CustomField</span><span class="p">(</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="c1"># The new column name:</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;ret_time&quot;</span><span class="p">,</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="c1"># The function to extract the retention time:</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">accessor</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;scanList&quot;</span><span class="p">][</span><span class="s2">&quot;scan&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;scan start time&quot;</span><span class="p">],</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="c1"># The expected data type:</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">dtype</span><span class="o">=</span><span class="n">pa</span><span class="o">.</span><span class="n">float64</span><span class="p">(),</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="p">)</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="n">df</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_df</span><span class="p">(</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="n">mzml_file</span><span class="p">,</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    <span class="n">custom_fields</span><span class="o">=</span><span class="n">ce_field</span><span class="p">,</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="p">)</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">output</p>
+<p>shape: (4, 8)
++-------------+---------+----------+-------------+------------+------------+------------+----------+
+| peak_file   | scan_id | ms_level | precursor_m | precursor_ | mz_array   | intensity_ | ret_time |
+| ---         | ---     | ---      | z           | charge     | ---        | array      | ---      |
+| str         | i64     | u8       | ---         | ---        | list[f64]  | ---        | f64      |
+|             |         |          | f64         | i16        |            | list[f64]  |          |
++==================================================================================================+
+| TMT10-Trial | 501     | 2        | 804.774963  | 3          | [284.91702 | [0.004933, | 1.069915 |
+| -8.mzML     |         |          |             |            | 3, 312.908 | 0.005314,  |          |
+|             |         |          |             |            | 997, …     | …          |          |
+|             |         |          |             |            | 1570.…     | 0.008071]  |          |
+| TMT10-Trial | 504     | 2        | 1001.6693   | 2          | [311.86300 | [0.008258, | 1.076773 |
+| -8.mzML     |         |          |             |            | 7, 330.019 | 0.008424,  |          |
+|             |         |          |             |            | 012, …     | …          |          |
+|             |         |          |             |            | 1731.…     | 0.006442]  |          |
+| TMT10-Trial | 507     | 2        | 1047.6174   | 3          | [338.66900 | [0.011869, | 1.083688 |
+| -8.mzML     |         |          |             |            | 6, 354.175 | 0.010293,  |          |
+|             |         |          |             |            | 995, …     | …          |          |
+|             |         |          |             |            | 1859.…     | 0.012427]  |          |
+| TMT10-Trial | 510     | 2        | 800.4349    | 3          | [247.79200 | [0.005207, | 1.09051  |
+| -8.mzML     |         |          |             |            | 7, 313.678 | 0.004437,  |          |
+|             |         |          |             |            | 009, …     | … 0.00915] |          |
+|             |         |          |             |            | 1943.…     |            |          |
++-------------+---------+----------+-------------+------------+------------+------------+----------+</p>
+</div>
+<h3 id="adding-additional-outside-data">Adding Additional Outside Data</h3>
+<p>As a DataFrame or Parquet file, the parsed mass spectra are relatively
+easy to manipulate uses standard data science tools like Polars and
+Pandas. However, we can also efficiently add new data to our mass
+spectra during parsing by providing a separate metadata dataframe as the
+<code>metadata_df</code> parameter. We require that this dataframe have a <code>scan_id</code>
+field and it may optionally have a <code>peak_file</code> field that will be used
+to join the metadata table with the parsed spectra.</p>
+<p>For example, we could use a metadata_df to pair peptide detections with
+the spectrum that they were detected from:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">metadata_df</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="s2">&quot;scan_id&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">501</span><span class="p">,</span> <span class="mi">507</span><span class="p">],</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="s2">&quot;peptide&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;LESLIEK&quot;</span><span class="p">,</span> <span class="s2">&quot;EDITHR&quot;</span><span class="p">,]</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">})</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">df</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_df</span><span class="p">(</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">mzml_file</span><span class="p">,</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">metadata_df</span><span class="o">=</span><span class="n">metadata_df</span><span class="p">,</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="p">)</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">output</p>
+<p>shape: (4, 8)
++-------------+---------+----------+-------------+-------------+------------+------------+---------+
+| peak_file   | scan_id | ms_level | precursor_m | precursor_c | mz_array   | intensity_ | peptide |
+| ---         | ---     | ---      | z           | harge       | ---        | array      | ---     |
+| str         | i64     | u8       | ---         | ---         | list[f64]  | ---        | str     |
+|             |         |          | f64         | i16         |            | list[f64]  |         |
++==================================================================================================+
+| TMT10-Trial | 501     | 2        | 804.774963  | 3           | [284.91702 | [0.004933, | LESLIEK |
+| -8.mzML     |         |          |             |             | 3, 312.908 | 0.005314,  |         |
+|             |         |          |             |             | 997, …     | …          |         |
+|             |         |          |             |             | 1570.…     | 0.008071]  |         |
+| TMT10-Trial | 504     | 2        | 1001.6693   | 2           | [311.86300 | [0.008258, | null    |
+| -8.mzML     |         |          |             |             | 7, 330.019 | 0.008424,  |         |
+|             |         |          |             |             | 012, …     | …          |         |
+|             |         |          |             |             | 1731.…     | 0.006442]  |         |
+| TMT10-Trial | 507     | 2        | 1047.6174   | 3           | [338.66900 | [0.011869, | EDITHR  |
+| -8.mzML     |         |          |             |             | 6, 354.175 | 0.010293,  |         |
+|             |         |          |             |             | 995, …     | …          |         |
+|             |         |          |             |             | 1859.…     | 0.012427]  |         |
+| TMT10-Trial | 510     | 2        | 800.4349    | 3           | [247.79200 | [0.005207, | null    |
+| -8.mzML     |         |          |             |             | 7, 313.678 | 0.004437,  |         |
+|             |         |          |             |             | 009, …     | … 0.00915] |         |
+|             |         |          |             |             | 1943.…     |            |         |
++-------------+---------+----------+-------------+-------------+------------+------------+---------+</p>
+</div>
+<h2 id="building-pytorch-datasets-from-mass-spectra">Building PyTorch Datasets from Mass Spectra</h2>
+<p>Although the individual mass spectrometry data file parsing features are
+nice, often we will want to train models on more than one file and at a
+scale that is unlikely to fit in memory. For this task, Depthcharge
+provides three dataset classes for mass spectra:</p>
+<ul>
+<li><code>SpectrumDataset</code> - Use this class for training on mass spectra.</li>
+<li><code>AnnotatedSpectrumDataset</code> - Use this class for training on
+    annotated mass spectra, such as peptide-spectrum matches.</li>
+<li><code>StreamingSpectrumDataset</code> - Use this class for running inference on
+    mass spectra.</li>
+</ul>
+<p>The <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code> classes parse
+spectra into a <a href="https://lancedb.github.io/lance/index.html#">Lance
+dataset</a> which allows for
+efficient on-disk storage and fast random access of the stored spectra.</p>
+<p>All of these classes can be created from the same mass spectrometry data
+formats as above, or can be created from previously parsed mass spectra
+as dataframes or Parquet files. Furthermore, when doing the former, all
+of the same features for preprocessing and adding additional data are
+available using the <code>parse_kwargs</code> parameter.</p>
+<p>For example, we can create a dataset for our example file:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span> <span class="nn">depthcharge.data</span> <span class="kn">import</span> <span class="n">SpectrumDataset</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">parse_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;progress&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">SpectrumDataset</span><span class="p">(</span><span class="n">mzml_file</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="n">parse_kwargs</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The <code>SpectrumDataset</code> and <code>AnnoatatedSpectrumDataset</code> use the native
+<a href="https://lancedb.github.io/lance/integrations/pytorch.html">PyTorch integration in
+Lance</a> and
+all of the corresponding parameters are available as keyword arguments.
+Furthermore, all three of these classes are <a href="https://pytorch.org/docs/stable/data.html#iterable-style-datasets">PyTorch <code>IterableDataset</code>
+classes</a>,
+so they are ready to be used directly to train and evaulate deep
+learning models with PyTorch.</p>
+<p><strong>A word of caution:</strong> the batch size and any parallelism a best handled
+by the dataset class itself rather than the PyTorch <code>DataLoader</code>; hence,
+we recommend initializing <code>DataLoaders</code> with <code>num_workers</code> \&lt;= 1 and
+<code>batch_size</code> = 1, or simply:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">DataLoader</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">loader</span><span class="p">:</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="s2">&quot;scan_id&quot;</span><span class="p">],</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;precursor_mz&quot;</span><span class="p">])</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">output</p>
+<p>tensor([501, 504]) tensor([ 804.7750, 1001.6693])
+tensor([507, 510]) tensor([1047.6174,  800.4349])</p>
+</div>
+<h2 id="transfomer-models-for-mass-spectra">Transfomer Models for Mass Spectra</h2>
+<p>Now that we know how to parse mass spectra, we can now build a model
+that uses them. In Depthcharge, we've designed Transformer models
+specifically for this task: the <code>SpectrumTransformerEncoder</code>. However,
+the dataset classes and other modules in Depthcharge are fully
+interoperable with any PyTorch module.</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span> <span class="nn">depthcharge.transformers</span> <span class="kn">import</span> <span class="n">SpectrumTransformerEncoder</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">SpectrumTransformerEncoder</span><span class="p">()</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">loader</span><span class="p">:</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="s2">&quot;mz_array&quot;</span><span class="p">],</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;intensity_array&quot;</span><span class="p">])</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">output</p>
+<p>torch.Size([2, 119, 128])
+torch.Size([2, 108, 128])</p>
+</div>
+<p>Note that by default, our Transformer model only considers the spectrum
+itself and not any of the precursor information. However, we can add it!</p>
+<p>The first element output by each Transformer module in Depthcharge is a
+global representation of the sequence, which is a mass spectrum in this
+case. By default, it is set to <code>0</code>s and ignored. We can change this
+behavior by creating a child class of our Transformer module and
+overriding the <code>global_token_hook</code> method. Let's create a hook that will
+add information about the precursor mass and charge to the global
+representation:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span> <span class="nn">depthcharge.encoders</span> <span class="kn">import</span> <span class="n">FloatEncoder</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">class</span> <span class="nc">MyModel</span><span class="p">(</span><span class="n">SpectrumTransformerEncoder</span><span class="p">):</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Our custom model class.&quot;&quot;&quot;</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Add parameters for the global token hook.&quot;&quot;&quot;</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">precursor_mz_encoder</span> <span class="o">=</span> <span class="n">FloatEncoder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">d_model</span><span class="p">)</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">precursor_z_encoder</span> <span class="o">=</span> <span class="n">FloatEncoder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">d_model</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>    <span class="k">def</span> <span class="nf">global_token_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mz_array</span><span class="p">,</span> <span class="n">intensity_array</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a simple representation of the precursor.&quot;&quot;&quot;</span>
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>        <span class="n">mz_rep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precursor_mz_encoder</span><span class="p">(</span>
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;precursor_mz&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">mz_array</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span>
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>        <span class="p">)</span>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a>        <span class="n">charge_rep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precursor_z_encoder</span><span class="p">(</span>
+</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;precursor_charge&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">mz_array</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span>
+</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>        <span class="p">)</span>
+</span><span id="__span-11-19"><a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a>        <span class="k">return</span> <span class="p">(</span><span class="n">mz_rep</span> <span class="o">+</span> <span class="n">charge_rep</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+</span></code></pre></div>
+<p>Now we can use our new <code>MyModel</code> class with our mass spectra:</p>
+<div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">model</span> <span class="o">=</span> <span class="n">MyModel</span><span class="p">()</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">loader</span><span class="p">:</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="o">**</span><span class="n">batch</span><span class="p">)</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">output</p>
+<p>torch.Size([2, 119, 128])
+torch.Size([2, 108, 128])</p>
+</div>
+<p>These Depthcharge modules are merely an accessible starting point for us
+to build a model fully customized to our task at hand.</p>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:1">
+<p>We plan to support the Bruker .d format will be supported through
+timsrust.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../installation/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Installation">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Installation
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../api/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Overview
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://twitter.com/wfondrie" target="_blank" rel="noopener" title="twitter.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M459.37 151.716c.325 4.548.325 9.097.325 13.645 0 138.72-105.583 298.558-298.558 298.558-59.452 0-114.68-17.219-161.137-47.106 8.447.974 16.568 1.299 25.34 1.299 49.055 0 94.213-16.568 130.274-44.832-46.132-.975-84.792-31.188-98.112-72.772 6.498.974 12.995 1.624 19.818 1.624 9.421 0 18.843-1.3 27.614-3.573-48.081-9.747-84.143-51.98-84.143-102.985v-1.299c13.969 7.797 30.214 12.67 47.431 13.319-28.264-18.843-46.781-51.005-46.781-87.391 0-19.492 5.197-37.36 14.294-52.954 51.655 63.675 129.3 105.258 216.365 109.807-1.624-7.797-2.599-15.918-2.599-24.04 0-57.828 46.782-104.934 104.934-104.934 30.213 0 57.502 12.67 76.67 33.137 23.715-4.548 46.456-13.32 66.599-25.34-7.798 24.366-24.366 44.833-46.132 57.827 21.117-2.273 41.584-8.122 60.426-16.243-14.292 20.791-32.161 39.308-52.628 54.253z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.footer", "content.code.copy"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.dd8806f2.min.js"></script>
+      
+    
+  </body>
+</html>
