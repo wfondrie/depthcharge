@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.3]
+
+### Changed
+- Length of the `SpectrumDataset` and `AnnotatedSpectrumDataset` now reflect the `samples` parameter of the `lance.pytorch.LanceDataset` parent class.
+
 ## [v0.4.2]
 
 ### Changed
