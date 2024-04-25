@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import logging
+import math
 import uuid
 from collections.abc import Generator, Iterable
 from os import PathLike
@@ -88,6 +90,10 @@ class SpectrumDataset(LanceDataset):
     ) -> None:
         """Initialize a SpectrumDataset."""
         self._parse_kwargs = {} if parse_kwargs is None else parse_kwargs
+        self._init_kwargs = copy.copy(self._parse_kwargs)
+        self._init_kwargs["batch_size"] = 128
+        self._init_kwargs["progress"] = False
+
         self._tmpdir = None
         if path is None:
             # Create a random temporary file:
@@ -101,7 +107,7 @@ class SpectrumDataset(LanceDataset):
         # Now parse spectra.
         if spectra is not None:
             spectra = utils.listify(spectra)
-            batch = next(_get_records(spectra, **self._parse_kwargs))
+            batch = next(_get_records(spectra, **self._init_kwargs))
             lance.write_dataset(
                 _get_records(spectra, **self._parse_kwargs),
                 str(self._path),
@@ -137,7 +143,7 @@ class SpectrumDataset(LanceDataset):
 
         """
         spectra = utils.listify(spectra)
-        batch = next(_get_records(spectra, **self._parse_kwargs))
+        batch = next(_get_records(spectra, **self._init_kwargs))
         self._dataset = lance.write_dataset(
             _get_records(spectra, **self._parse_kwargs),
             self._path,
@@ -167,8 +173,8 @@ class SpectrumDataset(LanceDataset):
         return self._to_tensor(self._dataset.take(utils.listify(idx)))
 
     def __len__(self) -> int:
-        """The number of spectra in the lance dataset."""
-        return self._dataset.count_rows()
+        """The number of batches in the lance dataset."""
+        return math.ceil(self._dataset.count_rows() / self.batch_size)
 
     def __del__(self) -> None:
         """Cleanup the temporary directory."""
