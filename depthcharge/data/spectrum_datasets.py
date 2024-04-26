@@ -175,7 +175,7 @@ class SpectrumDataset(LanceDataset):
     def __len__(self) -> int:
         """The number of batches in the lance dataset."""
         num = self._dataset.count_rows()
-        if self.samples is not None:
+        if self.samples:
             num = min(self.samples, num)
 
         return math.ceil(num / self.batch_size)
