@@ -37,7 +37,7 @@ def test_spectrum_loader_samples(mgf_small, tmp_path, samples, batches):
     )
 
     loaded = list(DataLoader(dset))
-    assert len(dset) == batches
+    assert dset.n_spectra == 2
     assert len(loaded) == batches
 
 

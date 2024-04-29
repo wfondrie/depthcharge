@@ -28,10 +28,10 @@ def tokenizer():
 def test_addition(mgf_small, tmp_path):
     """Testing adding a file."""
     dataset = SpectrumDataset(mgf_small, path=tmp_path / "test", batch_size=1)
-    assert len(dataset) == 2
+    assert dataset.n_spectra == 2
 
     dataset = dataset.add_spectra(mgf_small)
-    assert len(dataset) == 4
+    assert dataset.n_spectra == 4
 
 
 def test_indexing(tokenizer, mgf_small, tmp_path):
@@ -197,7 +197,7 @@ def test_pickle(tokenizer, tmp_path, mgf_small):
     with pkl_file.open("rb") as pkl:
         loaded = pickle.load(pkl)
 
-    assert len(dataset) == len(loaded)
+    assert dataset.n_spectra == loaded.n_spectra
 
     dataset = AnnotatedSpectrumDataset(
         [mgf_small],
@@ -214,4 +214,4 @@ def test_pickle(tokenizer, tmp_path, mgf_small):
     with pkl_file.open("rb") as pkl:
         loaded = pickle.load(pkl)
 
-    assert len(dataset) == len(loaded)
+    assert dataset.n_spectra == loaded.n_spectra
