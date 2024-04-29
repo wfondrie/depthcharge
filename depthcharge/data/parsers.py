@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from os import PathLike
@@ -223,10 +224,10 @@ class BaseParser(ABC):
                 yield self._yield_batch()
 
         if n_skipped:
-            LOGGER.warning(
-                "Skipped %d spectra with invalid information", n_skipped
+            warnings.warning(
+                f"Skipped {n_skipped} spectra with invalid information."
+                f"Last error was: \n {str(last_exc)}"
             )
-            LOGGER.debug("Last error: %s", str(last_exc))
 
     def _update_batch(self, entry: dict) -> None:
         """Update the batch.
