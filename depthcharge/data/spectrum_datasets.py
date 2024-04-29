@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import logging
-import math
 import uuid
 from collections.abc import Generator, Iterable
 from os import PathLike
@@ -77,6 +76,8 @@ class SpectrumDataset(LanceDataset):
     ----------
     peak_files : list of str
     path : Path
+    n_spectra : int
+    dataset : lance.LanceDataset
 
     """
 
@@ -118,11 +119,11 @@ class SpectrumDataset(LanceDataset):
         elif not self._path.exists():
             raise ValueError("No spectra were provided")
 
-        self._dataset = lance.dataset(str(self._path))
+        dataset = lance.dataset(str(self._path))
         if "to_tensor_fn" not in kwargs:
             kwargs["to_tensor_fn"] = self._to_tensor
 
-        super().__init__(self._dataset, batch_size, **kwargs)
+        super().__init__(dataset, batch_size, **kwargs)
 
     def add_spectra(
         self,
@@ -144,7 +145,7 @@ class SpectrumDataset(LanceDataset):
         """
         spectra = utils.listify(spectra)
         batch = next(_get_records(spectra, **self._init_kwargs))
-        self._dataset = lance.write_dataset(
+        self.dataset = lance.write_dataset(
             _get_records(spectra, **self._parse_kwargs),
             self._path,
             mode="append",
@@ -170,15 +171,7 @@ class SpectrumDataset(LanceDataset):
             PyTorch tensors if the nested data type is compatible.
 
         """
-        return self._to_tensor(self._dataset.take(utils.listify(idx)))
-
-    def __len__(self) -> int:
-        """The number of batches in the lance dataset."""
-        num = self._dataset.count_rows()
-        if self.samples:
-            num = min(self.samples, num)
-
-        return math.ceil(num / self.batch_size)
+        return self._to_tensor(self.dataset.take(utils.listify(idx)))
 
     def __del__(self) -> None:
         """Cleanup the temporary directory."""
@@ -186,10 +179,15 @@ class SpectrumDataset(LanceDataset):
             self._tmpdir.cleanup()
 
     @property
+    def n_spectra(self) -> int:
+        """The number of spectra in the Lance dataset."""
+        return self.dataset.count_rows()
+
+    @property
     def peak_files(self) -> list[str]:
         """The files currently in the lance dataset."""
         return (
-            self._dataset.to_table(columns=["peak_file"])
+            self.dataset.to_table(columns=["peak_file"])
             .column(0)
             .unique()
             .to_pylist()
@@ -320,6 +318,8 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     ----------
     peak_files : list of str
     path : Path
+    n_spectra : int
+    dataset : lance.LanceDataset
     tokenizer : PeptideTokenizer
         The tokenizer for the annotations.
     annotations : str
