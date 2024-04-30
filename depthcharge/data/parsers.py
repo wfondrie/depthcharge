@@ -90,7 +90,7 @@ class BaseParser(ABC):
         self.schema = pa.schema(
             [
                 pa.field("peak_file", pa.string()),
-                pa.field("scan_id", pa.int64()),
+                pa.field("scan_id", pa.string()),
                 pa.field("ms_level", pa.uint8()),
                 pa.field("precursor_mz", pa.float64()),
                 pa.field("precursor_charge", pa.int16()),
@@ -198,7 +198,7 @@ class BaseParser(ABC):
 
                     entry = {
                         "peak_file": self.peak_file.name,
-                        "scan_id": _parse_scan_id(parsed.scan_id),
+                        "scan_id": str(parsed.scan_id),
                         "ms_level": parsed.ms_level,
                         "precursor_mz": parsed.precursor_mz,
                         "precursor_charge": parsed.precursor_charge,
