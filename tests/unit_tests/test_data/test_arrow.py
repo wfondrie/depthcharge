@@ -14,10 +14,13 @@ from depthcharge.data.arrow import (
 from depthcharge.data.fields import CustomField
 from depthcharge.data.preprocessing import scale_to_unit_norm
 
-METADATA_DF1 = pl.DataFrame({"scan_id": [501, 507, 10], "blah": [True] * 3})
+SCANS = [
+    f"controllerType=0 controllerNumber=1 scan={x}" for x in [501, 507, 10]
+]
+METADATA_DF1 = pl.DataFrame({"scan_id": SCANS, "blah": [True] * 3})
 METADATA_DF2 = pl.DataFrame(
     {
-        "scan_id": [501, 507, 10],
+        "scan_id": SCANS,
         "blah": [True] * 3,
         "peak_file": ["TMT10-Trail-8.mzML"] * 3,
     },

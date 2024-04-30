@@ -90,7 +90,7 @@ class BaseParser(ABC):
         self.schema = pa.schema(
             [
                 pa.field("peak_file", pa.string()),
-                pa.field("scan_id", pa.int64()),
+                pa.field("scan_id", pa.string()),
                 pa.field("ms_level", pa.uint8()),
                 pa.field("precursor_mz", pa.float64()),
                 pa.field("precursor_charge", pa.int16()),
@@ -198,7 +198,7 @@ class BaseParser(ABC):
 
                     entry = {
                         "peak_file": self.peak_file.name,
-                        "scan_id": _parse_scan_id(parsed.scan_id),
+                        "scan_id": str(parsed.scan_id),
                         "ms_level": parsed.ms_level,
                         "precursor_mz": parsed.precursor_mz,
                         "precursor_charge": parsed.precursor_charge,
@@ -529,39 +529,6 @@ class MgfParser(BaseParser):
             )
 
         raise ValueError("Invalid precursor charge.")
-
-
-def _parse_scan_id(scan_str: str | int) -> int:
-    """Remove the string prefix from the scan ID.
-
-    Adapted from:
-    https://github.com/bittremieux/GLEAMS/blob/
-    8831ad6b7a5fc391f8d3b79dec976b51a2279306/gleams/
-    ms_io/mzml_io.py#L82-L85
-
-    Parameters
-    ----------
-    scan_str : str
-        The scan ID string.
-
-    Returns
-    -------
-    int
-        The scan ID number.
-
-    """
-    try:
-        return int(scan_str)
-    except ValueError:
-        try:
-            return int(scan_str[scan_str.find("scan=") + len("scan=") :])
-        except ValueError:
-            try:
-                return int(scan_str[scan_str.find("index=") + len("index=") :])
-            except ValueError:
-                pass
-
-    raise ValueError("Failed to parse scan number")
 
 
 class ParserFactory:
