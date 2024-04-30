@@ -854,25 +854,29 @@ spectra after it is parsed by Depthcharge.</p>
 <div class="admonition note">
 <p class="admonition-title">output</p>
 <p>shape: (4, 7)
-+---------------+---------+----------+--------------+---------------+---------------+--------------+
-| peak_file     | scan_id | ms_level | precursor_mz | precursor_cha | mz_array      | intensity_ar |
-| ---           | ---     | ---      | ---          | rge           | ---           | ray          |
-| str           | i64     | u8       | f64          | ---           | list[f64]     | ---          |
-|               |         |          |              | i16           |               | list[f64]    |
++--------------+--------------+----------+--------------+--------------+-------------+-------------+
+| peak_file    | scan_id      | ms_level | precursor_mz | precursor_ch | mz_array    | intensity_a |
+| ---          | ---          | ---      | ---          | arge         | ---         | rray        |
+| str          | str          | u8       | f64          | ---          | list[f64]   | ---         |
+|              |              |          |              | i16          |             | list[f64]   |
 +==================================================================================================+
-| TMT10-Trial-8 | 501     | 2        | 804.774963   | 3             | [284.917023,  | [0.004933,   |
-| .mzML         |         |          |              |               | 312.908997, … | 0.005314, …  |
-|               |         |          |              |               | 157…          | 0.00807…     |
-| TMT10-Trial-8 | 504     | 2        | 1001.6693    | 2             | [311.863007,  | [0.008258,   |
-| .mzML         |         |          |              |               | 330.019012, … | 0.008424, …  |
-|               |         |          |              |               | 173…          | 0.00644…     |
-| TMT10-Trial-8 | 507     | 2        | 1047.6174    | 3             | [338.669006,  | [0.011869,   |
-| .mzML         |         |          |              |               | 354.175995, … | 0.010293, …  |
-|               |         |          |              |               | 185…          | 0.01242…     |
-| TMT10-Trial-8 | 510     | 2        | 800.4349     | 3             | [247.792007,  | [0.005207,   |
-| .mzML         |         |          |              |               | 313.678009, … | 0.004437, …  |
-|               |         |          |              |               | 194…          | 0.00915…     |
-+---------------+---------+----------+--------------+---------------+---------------+--------------+</p>
+| TMT10-Trial- | controllerTy | 2        | 804.774963   | 3            | [284.917023 | [0.004933,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.005314, … |
+|              | lerNum…      |          |              |              | 312.908997, | 0.00807…    |
+|              |              |          |              |              | … 157…      |             |
+| TMT10-Trial- | controllerTy | 2        | 1001.6693    | 2            | [311.863007 | [0.008258,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.008424, … |
+|              | lerNum…      |          |              |              | 330.019012, | 0.00644…    |
+|              |              |          |              |              | … 173…      |             |
+| TMT10-Trial- | controllerTy | 2        | 1047.6174    | 3            | [338.669006 | [0.011869,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.010293, … |
+|              | lerNum…      |          |              |              | 354.175995, | 0.01242…    |
+|              |              |          |              |              | … 185…      |             |
+| TMT10-Trial- | controllerTy | 2        | 800.4349     | 3            | [247.792007 | [0.005207,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.004437, … |
+|              | lerNum…      |          |              |              | 313.678009, | 0.00915…    |
+|              |              |          |              |              | … 194…      |             |
++--------------+--------------+----------+--------------+--------------+-------------+-------------+</p>
 </div>
 <p>We can write the mass spectra directly to a Parquet file:</p>
 <div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">pq_file</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_parquet</span><span class="p">(</span><span class="n">mzml_file</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -881,25 +885,29 @@ spectra after it is parsed by Depthcharge.</p>
 <div class="admonition note">
 <p class="admonition-title">output</p>
 <p>shape: (4, 7)
-+---------------+---------+----------+--------------+---------------+---------------+--------------+
-| peak_file     | scan_id | ms_level | precursor_mz | precursor_cha | mz_array      | intensity_ar |
-| ---           | ---     | ---      | ---          | rge           | ---           | ray          |
-| str           | i64     | u8       | f64          | ---           | list[f64]     | ---          |
-|               |         |          |              | i16           |               | list[f64]    |
++--------------+--------------+----------+--------------+--------------+-------------+-------------+
+| peak_file    | scan_id      | ms_level | precursor_mz | precursor_ch | mz_array    | intensity_a |
+| ---          | ---          | ---      | ---          | arge         | ---         | rray        |
+| str          | str          | u8       | f64          | ---          | list[f64]   | ---         |
+|              |              |          |              | i16          |             | list[f64]   |
 +==================================================================================================+
-| TMT10-Trial-8 | 501     | 2        | 804.774963   | 3             | [284.917023,  | [0.004933,   |
-| .mzML         |         |          |              |               | 312.908997, … | 0.005314, …  |
-|               |         |          |              |               | 157…          | 0.00807…     |
-| TMT10-Trial-8 | 504     | 2        | 1001.6693    | 2             | [311.863007,  | [0.008258,   |
-| .mzML         |         |          |              |               | 330.019012, … | 0.008424, …  |
-|               |         |          |              |               | 173…          | 0.00644…     |
-| TMT10-Trial-8 | 507     | 2        | 1047.6174    | 3             | [338.669006,  | [0.011869,   |
-| .mzML         |         |          |              |               | 354.175995, … | 0.010293, …  |
-|               |         |          |              |               | 185…          | 0.01242…     |
-| TMT10-Trial-8 | 510     | 2        | 800.4349     | 3             | [247.792007,  | [0.005207,   |
-| .mzML         |         |          |              |               | 313.678009, … | 0.004437, …  |
-|               |         |          |              |               | 194…          | 0.00915…     |
-+---------------+---------+----------+--------------+---------------+---------------+--------------+</p>
+| TMT10-Trial- | controllerTy | 2        | 804.774963   | 3            | [284.917023 | [0.004933,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.005314, … |
+|              | lerNum…      |          |              |              | 312.908997, | 0.00807…    |
+|              |              |          |              |              | … 157…      |             |
+| TMT10-Trial- | controllerTy | 2        | 1001.6693    | 2            | [311.863007 | [0.008258,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.008424, … |
+|              | lerNum…      |          |              |              | 330.019012, | 0.00644…    |
+|              |              |          |              |              | … 173…      |             |
+| TMT10-Trial- | controllerTy | 2        | 1047.6174    | 3            | [338.669006 | [0.011869,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.010293, … |
+|              | lerNum…      |          |              |              | 354.175995, | 0.01242…    |
+|              |              |          |              |              | … 185…      |             |
+| TMT10-Trial- | controllerTy | 2        | 800.4349     | 3            | [247.792007 | [0.005207,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.004437, … |
+|              | lerNum…      |          |              |              | 313.678009, | 0.00915…    |
+|              |              |          |              |              | … 194…      |             |
++--------------+--------------+----------+--------------+--------------+-------------+-------------+</p>
 </div>
 <p>Or we can stream them from the original file in batches:</p>
 <div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">batch</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_stream</span><span class="p">(</span><span class="n">mzml_file</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
@@ -908,25 +916,29 @@ spectra after it is parsed by Depthcharge.</p>
 <div class="admonition note">
 <p class="admonition-title">output</p>
 <p>shape: (4, 7)
-+---------------+---------+----------+--------------+---------------+---------------+--------------+
-| peak_file     | scan_id | ms_level | precursor_mz | precursor_cha | mz_array      | intensity_ar |
-| ---           | ---     | ---      | ---          | rge           | ---           | ray          |
-| str           | i64     | u8       | f64          | ---           | list[f64]     | ---          |
-|               |         |          |              | i16           |               | list[f64]    |
++--------------+--------------+----------+--------------+--------------+-------------+-------------+
+| peak_file    | scan_id      | ms_level | precursor_mz | precursor_ch | mz_array    | intensity_a |
+| ---          | ---          | ---      | ---          | arge         | ---         | rray        |
+| str          | str          | u8       | f64          | ---          | list[f64]   | ---         |
+|              |              |          |              | i16          |             | list[f64]   |
 +==================================================================================================+
-| TMT10-Trial-8 | 501     | 2        | 804.774963   | 3             | [284.917023,  | [0.004933,   |
-| .mzML         |         |          |              |               | 312.908997, … | 0.005314, …  |
-|               |         |          |              |               | 157…          | 0.00807…     |
-| TMT10-Trial-8 | 504     | 2        | 1001.6693    | 2             | [311.863007,  | [0.008258,   |
-| .mzML         |         |          |              |               | 330.019012, … | 0.008424, …  |
-|               |         |          |              |               | 173…          | 0.00644…     |
-| TMT10-Trial-8 | 507     | 2        | 1047.6174    | 3             | [338.669006,  | [0.011869,   |
-| .mzML         |         |          |              |               | 354.175995, … | 0.010293, …  |
-|               |         |          |              |               | 185…          | 0.01242…     |
-| TMT10-Trial-8 | 510     | 2        | 800.4349     | 3             | [247.792007,  | [0.005207,   |
-| .mzML         |         |          |              |               | 313.678009, … | 0.004437, …  |
-|               |         |          |              |               | 194…          | 0.00915…     |
-+---------------+---------+----------+--------------+---------------+---------------+--------------+</p>
+| TMT10-Trial- | controllerTy | 2        | 804.774963   | 3            | [284.917023 | [0.004933,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.005314, … |
+|              | lerNum…      |          |              |              | 312.908997, | 0.00807…    |
+|              |              |          |              |              | … 157…      |             |
+| TMT10-Trial- | controllerTy | 2        | 1001.6693    | 2            | [311.863007 | [0.008258,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.008424, … |
+|              | lerNum…      |          |              |              | 330.019012, | 0.00644…    |
+|              |              |          |              |              | … 173…      |             |
+| TMT10-Trial- | controllerTy | 2        | 1047.6174    | 3            | [338.669006 | [0.011869,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.010293, … |
+|              | lerNum…      |          |              |              | 354.175995, | 0.01242…    |
+|              |              |          |              |              | … 185…      |             |
+| TMT10-Trial- | controllerTy | 2        | 800.4349     | 3            | [247.792007 | [0.005207,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | 0.004437, … |
+|              | lerNum…      |          |              |              | 313.678009, | 0.00915…    |
+|              |              |          |              |              | … 194…      |             |
++--------------+--------------+----------+--------------+--------------+-------------+-------------+</p>
 </div>
 <h3 id="spectrum-preprocessing">Spectrum Preprocessing</h3>
 <p>Preprocessing steps, such as filtering peaks and transforming
@@ -981,25 +993,29 @@ combination with other functions:</p>
 <div class="admonition note">
 <p class="admonition-title">output</p>
 <p>shape: (4, 7)
-+---------------+---------+----------+--------------+---------------+---------------+--------------+
-| peak_file     | scan_id | ms_level | precursor_mz | precursor_cha | mz_array      | intensity_ar |
-| ---           | ---     | ---      | ---          | rge           | ---           | ray          |
-| str           | i64     | u8       | f64          | ---           | list[f64]     | ---          |
-|               |         |          |              | i16           |               | list[f64]    |
++--------------+--------------+----------+--------------+--------------+-------------+-------------+
+| peak_file    | scan_id      | ms_level | precursor_mz | precursor_ch | mz_array    | intensity_a |
+| ---          | ---          | ---      | ---          | arge         | ---         | rray        |
+| str          | str          | u8       | f64          | ---          | list[f64]   | ---         |
+|              |              |          |              | i16          |             | list[f64]   |
 +==================================================================================================+
-| TMT10-Trial-8 | 501     | 2        | 804.774963   | 3             | [284.917023,  | [1.0, 1.0, … |
-| .mzML         |         |          |              |               | 312.908997, … | 1.0]         |
-|               |         |          |              |               | 157…          |              |
-| TMT10-Trial-8 | 504     | 2        | 1001.6693    | 2             | [311.863007,  | [1.0, 1.0, … |
-| .mzML         |         |          |              |               | 330.019012, … | 1.0]         |
-|               |         |          |              |               | 173…          |              |
-| TMT10-Trial-8 | 507     | 2        | 1047.6174    | 3             | [338.669006,  | [1.0, 1.0, … |
-| .mzML         |         |          |              |               | 354.175995, … | 1.0]         |
-|               |         |          |              |               | 185…          |              |
-| TMT10-Trial-8 | 510     | 2        | 800.4349     | 3             | [247.792007,  | [1.0, 1.0, … |
-| .mzML         |         |          |              |               | 313.678009, … | 1.0]         |
-|               |         |          |              |               | 194…          |              |
-+---------------+---------+----------+--------------+---------------+---------------+--------------+</p>
+| TMT10-Trial- | controllerTy | 2        | 804.774963   | 3            | [284.917023 | [1.0, 1.0,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | … 1.0]      |
+|              | lerNum…      |          |              |              | 312.908997, |             |
+|              |              |          |              |              | … 157…      |             |
+| TMT10-Trial- | controllerTy | 2        | 1001.6693    | 2            | [311.863007 | [1.0, 1.0,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | … 1.0]      |
+|              | lerNum…      |          |              |              | 330.019012, |             |
+|              |              |          |              |              | … 173…      |             |
+| TMT10-Trial- | controllerTy | 2        | 1047.6174    | 3            | [338.669006 | [1.0, 1.0,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | … 1.0]      |
+|              | lerNum…      |          |              |              | 354.175995, |             |
+|              |              |          |              |              | … 185…      |             |
+| TMT10-Trial- | controllerTy | 2        | 800.4349     | 3            | [247.792007 | [1.0, 1.0,  |
+| 8.mzML       | pe=0 control |          |              |              | ,           | … 1.0]      |
+|              | lerNum…      |          |              |              | 313.678009, |             |
+|              |              |          |              |              | … 194…      |             |
++--------------+--------------+----------+--------------+--------------+-------------+-------------+</p>
 </div>
 <h3 id="extracting-additional-data">Extracting Additional Data</h3>
 <p>By default, Depthcharge only extracts a minimal amount of information
@@ -1034,29 +1050,33 @@ field to extract the retention time for each spectrum:</p>
 <div class="admonition note">
 <p class="admonition-title">output</p>
 <p>shape: (4, 8)
-+-------------+---------+----------+-------------+------------+------------+------------+----------+
-| peak_file   | scan_id | ms_level | precursor_m | precursor_ | mz_array   | intensity_ | ret_time |
-| ---         | ---     | ---      | z           | charge     | ---        | array      | ---      |
-| str         | i64     | u8       | ---         | ---        | list[f64]  | ---        | f64      |
-|             |         |          | f64         | i16        |            | list[f64]  |          |
++------------+------------+----------+------------+------------+------------+-----------+----------+
+| peak_file  | scan_id    | ms_level | precursor_ | precursor_ | mz_array   | intensity | ret_time |
+| ---        | ---        | ---      | mz         | charge     | ---        | _array    | ---      |
+| str        | str        | u8       | ---        | ---        | list[f64]  | ---       | f64      |
+|            |            |          | f64        | i16        |            | list[f64] |          |
 +==================================================================================================+
-| TMT10-Trial | 501     | 2        | 804.774963  | 3          | [284.91702 | [0.004933, | 1.069915 |
-| -8.mzML     |         |          |             |            | 3, 312.908 | 0.005314,  |          |
-|             |         |          |             |            | 997, …     | … 0.00807… |          |
-|             |         |          |             |            | 157…       |            |          |
-| TMT10-Trial | 504     | 2        | 1001.6693   | 2          | [311.86300 | [0.008258, | 1.076773 |
-| -8.mzML     |         |          |             |            | 7, 330.019 | 0.008424,  |          |
-|             |         |          |             |            | 012, …     | … 0.00644… |          |
-|             |         |          |             |            | 173…       |            |          |
-| TMT10-Trial | 507     | 2        | 1047.6174   | 3          | [338.66900 | [0.011869, | 1.083688 |
-| -8.mzML     |         |          |             |            | 6, 354.175 | 0.010293,  |          |
-|             |         |          |             |            | 995, …     | … 0.01242… |          |
-|             |         |          |             |            | 185…       |            |          |
-| TMT10-Trial | 510     | 2        | 800.4349    | 3          | [247.79200 | [0.005207, | 1.09051  |
-| -8.mzML     |         |          |             |            | 7, 313.678 | 0.004437,  |          |
-|             |         |          |             |            | 009, …     | … 0.00915… |          |
-|             |         |          |             |            | 194…       |            |          |
-+-------------+---------+----------+-------------+------------+------------+------------+----------+</p>
+| TMT10-Tria | controller | 2        | 804.774963 | 3          | [284.91702 | [0.004933 | 1.069915 |
+| l-8.mzML   | Type=0 con |          |            |            | 3, 312.908 | ,         |          |
+|            | trollerNum |          |            |            | 997, …     | 0.005314, |          |
+|            | …          |          |            |            | 157…       | …         |          |
+|            |            |          |            |            |            | 0.00807…  |          |
+| TMT10-Tria | controller | 2        | 1001.6693  | 2          | [311.86300 | [0.008258 | 1.076773 |
+| l-8.mzML   | Type=0 con |          |            |            | 7, 330.019 | ,         |          |
+|            | trollerNum |          |            |            | 012, …     | 0.008424, |          |
+|            | …          |          |            |            | 173…       | …         |          |
+|            |            |          |            |            |            | 0.00644…  |          |
+| TMT10-Tria | controller | 2        | 1047.6174  | 3          | [338.66900 | [0.011869 | 1.083688 |
+| l-8.mzML   | Type=0 con |          |            |            | 6, 354.175 | ,         |          |
+|            | trollerNum |          |            |            | 995, …     | 0.010293, |          |
+|            | …          |          |            |            | 185…       | …         |          |
+|            |            |          |            |            |            | 0.01242…  |          |
+| TMT10-Tria | controller | 2        | 800.4349   | 3          | [247.79200 | [0.005207 | 1.09051  |
+| l-8.mzML   | Type=0 con |          |            |            | 7, 313.678 | ,         |          |
+|            | trollerNum |          |            |            | 009, …     | 0.004437, |          |
+|            | …          |          |            |            | 194…       | …         |          |
+|            |            |          |            |            |            | 0.00915…  |          |
++------------+------------+----------+------------+------------+------------+-----------+----------+</p>
 </div>
 <h3 id="adding-additional-outside-data">Adding Additional Outside Data</h3>
 <p>As a DataFrame or Parquet file, the parsed mass spectra are relatively
@@ -1069,43 +1089,46 @@ to join the metadata table with the parsed spectra.</p>
 <p>For example, we could use a metadata_df to pair peptide detections with
 the spectrum that they were detected from:</p>
 <div class="language-python cell-code highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">metadata_df</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="s2">&quot;scan_id&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">501</span><span class="p">,</span> <span class="mi">507</span><span class="p">],</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="s2">&quot;peptide&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;LESLIEK&quot;</span><span class="p">,</span> <span class="s2">&quot;EDITHR&quot;</span><span class="p">,]</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">})</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">df</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_df</span><span class="p">(</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">mzml_file</span><span class="p">,</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">metadata_df</span><span class="o">=</span><span class="n">metadata_df</span><span class="p">,</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="p">)</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="s2">&quot;scan_id&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>        <span class="sa">f</span><span class="s2">&quot;controllerType=0 controllerNumber=1 scan=</span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">501</span><span class="p">,</span> <span class="mi">507</span><span class="p">)</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="p">],</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="s2">&quot;peptide&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;LESLIEK&quot;</span><span class="p">,</span> <span class="s2">&quot;EDITHR&quot;</span><span class="p">]</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="p">})</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="n">df</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_df</span><span class="p">(</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="n">mzml_file</span><span class="p">,</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>    <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>    <span class="n">metadata_df</span><span class="o">=</span><span class="n">metadata_df</span><span class="p">,</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="p">)</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">output</p>
 <p>shape: (4, 8)
-+-------------+---------+----------+-------------+-------------+------------+------------+---------+
-| peak_file   | scan_id | ms_level | precursor_m | precursor_c | mz_array   | intensity_ | peptide |
-| ---         | ---     | ---      | z           | harge       | ---        | array      | ---     |
-| str         | i64     | u8       | ---         | ---         | list[f64]  | ---        | str     |
-|             |         |          | f64         | i16         |            | list[f64]  |         |
++------------+------------+----------+------------+------------+------------+------------+---------+
+| peak_file  | scan_id    | ms_level | precursor_ | precursor_ | mz_array   | intensity_ | peptide |
+| ---        | ---        | ---      | mz         | charge     | ---        | array      | ---     |
+| str        | str        | u8       | ---        | ---        | list[f64]  | ---        | str     |
+|            |            |          | f64        | i16        |            | list[f64]  |         |
 +==================================================================================================+
-| TMT10-Trial | 501     | 2        | 804.774963  | 3           | [284.91702 | [0.004933, | LESLIEK |
-| -8.mzML     |         |          |             |             | 3, 312.908 | 0.005314,  |         |
-|             |         |          |             |             | 997, …     | … 0.00807… |         |
-|             |         |          |             |             | 157…       |            |         |
-| TMT10-Trial | 504     | 2        | 1001.6693   | 2           | [311.86300 | [0.008258, | null    |
-| -8.mzML     |         |          |             |             | 7, 330.019 | 0.008424,  |         |
-|             |         |          |             |             | 012, …     | … 0.00644… |         |
-|             |         |          |             |             | 173…       |            |         |
-| TMT10-Trial | 507     | 2        | 1047.6174   | 3           | [338.66900 | [0.011869, | EDITHR  |
-| -8.mzML     |         |          |             |             | 6, 354.175 | 0.010293,  |         |
-|             |         |          |             |             | 995, …     | … 0.01242… |         |
-|             |         |          |             |             | 185…       |            |         |
-| TMT10-Trial | 510     | 2        | 800.4349    | 3           | [247.79200 | [0.005207, | null    |
-| -8.mzML     |         |          |             |             | 7, 313.678 | 0.004437,  |         |
-|             |         |          |             |             | 009, …     | … 0.00915… |         |
-|             |         |          |             |             | 194…       |            |         |
-+-------------+---------+----------+-------------+-------------+------------+------------+---------+</p>
+| TMT10-Tria | controller | 2        | 804.774963 | 3          | [284.91702 | [0.004933, | LESLIEK |
+| l-8.mzML   | Type=0 con |          |            |            | 3, 312.908 | 0.005314,  |         |
+|            | trollerNum |          |            |            | 997, …     | … 0.00807… |         |
+|            | …          |          |            |            | 157…       |            |         |
+| TMT10-Tria | controller | 2        | 1001.6693  | 2          | [311.86300 | [0.008258, | null    |
+| l-8.mzML   | Type=0 con |          |            |            | 7, 330.019 | 0.008424,  |         |
+|            | trollerNum |          |            |            | 012, …     | … 0.00644… |         |
+|            | …          |          |            |            | 173…       |            |         |
+| TMT10-Tria | controller | 2        | 1047.6174  | 3          | [338.66900 | [0.011869, | EDITHR  |
+| l-8.mzML   | Type=0 con |          |            |            | 6, 354.175 | 0.010293,  |         |
+|            | trollerNum |          |            |            | 995, …     | … 0.01242… |         |
+|            | …          |          |            |            | 185…       |            |         |
+| TMT10-Tria | controller | 2        | 800.4349   | 3          | [247.79200 | [0.005207, | null    |
+| l-8.mzML   | Type=0 con |          |            |            | 7, 313.678 | 0.004437,  |         |
+|            | trollerNum |          |            |            | 009, …     | … 0.00915… |         |
+|            | …          |          |            |            | 194…       |            |         |
++------------+------------+----------+------------+------------+------------+------------+---------+</p>
 </div>
 <h2 id="building-pytorch-datasets-from-mass-spectra">Building PyTorch Datasets from Mass Spectra</h2>
 <p>Although the individual mass spectrometry data file parsing features are
@@ -1156,8 +1179,8 @@ we recommend initializing <code>DataLoaders</code> with <code>num_workers</code>
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">output</p>
-<p>tensor([501, 504]) tensor([ 804.7750, 1001.6693])
-tensor([507, 510]) tensor([1047.6174,  800.4349])</p>
+<p>['controllerType=0 controllerNumber=1 scan=501', 'controllerType=0 controllerNumber=1 scan=504'] tensor([ 804.7750, 1001.6693])
+['controllerType=0 controllerNumber=1 scan=507', 'controllerType=0 controllerNumber=1 scan=510'] tensor([1047.6174,  800.4349])</p>
 </div>
 <h2 id="transfomer-models-for-mass-spectra">Transfomer Models for Mass Spectra</h2>
 <p>Now that we know how to parse mass spectra, we can now build a model

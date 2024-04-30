@@ -136,8 +136,11 @@ For example, we could use a metadata_df to pair peptide detections with the spec
 
 ```{python}
 metadata_df = pl.DataFrame({
-    "scan_id": [501, 507],
-    "peptide": ["LESLIEK", "EDITHR",]
+    "scan_id": [
+        f"controllerType=0 controllerNumber=1 scan={x}"
+        for x in (501, 507)
+    ],
+    "peptide": ["LESLIEK", "EDITHR"]
 })
 
 df = dc.data.spectra_to_df(
