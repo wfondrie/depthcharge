@@ -109,3 +109,9 @@ def test_single_peptide():
     ion = tokenizer.calculate_precursor_ions("LESLIEK", 2)
     expected = mass.fast_mass("LESLIEK", charge=2, ion_type="M")
     torch.testing.assert_close(ion, torch.tensor([expected]))
+
+
+def test_almost_compliant_proform():
+    """Test initializing with a peptide without an expicit mass sign."""
+    tokenizer = PeptideTokenizer.from_proforma("[10]-EDITHR")
+    assert "[+10.000000]-" in tokenizer.residues

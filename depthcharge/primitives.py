@@ -17,6 +17,7 @@ from rdkit import Chem
 from rdkit.Chem import Draw
 from spectrum_utils.spectrum import MsmsSpectrum
 
+from . import utils
 from .constants import PROTON
 
 MSKB_TO_UNIMOD = {
@@ -72,17 +73,7 @@ class Peptide:
             if mod is None:
                 continue
 
-            try:
-                mod = [MassModification(mod)]
-            except ValueError:
-                try:
-                    mod = [GenericModification(mod)]
-                except (AttributeError, TypeError):
-                    pass
-            except TypeError:
-                pass
-
-            parsed[idx] = mod
+            parsed[idx] = [_resolve_mod(m) for m in utils.listify(mod)]
 
         self.modifications = parsed
         n_mod = self.modifications[0]
@@ -116,7 +107,7 @@ class Peptide:
                 except (AttributeError, ValueError):
                     modstr = f"[{mods[0].mass:+0.6f}]"
             else:
-                modstr = f"[{sum([m.mass for m in mods]):+0.6f}]"
+                modstr = f"[{sum(m.mass for m in mods):+0.6f}]"
 
             if not idx:
                 out.append(f"{modstr}-")
@@ -444,3 +435,30 @@ class MassSpectrum(MsmsSpectrum):
 
         """
         return torch.tensor(np.vstack([self.mz, self.intensity]).T)
+
+
+def _resolve_mod(
+    mod: MassModification | GenericModification | str | float,
+) -> MassModification | GenericModification:
+    """Resolve the type of a modification.
+
+    Parameters
+    ----------
+    mod : MassModification, GenericModification, str, or float
+        The modification to resolve.
+
+    Returns
+    -------
+    MassModification or GenericModification
+        The best modification for the input type.
+
+    """
+    try:
+        mod = mod.value
+    except AttributeError:
+        pass
+
+    try:
+        return MassModification(float(mod))
+    except ValueError:
+        return GenericModification(str(mod))
