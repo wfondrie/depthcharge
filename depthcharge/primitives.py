@@ -73,7 +73,12 @@ class Peptide:
                 continue
 
             try:
-                mod = [MassModification(mod)]
+                try:
+                    mass = mod[0].value
+                except (IndexError, AttributeError):
+                    mass = mod
+
+                mod = [MassModification(float(mass))]
             except ValueError:
                 try:
                     mod = [GenericModification(mod)]
@@ -116,7 +121,7 @@ class Peptide:
                 except (AttributeError, ValueError):
                     modstr = f"[{mods[0].mass:+0.6f}]"
             else:
-                modstr = f"[{sum([m.mass for m in mods]):+0.6f}]"
+                modstr = f"[{sum(m.mass for m in mods):+0.6f}]"
 
             if not idx:
                 out.append(f"{modstr}-")

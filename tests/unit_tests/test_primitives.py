@@ -50,6 +50,12 @@ def test_peptide_init():
     assert parsed.split() == expected
 
 
+def test_almost_proforma():
+    """Test a peptide lacking an explicit sign."""
+    parsed = Peptide.from_proforma("LES[79.0]LIEK")
+    assert parsed.split() == ["L", "E", "S[79.000000]", "L", "I", "E", "K"]
+
+
 def test_peptide_from_proforma():
     """Test proforma parsing."""
     parsed = Peptide.from_proforma("LESLIEK/2")
