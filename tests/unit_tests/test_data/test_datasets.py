@@ -73,14 +73,18 @@ def test_indexing(tokenizer, mgf_small, tmp_path):
         1,
         14,
     )
-    torch.testing.assert_close(spec["seq"], tokenizer.tokenize(["LESLIEK"]))
+    torch.testing.assert_close(
+        spec["seq"], tokenizer.tokenize(["LESLIEK"], add_stop=True)
+    )
 
     spec2 = dataset[3]
     assert spec2["mz_array"].shape == (
         1,
         24,
     )
-    torch.testing.assert_close(spec2["seq"], tokenizer.tokenize(["EDITHR"]))
+    torch.testing.assert_close(
+        spec2["seq"], tokenizer.tokenize(["EDITHR"], add_stop=True)
+    )
 
 
 def test_load(tokenizer, tmp_path, mgf_small):
@@ -106,11 +110,15 @@ def test_load(tokenizer, tmp_path, mgf_small):
     spec = dataset[0]
     assert len(spec) == 8
     assert spec["mz_array"].shape == (1, 14)
-    torch.testing.assert_close(spec["seq"], tokenizer.tokenize(["LESLIEK"]))
+    torch.testing.assert_close(
+        spec["seq"], tokenizer.tokenize(["LESLIEK"], add_stop=True)
+    )
 
     spec2 = dataset[1]
     assert spec2["mz_array"].shape == (1, 24)
-    torch.testing.assert_close(spec2["seq"], tokenizer.tokenize(["EDITHR"]))
+    torch.testing.assert_close(
+        spec2["seq"], tokenizer.tokenize(["EDITHR"], add_stop=True)
+    )
 
     dataset = SpectrumDataset.from_lance(db_path, 1)
     spec = dataset[0]

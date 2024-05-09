@@ -367,7 +367,9 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         """
         batch = super()._to_tensor(batch)
         batch[self.annotations] = self.tokenizer.tokenize(
-            batch[self.annotations]
+            batch[self.annotations],
+            add_start=self.tokenizer.start_token is not None,
+            add_stop=self.tokenizer.stop_token is not None,
         )
         return batch
 
