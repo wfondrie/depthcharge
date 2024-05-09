@@ -74,7 +74,7 @@ def test_ann_spectrum_loader(mgf_small):
     assert isinstance(batch["mz_array"], torch.Tensor)
     torch.testing.assert_close(
         batch["seq"][0, ...],
-        tokenizer.tokenize(["LESLIEK"]),
+        tokenizer.tokenize(["LESLIEK"], add_stop=True),
     )
 
 

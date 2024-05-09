@@ -164,12 +164,50 @@ class PeptideTokenizer(Tokenizer):
 
         return pep
 
+    def detokenize(
+        self,
+        tokens: torch.Tensor,
+        join: bool = True,
+        trim_start_token: bool = True,
+        trim_stop_token: bool = True,
+    ) -> list[str] | list[list[str]]:
+        """Retreive sequences from tokens.
+
+        Parameters
+        ----------
+        tokens : torch.Tensor of shape (n_sequences, max_length)
+            The zero-padded tensor of integerized tokens to decode.
+        join : bool, optional
+            Join tokens into strings?
+        trim_start_token : bool, optional
+            Remove the start token from the beginning of a sequence.
+        trim_stop_token : bool, optional
+            Remove the stop token from the end of a sequence.
+
+        Returns
+        -------
+        list[str] or list[list[str]]
+            The decoded sequences each as a string or list or strings.
+
+        """
+        decoded = super().detokenize(
+            tokens=tokens,
+            join=join,
+            trim_start_token=trim_start_token,
+            trim_stop_token=trim_start_token,
+        )
+
+        if self.reverse:
+            decoded = [d[::-1] for d in decoded]
+
+        return decoded
+
     @classmethod
     def from_proforma(
         cls,
         sequences: Iterable[str],
         replace_isoleucine_with_leucine: bool = False,
-        reverse: bool = True,
+        reverse: bool = False,
         start_token: str | None = None,
         stop_token: str | None = "$",
     ) -> PeptideTokenizer:
@@ -238,7 +276,7 @@ class PeptideTokenizer(Tokenizer):
     @staticmethod
     def from_massivekb(
         replace_isoleucine_with_leucine: bool = False,
-        reverse: bool = True,
+        reverse: bool = False,
         start_token: str | None = None,
         stop_token: str | None = "$",
     ) -> MskbPeptideTokenizer:

@@ -62,7 +62,7 @@ def test_proforma_init():
     assert tokens == list("KEILSEL")
     tokens = proforma.tokenize(["LESLIEK"])
     orig = proforma.detokenize(tokens)
-    assert orig == ["KEILSEL"]
+    assert orig == ["LESLIEK"]
 
     tokens = proforma.tokenize("LESLIEK", True, True, True)[0]
     assert "".join(tokens) == "KEILSEL$"
