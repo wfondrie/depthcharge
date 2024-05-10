@@ -115,3 +115,25 @@ def test_almost_compliant_proform():
     """Test initializing with a peptide without an expicit mass sign."""
     tokenizer = PeptideTokenizer.from_proforma("[10]-EDITHR")
     assert "[+10.000000]-" in tokenizer.residues
+
+
+@pytest.mark.parametrize(
+    ("start", "stop", "expected"),
+    [
+        (True, True, "ACD"),
+        (True, False, "ACD$E"),
+        (False, True, "?ACD"),
+        (False, False, "?ACD$E"),
+    ],
+)
+def test_trim(start, stop, expected):
+    """Test that the start and stop tokens can be trimmed."""
+    tokenizer = PeptideTokenizer(start_token="?")
+    tokens = torch.tensor([[2, 3, 4, 5, 1, 6]])
+    out = tokenizer.detokenize(
+        tokens,
+        trim_start_token=start,
+        trim_stop_token=stop,
+    )
+
+    assert out[0] == expected
