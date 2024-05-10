@@ -129,7 +129,7 @@ def test_almost_compliant_proform():
 def test_trim(start, stop, expected):
     """Test that the start and stop tokens can be trimmed."""
     tokenizer = PeptideTokenizer(start_token="?")
-    tokens = torch.tensor([[2, 3, 4, 5, 1, 6]])
+    tokens = torch.tensor([[0, 2, 3, 4, 5, 1, 6]])
     out = tokenizer.detokenize(
         tokens,
         trim_start_token=start,
