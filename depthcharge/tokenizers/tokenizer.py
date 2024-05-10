@@ -133,7 +133,7 @@ class Tokenizer(ABC):
         trim_start_token : bool, optional
             Remove the start token from the beginning of a sequence.
         trim_stop_token : bool, optional
-            Remove the stop token from the end of a sequence.
+            Remove the stop token and anything following it from the sequence.
 
         Returns
         -------
@@ -143,16 +143,18 @@ class Tokenizer(ABC):
         """
         decoded = []
         for row in tokens:
-            seq = [
-                self.reverse_index[i]
-                for i in row
-                if self.reverse_index[i] is not None
-            ]
+            seq = []
+            for idx in row:
+                if self.reverse_index[idx] is None:
+                    continue
+
+                if trim_stop_token and idx == self.stop_int:
+                    break
+
+                seq.append(self.reverse_index[idx])
 
             if trim_start_token and seq[0] == self.start_token:
                 seq.pop(0)
-            if trim_stop_token and seq[-1] == self.stop_token:
-                seq.pop(-1)
 
             if join:
                 seq = "".join(seq)

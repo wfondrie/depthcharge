@@ -194,7 +194,7 @@ class PeptideTokenizer(Tokenizer):
             tokens=tokens,
             join=join,
             trim_start_token=trim_start_token,
-            trim_stop_token=trim_start_token,
+            trim_stop_token=trim_stop_token,
         )
 
         if self.reverse:
