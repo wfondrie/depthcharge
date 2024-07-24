@@ -206,14 +206,14 @@ class BaseParser(ABC):
                         "intensity_array": parsed.intensity,
                     }
 
+                    # Parse custom fields:
+                    entry.update(self.parse_custom_fields(spectrum))
+                    self._update_batch(entry)
+
                 except (IndexError, KeyError, ValueError) as exc:
                     last_exc = exc
                     n_skipped += 1
                     continue
-
-                # Parse custom fields:
-                entry.update(self.parse_custom_fields(spectrum))
-                self._update_batch(entry)
 
                 # Update the batch:
                 if len(self._batch["scan_id"]) == batch_size:
@@ -225,8 +225,8 @@ class BaseParser(ABC):
 
         if n_skipped:
             warnings.warn(
-                f"Skipped {n_skipped} spectra with invalid information."
-                f"Last error was: \n {str(last_exc)}"
+                f"Skipped {n_skipped} spectra with invalid information. "
+                f"Last error was:\n{str(last_exc)}"
             )
 
     def _update_batch(self, entry: dict) -> None:

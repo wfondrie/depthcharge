@@ -195,15 +195,38 @@ def test_custom_fields(mgf_small):
     expected = pl.Series("seq", ["LESLIEK", "EDITHR"])
     assert_series_equal(parsed["seq"], expected)
 
-    with pytest.raises(KeyError):
-        pl.from_arrow(
-            MgfParser(
-                mgf_small,
-                custom_fields=CustomField(
-                    "seq", lambda x: x["params"]["bar"], pa.string()
-                ),
-            ).iter_batches(None)
-        )
+    # Test that spectra with invalid custom fields are skipped.
+    # We don't like the amino acid "D".
+    def seq_no_d(spec):
+        if "D" in (seq := spec["params"]["seq"]):
+            raise ValueError(f"Invalid sequence: {seq}")
+        return seq
+
+    parsed = pl.from_arrow(
+        MgfParser(
+            mgf_small,
+            custom_fields=CustomField(
+                "seq", seq_no_d, pa.string()
+            ),
+        ).iter_batches(None)
+    )
+
+    assert len(parsed) == 1
+    assert_series_equal(parsed["seq"],  pl.Series("seq", ["LESLIEK"]))
+
+    # Invalid custom fields will cause all spectra to get skipped.
+    parser = MgfParser(
+        mgf_small,
+        custom_fields=CustomField(
+            "seq", lambda x: x["params"]["bar"], pa.string()
+        ),
+    )
+
+    with pytest.warns(
+            UserWarning, match=r"Skipped 2 spectra with invalid information.*"
+    ):
+        spectra = list(parser.iter_batches(None))
+    assert len(spectra) == 0
 
 
 def test_invalid_file(tmp_path):
