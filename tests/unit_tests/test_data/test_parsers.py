@@ -205,14 +205,12 @@ def test_custom_fields(mgf_small):
     parsed = pl.from_arrow(
         MgfParser(
             mgf_small,
-            custom_fields=CustomField(
-                "seq", seq_no_d, pa.string()
-            ),
+            custom_fields=CustomField("seq", seq_no_d, pa.string()),
         ).iter_batches(None)
     )
 
     assert len(parsed) == 1
-    assert_series_equal(parsed["seq"],  pl.Series("seq", ["LESLIEK"]))
+    assert_series_equal(parsed["seq"], pl.Series("seq", ["LESLIEK"]))
 
     # Invalid custom fields will cause all spectra to get skipped.
     parser = MgfParser(
@@ -223,7 +221,7 @@ def test_custom_fields(mgf_small):
     )
 
     with pytest.warns(
-            UserWarning, match=r"Skipped 2 spectra with invalid information.*"
+        UserWarning, match=r"Skipped 2 spectra with invalid information.*"
     ):
         spectra = list(parser.iter_batches(None))
     assert len(spectra) == 0
