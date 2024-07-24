@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import math
 import uuid
 from collections.abc import Generator, Iterable
 from os import PathLike
@@ -177,6 +178,10 @@ class SpectrumDataset(LanceDataset):
         """Cleanup the temporary directory."""
         if self._tmpdir is not None:
             self._tmpdir.cleanup()
+
+    def __len__(self) -> int:
+        """The number of batches in the dataset."""
+        return math.ceil(self.n_spectra / self.batch_size)
 
     @property
     def n_spectra(self) -> int:
