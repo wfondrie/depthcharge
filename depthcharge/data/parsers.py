@@ -522,7 +522,7 @@ class MgfParser(BaseParser):
         if self.valid_charge is None or precursor_charge in self.valid_charge:
             return MassSpectrum(
                 filename=str(self.peak_file),
-                scan_id=self._counter,
+                scan_id=f"index={self._counter}",
                 mz=spectrum["m/z array"],
                 intensity=spectrum["intensity array"],
                 ms_level=self._assumed_ms_level,
