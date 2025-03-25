@@ -192,13 +192,16 @@ class PeptideTokenizer(Tokenizer):
         """
         decoded = super().detokenize(
             tokens=tokens,
-            join=join,
+            join=False,
             trim_start_token=trim_start_token,
             trim_stop_token=trim_stop_token,
         )
 
         if self.reverse:
             decoded = [d[::-1] for d in decoded]
+
+        if join:
+            decoded = ["".join(pep) for pep in decoded]
 
         return decoded
 
