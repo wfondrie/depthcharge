@@ -110,6 +110,12 @@ def test_single_peptide():
     expected = mass.fast_mass("LESLIEK", charge=2, ion_type="M")
     torch.testing.assert_close(ion, torch.tensor([expected]))
 
+@pytest.mark.parametrize(("reverse",), [(True,), (False,)])
+def test_reverse(reverse):
+    tokenizer = PeptideTokenizer.from_proforma("[+10]-EDITHR", reverse=reverse)
+    tokens = tokenizer.tokenize("[+10.000000]-PEPTLLDEK")
+    seq = tokenizer.detokenize(tokens)[0]
+    assert seq == "[+10.000000]-PEPTLLDEK"
 
 def test_almost_compliant_proform():
     """Test initializing with a peptide without an expicit mass sign."""
