@@ -502,7 +502,7 @@ def _get_records(
         except AttributeError:
             try:
                 spectra = pq.ParquetFile(spectra).iter_batches()
-            except (pa.ArrowInvalid, TypeError):
+            except (pa.ArrowInvalid, TypeError, OSError):
                 spectra = arrow.spectra_to_stream(spectra, **kwargs)
 
         yield from spectra
