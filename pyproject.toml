@@ -33,7 +33,8 @@ dependencies = [
     "pillow>=9.4.0",
     "spectrum-utils>=0.4.1",
     "cloudpathlib>=0.18.1",
-    "psims>=1.3.3"
+    "psims>=1.3.3",
+    "timsrust_pyo3>=0.4.1"
 ]
 dynamic = ["version"]
 
