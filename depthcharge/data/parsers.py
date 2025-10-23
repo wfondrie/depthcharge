@@ -6,10 +6,12 @@ import logging
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
+from dataclasses import asdict, is_dataclass
 from os import PathLike
 from typing import Any
 
 import pyarrow as pa
+import timsrust_pyo3
 from cloudpathlib import AnyPath
 from pyteomics.mgf import MGF
 from pyteomics.mzml import MzML
@@ -531,14 +533,141 @@ class MgfParser(BaseParser):
         raise ValueError("Invalid precursor charge.")
 
 
+class TdfParser(BaseParser):
+    """Parse mass spectra from a TDF file.
+
+    Parameters
+    ----------
+    peak_file : PathLike
+        The TDF file to parse. Expects a *.d folder.
+    ms_level : int
+        The MS level of the spectra to parse. Currently supported: 2
+    mobility_span : float, optional
+        Subsample spectra by binning each original spectrum into smaller
+        subspectra, each with an ion mobility span of im_span. If `None`,
+        spectra are not subsampled.
+    mobility_step : float, optional
+        The ion mobility step size to take when subsampling the spectra.
+        If `None`, use mobility_span as step size.
+    preprocessing_fn : Callable or Iterable[Callable], optional
+        The function(s) used to preprocess the mass spectra.
+    valid_charge : Iterable[int], optional
+        Only consider spectra with the specified precursor charges. If `None`,
+        any precursor charge is accepted.
+    progress : bool, optional
+        Enable or disable the progress bar.
+
+    """
+
+    def __init__(
+        self,
+        peak_file: PathLike,
+        ms_level: int = 2,
+        preprocessing_fn: Callable | Iterable[Callable] | None = None,
+        valid_charge: Iterable[int] | None = None,
+        progress: bool = True,
+    ) -> None:
+        """Initialize the TdfParser."""
+        if ms_level != 2:
+            raise ValueError(
+                f"ms_level {ms_level} is currently not supported.  \
+                    Supported values are: 2."
+            )
+        super().__init__(
+            peak_file,
+            ms_level=ms_level,
+            preprocessing_fn=preprocessing_fn,
+            valid_charge=valid_charge,
+            custom_fields=None,
+            progress=progress,
+            id_type="index",
+        )
+        self._counter = -1
+
+    def sniff(self) -> None:
+        """Quickly test a file for the correct type.
+
+        Raises
+        ------
+        IOError
+            Raised if the file is not the expected format.
+
+        """
+        if (
+            not self.peak_file.exists()
+            or self.peak_file.suffix.lower() != ".d"
+        ):
+            raise OSError("Not a TDF file.")
+        try:
+            timsrust_pyo3.SpectrumReader(self.peak_file)
+        except OSError:
+            raise OSError("Not a TDF file.")
+
+    @staticmethod
+    def _spectrum_to_dict(spectrum):
+        """Convert a Spectrum-like object into a dict."""
+
+        def _convert(obj):
+            if is_dataclass(obj):
+                return asdict(obj)
+            if isinstance(obj, list | tuple):
+                return [_convert(x) for x in obj]
+            if isinstance(obj, dict):
+                return {k: _convert(v) for k, v in obj.items()}
+            if hasattr(obj, "__dict__"):
+                return {
+                    k: _convert(v)
+                    for k, v in vars(obj).items()
+                    if not k.startswith("_")
+                }
+            return obj
+
+        return _convert(spectrum)
+
+    def open(self) -> Iterable[dict]:
+        """Open the TDF file for reading."""
+        specs = timsrust_pyo3.SpectrumReader(self.peak_file)
+        all_specs = []
+        for i in range(len(specs)):
+            try:
+                single_spec = specs.get(i)
+                all_specs.append(self._spectrum_to_dict(single_spec))
+            except OSError:
+                continue
+        return all_specs
+
+    def parse_spectrum(self, spectrum: dict) -> MassSpectrum:
+        """Parse a single spectrum.
+
+        Parameters
+        ----------
+        spectrum : dict
+            The dictionary defining the spectrum in MGF format.
+
+        """
+        self._counter += 1
+
+        precursor_mz = float(spectrum["precursor"]["mz"])
+        precursor_charge = float(spectrum["precursor"]["charge"])
+
+        if self.valid_charge is None or precursor_charge in self.valid_charge:
+            return MassSpectrum(
+                filename=str(self.peak_file),
+                scan_id=spectrum["index"],
+                mz=spectrum["mz_values"],
+                intensity=spectrum["intensities"],
+                ms_level=2,
+                precursor_mz=precursor_mz,
+                precursor_charge=precursor_charge,
+            )
+
+        raise ValueError("Invalid precursor charge.")
+
+
 class ParserFactory:
     """Figure out what parser to use."""
 
-    parsers = [
-        MzmlParser,
-        MzxmlParser,
-        MgfParser,
-    ]
+    parsers = [MzmlParser, MzxmlParser, MgfParser, TdfParser]
 
     @classmethod
     def get_parser(cls, peak_file: PathLike, **kwargs: dict) -> BaseParser:
