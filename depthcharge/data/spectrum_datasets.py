@@ -55,8 +55,8 @@ class SpectrumDataset(LanceDataset):
         Spectra to add to this collection. These may be a DataFrame parsed
         with `depthcharge.spectra_to_df()`, parquet files created with
         `depthcharge.spectra_to_parquet()`, or a peak file in the mzML,
-        mzXML, or MGF format. Additional spectra can be added later using
-        the `.add_spectra()` method.
+        mzXML, MGF, or Bruker TDF format. Additional spectra can be added
+        later using the `.add_spectra()` method.
     batch_size : int
         The batch size to use for loading mass spectra. Note that this is
         independent from the batch size for the PyTorch DataLoader.
@@ -140,7 +140,7 @@ class SpectrumDataset(LanceDataset):
             Spectra to add to this collection. These may be a DataFrame parsed
             with `depthcharge.spectra_to_df()`, parquet files created with
             `depthcharge.spectra_to_parquet()`, or a peak file in the mzML,
-            mzXML, or MGF format.
+            mzXML, MGF, or Bruker TDF format.
 
         """
         spectra = utils.listify(spectra)
@@ -292,8 +292,8 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         Spectra to add to this collection. These may be a DataFrame parsed
         with `depthcharge.spectra_to_df()`, parquet files created with
         `depthcharge.spectra_to_parquet()`, or a peak file in the mzML,
-        mzXML, or MGF format. Additional spectra can be added later using
-        the `.add_spectra()` method.
+        mzXML, MGF, or Bruker TDF format. Additional spectra can be added
+        later using the `.add_spectra()` method.
     annotations : str
         The column name containing the annotations.
     tokenizer : PeptideTokenizer
@@ -444,7 +444,7 @@ class StreamingSpectrumDataset(IterableDataset):
         Spectra to add to this collection. These may be a DataFrame parsed
         with `depthcharge.spectra_to_df()`, parquet files created with
         `depthcharge.spectra_to_parquet()`, or a peak file in the mzML,
-        mzXML, or MGF format.
+        mzXML, MGF, or Bruker TDF format.
     batch_size : int
         The batch size to use for loading mass spectra. Note that this is
         independent from the batch size for the PyTorch DataLoader.
