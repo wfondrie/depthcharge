@@ -7,7 +7,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, is_dataclass
-from os import PathLike
+from os import PathLike, fspath
 from typing import Any
 
 import pyarrow as pa
@@ -613,7 +613,7 @@ class TdfParser(BaseParser):
         ):
             raise OSError("Not a TDF file.")
         try:
-            timsrust_pyo3.SpectrumReader(self.peak_file)
+            timsrust_pyo3.SpectrumReader(fspath(self.peak_file))
         except OSError:
             raise OSError("Not a TDF file.")
 
