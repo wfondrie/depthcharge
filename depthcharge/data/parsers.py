@@ -651,7 +651,7 @@ class TdfParser(BaseParser):
         Parameters
         ----------
         spectrum : dict
-            The dictionary defining the spectrum in MGF format.
+            The dictionary defining the spectrum in TDF format.
 
         """
         self._counter += 1
