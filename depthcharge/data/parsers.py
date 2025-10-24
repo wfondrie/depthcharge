@@ -554,6 +554,11 @@ class TdfParser(BaseParser):
     valid_charge : Iterable[int], optional
         Only consider spectra with the specified precursor charges. If `None`,
         any precursor charge is accepted.
+    custom_fields : dict of str to list of str, optional
+        Additional field to extract during peak file parsing. The key must
+        be the resulting column name and value must be an interable of
+        containing the necessary keys to retreive the value from the
+        spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
 
@@ -565,6 +570,7 @@ class TdfParser(BaseParser):
         ms_level: int = 2,
         preprocessing_fn: Callable | Iterable[Callable] | None = None,
         valid_charge: Iterable[int] | None = None,
+        custom_fields: dict[str, Iterable[str]] | None = None,
         progress: bool = True,
     ) -> None:
         """Initialize the TdfParser."""
@@ -573,12 +579,20 @@ class TdfParser(BaseParser):
                 f"ms_level {ms_level} is currently not supported.  \
                     Supported values are: 2."
             )
+        if custom_fields is not None:
+            warnings.warn(
+                "custom_fields is currently not supported for "
+                "TdfParser. Continuing with default value `None`.",
+                UserWarning,
+                stacklevel=2,
+            )
+            custom_fields = None
         super().__init__(
             peak_file,
             ms_level=ms_level,
             preprocessing_fn=preprocessing_fn,
             valid_charge=valid_charge,
-            custom_fields=None,
+            custom_fields=custom_fields,
             progress=progress,
             id_type="index",
         )
