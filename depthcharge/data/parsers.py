@@ -542,13 +542,6 @@ class TdfParser(BaseParser):
         The TDF file to parse. Expects a *.d folder.
     ms_level : int
         The MS level of the spectra to parse. Currently supported: 2
-    mobility_span : float, optional
-        Subsample spectra by binning each original spectrum into smaller
-        subspectra, each with an ion mobility span of im_span. If `None`,
-        spectra are not subsampled.
-    mobility_step : float, optional
-        The ion mobility step size to take when subsampling the spectra.
-        If `None`, use mobility_span as step size.
     preprocessing_fn : Callable or Iterable[Callable], optional
         The function(s) used to preprocess the mass spectra.
     valid_charge : Iterable[int], optional
