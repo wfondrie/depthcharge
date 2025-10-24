@@ -631,7 +631,7 @@ class TdfParser(BaseParser):
 
     @contextmanager
     def open(self):
-        """Open the MGF file for reading."""
+        """Open the TDF file for reading."""
         reader = timsrust_pyo3.SpectrumReader(fspath(self.peak_file))
 
         def _iter():
