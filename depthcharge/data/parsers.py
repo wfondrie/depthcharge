@@ -640,7 +640,7 @@ class TdfParser(BaseParser):
 
     def open(self) -> Iterable[dict]:
         """Open the TDF file for reading."""
-        specs = timsrust_pyo3.SpectrumReader(self.peak_file)
+        specs = timsrust_pyo3.SpectrumReader(fspath(self.peak_file))
         all_specs = []
         for i in range(len(specs)):
             try:
