@@ -7,7 +7,6 @@ import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from contextlib import contextmanager
-from dataclasses import asdict, is_dataclass
 from os import PathLike, fspath
 from typing import Any
 
@@ -618,26 +617,24 @@ class TdfParser(BaseParser):
         except OSError:
             raise OSError("Not a TDF file.")
 
-    @staticmethod
-    def _spectrum_to_dict(spectrum):
-        """Convert a Spectrum-like object into a dict."""
-
-        def _convert(obj):
-            if is_dataclass(obj):
-                return asdict(obj)
-            if isinstance(obj, list | tuple):
-                return [_convert(x) for x in obj]
-            if isinstance(obj, dict):
-                return {k: _convert(v) for k, v in obj.items()}
-            if hasattr(obj, "__dict__"):
-                return {
-                    k: _convert(v)
-                    for k, v in vars(obj).items()
-                    if not k.startswith("_")
-                }
-            return obj
-
-        return _convert(spectrum)
+    def _spectrum_to_dict(self, spectrum) -> dict:
+        """Convert a Spectrum into a plain dict using the known schema."""
+        p = spectrum.precursor
+        return {
+            "index": spectrum.index,
+            "mz_values": list(spectrum.mz_values),
+            "intensities": list(spectrum.intensities),
+            "precursor": {
+                "mz": p.mz,
+                "rt": p.rt,
+                "im": p.im,
+                "charge": p.charge,
+                "intensity": p.intensity,
+            },
+            "collision_energy": spectrum.collision_energy,
+            "isolation_mz": spectrum.isolation_mz,
+            "isolation_width": spectrum.isolation_width,
+        }
 
     @contextmanager
     def open(self):
