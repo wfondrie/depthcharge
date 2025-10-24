@@ -11,6 +11,7 @@ from depthcharge.data.parsers import (
     MzmlParser,
     MzxmlParser,
     ParserFactory,
+    TdfParser,
 )
 from depthcharge.data.preprocessing import scale_to_unit_norm
 
@@ -172,6 +173,31 @@ def test_mgf(
     parsed = pl.from_arrow(
         MgfParser(
             real_mgf,
+            ms_level=ms_level,
+            preprocessing_fn=preprocessing_fn,
+            valid_charge=valid_charge,
+            custom_fields=custom_fields,
+        ).iter_batches(None)
+    )
+    assert parsed.shape == shape
+
+
+@pytest.mark.parametrize(
+    ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
+    [
+        (2, None, None, None, (3, 7)),
+        (2, None, [3], None, (1, 7)),
+        (None, None, None, None, (3, 7)),
+        (None, scale_to_unit_norm, None, None, (3, 7)),
+    ],
+)
+def test_tdf(
+    real_tdf, ms_level, preprocessing_fn, valid_charge, custom_fields, shape
+):
+    """A simple mzML test."""
+    parsed = pl.from_arrow(
+        TdfParser(
+            real_tdf,
             ms_level=ms_level,
             preprocessing_fn=preprocessing_fn,
             valid_charge=valid_charge,
