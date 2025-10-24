@@ -194,7 +194,7 @@ def test_mgf(
 def test_tdf(
     real_tdf, ms_level, preprocessing_fn, valid_charge, custom_fields, shape
 ):
-    """A simple mzML test."""
+    """A simple TDF test."""
     parsed = pl.from_arrow(
         TdfParser(
             real_tdf,
