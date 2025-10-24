@@ -6,6 +6,7 @@ import logging
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
+from contextlib import contextmanager
 from dataclasses import asdict, is_dataclass
 from os import PathLike, fspath
 from typing import Any
@@ -638,17 +639,21 @@ class TdfParser(BaseParser):
 
         return _convert(spectrum)
 
-    def open(self) -> Iterable[dict]:
-        """Open the TDF file for reading."""
-        specs = timsrust_pyo3.SpectrumReader(fspath(self.peak_file))
-        all_specs = []
-        for i in range(len(specs)):
-            try:
-                single_spec = specs.get(i)
-                all_specs.append(self._spectrum_to_dict(single_spec))
-            except OSError:
-                continue
-        return all_specs
+    @contextmanager
+    def open(self):
+        """Open the MGF file for reading."""
+        reader = timsrust_pyo3.SpectrumReader(fspath(self.peak_file))
+
+        def _iter():
+            n = len(reader)
+            for i in range(n):
+                try:
+                    spec = reader.get(i)
+                    yield self._spectrum_to_dict(spec)
+                except OSError:
+                    continue  # skip broken spectra
+
+        yield _iter()
 
     def parse_spectrum(self, spectrum: dict) -> MassSpectrum:
         """Parse a single spectrum.
