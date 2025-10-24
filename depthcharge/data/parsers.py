@@ -574,7 +574,7 @@ class TdfParser(BaseParser):
         progress: bool = True,
     ) -> None:
         """Initialize the TdfParser."""
-        if ms_level != 2:
+        if ms_level != 2 and ms_level is not None:
             raise ValueError(
                 f"ms_level {ms_level} is currently not supported.  \
                     Supported values are: 2."
