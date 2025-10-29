@@ -613,6 +613,12 @@ class TdfParser(BaseParser):
     def _spectrum_to_dict(self, spectrum) -> dict:
         """Convert a Spectrum into a plain dict using the known schema."""
         p = spectrum.precursor
+        """
+        index: spectra are indexed by timsrust_pyo3 which aggregates multiple
+        scans within a frame to single "spectra". NOT a Hupo PSI standard
+        scan identifier. For more details, we refer to timsrust(_pyo3) code
+        and documentation.
+        """
         return {
             "index": spectrum.index,
             "mz_values": list(spectrum.mz_values),
@@ -669,7 +675,9 @@ class TdfParser(BaseParser):
         if self.valid_charge is None or precursor_charge in self.valid_charge:
             return MassSpectrum(
                 filename=str(self.peak_file),
-                scan_id=spectrum["index"],
+                scan_id=spectrum[
+                    "index"
+                ],  # NOT a Hupo PSI standard scan identifier
                 mz=spectrum["mz_values"],
                 intensity=spectrum["intensities"],
                 ms_level=2,
