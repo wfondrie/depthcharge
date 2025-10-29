@@ -633,6 +633,7 @@ class TdfParser(BaseParser):
     def open(self):
         """Open the TDF file for reading."""
         reader = timsrust_pyo3.SpectrumReader(fspath(self.peak_file))
+        broken_ids = []
 
         def _iter():
             n = len(reader)
@@ -641,7 +642,13 @@ class TdfParser(BaseParser):
                     spec = reader.get(i)
                     yield self._spectrum_to_dict(spec)
                 except OSError:
+                    broken_ids.append(i)
                     continue  # skip broken spectra
+            if len(broken_ids) > 0:
+                warnings.warn(
+                    "Skipped broken spectra at indices: "
+                    + ", ".join(map(str, broken_ids))
+                )
 
         yield _iter()
 
