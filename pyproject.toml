@@ -88,5 +88,6 @@ ignore = ["D213", "ANN101", "D203", "D100", "ANN102", "D401"]
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
-    "pre-commit>=2.7.1"
+    "pre-commit>=2.7.1",
+    "pytest-cov>=7.0.0",
 ]
