@@ -569,8 +569,8 @@ class TdfParser(BaseParser):
         """Initialize the TdfParser."""
         if ms_level != 2 and ms_level is not None:
             raise ValueError(
-                f"ms_level {ms_level} is currently not supported.  \
-                    Supported values are: 2."
+                f"ms_level {ms_level} is currently not supported. "
+                "Supported values are: 2."
             )
         if custom_fields is not None:
             warnings.warn(
