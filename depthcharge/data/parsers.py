@@ -567,6 +567,14 @@ class TdfParser(BaseParser):
         progress: bool = True,
     ) -> None:
         """Initialize the TdfParser."""
+        warnings.warn(
+            "Due to the current limitations of the timsrust library, "
+            "m/z values are not temperature corrected for timsTOF files. "
+            "This may lead to deviations in m/z values. In our experience "
+            "these are typically mild, but use caution as your experience "
+            "may vary depending on your instrument and settings."
+        )
+
         if ms_level != 2 and ms_level is not None:
             raise ValueError(
                 f"ms_level {ms_level} is currently not supported. "
