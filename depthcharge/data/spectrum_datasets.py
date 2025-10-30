@@ -239,7 +239,7 @@ class SpectrumDataset(LanceDataset):
     def _to_tensor(
         self,
         batch: pa.RecordBatch,
-        hf_converter: Any | None = None,
+        **ignored: dict[Any],
     ) -> dict[str, torch.Tensor | list[str | torch.Tensor]]:
         """Convert a record batch to tensors.
 
@@ -247,8 +247,9 @@ class SpectrumDataset(LanceDataset):
         ----------
         batch : pyarrow.RecordBatch
             The batch of data.
-        hf_converter : Optional[Any]
-            Does nothing; added to maintain compatibility with pylance
+        **ignored : dict[Any]
+            Ignored keyword arguments to maintain compatibility with
+            pylance.
 
         Returns
         -------
@@ -354,7 +355,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     def _to_tensor(
         self,
         batch: pa.RecordBatch,
-        hf_converter: Any | None = None,
+        **ignored: dict[Any],
     ) -> dict[str, torch.Tensor | list[str | torch.Tensor]]:
         """Convert a record batch to tensors.
 
@@ -362,8 +363,9 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         ----------
         batch : pyarrow.RecordBatch
             The batch of data.
-        hf_converter : Optional[Any]
-            Does nothing; added to maintain compatibility with pylance
+        **ignored : dict[Any]
+            Ignored keyword arguments to maintain compatibility with
+            pylance.
 
         Returns
         -------
