@@ -15,23 +15,28 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version-file: pyproject.toml
 
-    - name: Install dependencies
+    - name: Run tests
+      shell: bash
       run: |
-        pip install uv
-        uv pip install pytest pytest-cov wheel --system
-        uv pip install -e . --system
-
-    - name: Run unit and system tests
-      run: |
-        pytest --cov=depthcharge --verbose tests/
+        uv run --dev pytest \
+          --cov=depthcharge \
+          --cov-report=xml:coverage.xml \
+          --cov-report=term-missing \
+          --verbose \
+          tests/
 
     - name: Upload coverage to codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
+        files: ./coverage.xml
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: true

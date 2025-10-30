@@ -1,3 +1,6 @@
+---
+jupyter: python3
+---
 # Modeling Mass Spectra
 
 We think that the biggest barriers to building deep learning models for mass spectra are (1) parsing the data into a reasonable format, (2) representing the mass spectra in an efficient manner for learning, (3) constructing models that leverage the structure of the data in a mass spectrum.
