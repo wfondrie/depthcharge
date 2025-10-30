@@ -25,10 +25,17 @@ jobs:
         python-version-file: pyproject.toml
 
     - name: Run tests
-      run: uv run --dev pytest --cov=depthcharge --verbose tests/
+      run: |
+        uv run --dev pytest \
+          --cov=depthcharge \
+          --cov-report=xml:coverage.xml \
+          --cov-report=term-missing
+          --verbose \
+          tests/
 
     - name: Upload coverage to codecov
       uses: codecov/codecov-action@v4
       with:
+        files: ./coverage.xml
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: true
