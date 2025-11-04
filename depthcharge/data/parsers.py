@@ -679,6 +679,7 @@ class TdfParser(BaseParser):
 
         precursor_mz = float(spectrum["precursor"]["mz"])
         precursor_charge = float(spectrum["precursor"]["charge"])
+        precursor_im = float(spectrum["precursor"]["im"])
 
         if self.valid_charge is None or precursor_charge in self.valid_charge:
             return MassSpectrum(
@@ -691,6 +692,7 @@ class TdfParser(BaseParser):
                 ms_level=2,
                 precursor_mz=precursor_mz,
                 precursor_charge=precursor_charge,
+                ion_mobility=precursor_im,
             )
 
         raise ValueError("Invalid precursor charge.")
