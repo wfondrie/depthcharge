@@ -32,6 +32,10 @@ def real_mgf():
     """Get a real MGF file."""
     return Path(__file__).parent / "../data/TMT10-Trial-8.mgf"
 
+@pytest.fixture 
+def real_asf(): 
+    """Get a real ASF file."""
+    return Path(__file__).parent / "../data/test.asf"
 
 @pytest.fixture
 def mgf_medium(tmp_path):
@@ -80,6 +84,7 @@ def _create_mgf_entry(peptide, charge=2):
                 str(calculate_mass(y_pep, charge=zstate, ion_type="y"))
             )
 
+    
     frag_string = " 1\n".join(frags) + " 1"
 
     mgf = [

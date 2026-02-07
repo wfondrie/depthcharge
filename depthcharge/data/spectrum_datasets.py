@@ -313,11 +313,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     parse_kwargs : dict, optional
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
         peak files that are provided. This argument has no affect for
-        DataFrame or parquet file inputs.
-    peak_annotations: str, optional 
-        The column indicating the peak-level annotations in spectra 
-    peak_tokenizer: Tokenizer, optional
-        A custom tokenizer for the peak-level annotations
+        DataFrame or parquet file inputs. 
     **kwargs : dict
         Keyword arguments to initialize a
         `[lance.torch.data.LanceDataset](https://github.com/lance-format/lance/blob/92aa361099f42a40e9aa9f9915d041fe1dd30671/python/python/lance/torch/data.py#L177)`.
@@ -332,11 +328,6 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         The tokenizer for the annotations.
     annotations : str
         The annotation column in the dataset.
-    peak_annotations: str, optional
-        The peak level annotation column in the dataset. 
-    peak_tokenizer: Tokenizer, optional 
-        The tokenizer to use for the peak level annotation column in the dataset.
-        Will default to None.
     """
 
     def __init__(
@@ -347,15 +338,11 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         batch_size: int,
         path: PathLike = None,
         parse_kwargs: dict | None = None,
-        peak_annotations: str | None = None, 
-        peak_tokenizer: Tokenizer | None = None,
         **kwargs: dict,
     ) -> None:
         """Initialize an AnnotatedSpectrumDataset."""
         self.tokenizer = tokenizer
         self.annotations = annotations
-        self.peak_annotations = peak_annotations 
-        self.peak_tokenizer = peak_tokenizer
         super().__init__(
             spectra=spectra,
             batch_size=batch_size,
@@ -391,20 +378,6 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             add_start=self.tokenizer.start_token is not None,
             add_stop=self.tokenizer.stop_token is not None,
         )
-        if self.peak_annotations is not None:
-            if self.peak_tokenizer is not None: 
-                batch[self.peak_annotations] = self.peak_tokenizer.tokenize(
-                    batch[self.peak_annotations], 
-                    add_start = self.tokenizer.start_token is not None, 
-                    add_stop = self.tokenizer.stop_token is not None,
-                )
-            else:
-                batch[self.peak_annotations] = nn.utils.rnn.pad_sequence(
-                    torch.tensor(
-                        batch[self.peak_annotations]
-                    ), 
-                    batch_first=True,
-                )
         return batch
         
     @classmethod
@@ -415,8 +388,6 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         tokenizer: PeptideTokenizer,
         batch_size: int,
         parse_kwargs: dict | None = None,
-        peak_annotations: str | None = None, 
-        peak_tokenizer: Tokenizer | None = None, 
         **kwargs: dict,
     ) -> AnnotatedSpectrumDataset:
         """Load a previously created lance dataset.
@@ -453,9 +424,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             batch_size=batch_size,
             path=path,
             parse_kwargs=parse_kwargs,
-            peak_annotations=peak_annotations, 
-            peak_tokenizer=peak_tokenizer,
-            **kwargs,
+           **kwargs,
         )
 
 

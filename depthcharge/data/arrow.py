@@ -23,6 +23,7 @@ def spectra_to_stream(
     valid_charge: Iterable[int] | None = None,
     custom_fields: CustomField | Iterable[CustomField] | None = None,
     progress: bool = True,
+    peak_annotations: str | Iterable[str] | None = None,
 ) -> Generator[pa.RecordBatch]:
     """Stream mass spectra in an Apache Arrow format, with preprocessing.
 
@@ -67,6 +68,8 @@ def spectra_to_stream(
     ms_level : int, list of int, or None, optional
         The level(s) of tandem mass spectra to keep. `None` will retain
         all spectra.
+    peak_annotations : str or Iterable[str], optional 
+        The peak level annotation labels for ASF spectra
     preprocessing_fn : Callable or Iterable[Callable], optional
         The function(s) used to preprocess the mass spectra. `None`,
         the default, filters for the top 200 peaks above m/z 140,
@@ -86,13 +89,23 @@ def spectra_to_stream(
         Batches of parsed spectra.
 
     """
-    parser_args = {
-        "ms_level": ms_level,
-        "valid_charge": valid_charge,
-        "preprocessing_fn": preprocessing_fn,
-        "custom_fields": custom_fields,
-        "progress": progress,
-    }
+    if peak_annotations:
+        parser_args = {
+            "ms_level": ms_level,
+            "valid_charge": valid_charge,
+            "preprocessing_fn": preprocessing_fn,
+            "custom_fields": custom_fields,
+            "progress": progress,
+            "peak_annotations": peak_annotations,
+        }
+    else: 
+        parser_args = {
+            "ms_level": ms_level,
+            "valid_charge": valid_charge,
+            "preprocessing_fn": preprocessing_fn,
+            "custom_fields": custom_fields,
+            "progress": progress,
+        }
 
     on_cols = ["scan_id"]
     validation = "1:1"
@@ -236,6 +249,7 @@ def spectra_to_df(
     valid_charge: Iterable[int] | None = None,
     custom_fields: CustomField | Iterable[CustomField] | None = None,
     progress: bool = True,
+    peak_annotations: str | Iterable[str] | None = None,
 ) -> pl.DataFrame:
     """Read mass spectra into a Polars DataFrame.
 
@@ -289,7 +303,8 @@ def spectra_to_df(
         Additional fields to extract during peak file parsing.
     progress : bool, optional
         Enable or disable the progress bar.
-
+    peak_annotations : str or Iterable[str], optional 
+        Labels for additional peak level annotations
     Returns
     -------
     polars.DataFrame
@@ -305,6 +320,7 @@ def spectra_to_df(
         valid_charge=valid_charge,
         custom_fields=custom_fields,
         progress=progress,
+        peak_annotations=peak_annotations,
     )
 
     return pl.from_arrow(streamer)

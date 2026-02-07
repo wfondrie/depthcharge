@@ -108,6 +108,7 @@ class BaseParser(ABC):
                     pa.field(field.name, field.dtype)
                 )
 
+
     @abstractmethod
     def sniff(self) -> None:
         """Quickly test a file for the correct type.
@@ -535,7 +536,162 @@ class MgfParser(BaseParser):
 
         raise ValueError("Invalid precursor charge.")
 
+class AsfParser(BaseParser):
+    """Parse mass spectra from an ASF file (augmented mass spectra 
+    similar to the MGF format)
+    
+    Parameters 
+    ----------
+    peak_file : PathLike 
+        The ASF file to parse. 
+    ms_level : int 
+        The MS level of the spectra to parse. 
+    peak_annotations: Iterable[str] 
+        The annotations for the peak level annotations.
+    preprocessing_fn : Callable or Iterable[Callable], optional
+        The function(s) used to preprocess the mass spectra.
+    valid_charge : Iterable[int], optional
+        Only consider spectra with the specified precursor charges. If `None`,
+        any precursor charge is accepted.
+    custom_fields : dict of str to list of str, optional
+        Additional field to extract during peak file parsing. The key must
+        be the resulting column name and value must be an interable of
+        containing the necessary keys to retrieve the value from the
+        spectrum from the corresponding Pyteomics parser.
+    progress : bool, optional
+        Enable or disable the progress bar.
+    """
 
+    def __init__(
+        self,
+        peak_file: PathLike,
+        peak_annotations: Iterable[str],
+        ms_level: int = 2,
+        preprocessing_fn: Callable | Iterable[Callable] | None = None,
+        valid_charge: Iterable[int] | None = None,
+        custom_fields: dict[str, Iterable[str]] | None = None,
+        progress: bool = True,
+    ) -> None:
+        """Initialize the AsfParser."""
+        super().__init__(
+            peak_file,
+            ms_level=ms_level,
+            preprocessing_fn=preprocessing_fn,
+            valid_charge=valid_charge,
+            custom_fields=custom_fields,
+            progress=progress,
+            id_type="index",
+        )
+        self._counter = -1
+        if ms_level is not None:
+            self._assumed_ms_level = sorted(self.ms_level)[0]
+        else:
+            self._assumed_ms_level = None
+        
+        self.peak_annotations=peak_annotations 
+
+    def sniff(self) -> None:
+        """Quickly test a file for the correct type.
+
+        Raises
+        ------
+        IOError
+            Raised if the file is not the expected format.
+
+        """
+        with self.peak_file.open() as mzdat:
+            if not next(mzdat).startswith("BEGIN IONS"):
+                raise OSError("Not an ASF file.")
+
+    @contextmanager
+    def open(self):
+        """Open the ASF file for reading."""
+        f = open(str(self.peak_file), "r")
+        def _iter():
+            spectrum = None
+
+            for line in f:
+                line = line.strip()
+
+                if line.upper() == "BEGIN IONS":
+                    spectrum = {
+                        "params": {},
+                        "m/z array": [],
+                        "intensity array": [],
+                        "peak_annotations": []
+                    }
+
+                elif line.upper() == "END IONS":
+                    if spectrum is not None:
+                        yield spectrum
+                    spectrum = None
+
+                elif spectrum is not None:
+                    if "=" in line:
+                        key, value = line.split("=", 1)
+                        if key == "CHARGE":
+                            if len(value) == 2: 
+                                value = value[0]
+
+                        if key == "PEPMASS":
+                            if len(value.split()) == 2: 
+                                value = (value.split()[0], value.split()[1])   
+                                spectrum["params"][key.lower()] = value
+                                continue 
+                        
+                        if key == "SEQ": 
+                            spectrum["params"][key.lower()] =  value 
+                            continue 
+
+                        spectrum["params"][key.lower()] = [value]
+                    elif line:
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            mz = float(parts[0])
+                            intensity = float(parts[1])
+
+                            spectrum["m/z array"].append(mz)
+                            spectrum["intensity array"].append(intensity)
+
+                            extra = {}
+                            for i, label in enumerate(self.peak_annotations):
+                                extra[label] = parts[i + 2] if i + 2 < len(parts) else None
+
+                            spectrum["peak_annotations"].append(extra)
+        
+        yield _iter()
+
+
+    def parse_spectrum(self, spectrum: dict) -> MassSpectrum:
+        """Parse a single spectrum.
+
+        Parameters
+        ----------
+        spectrum : dict
+            The dictionary defining the spectrum in MGF format.
+
+        """
+        self._counter += 1
+        if self.ms_level is not None and 1 not in self.ms_level:
+            precursor_mz = float(spectrum["params"]["pepmass"][0])
+            precursor_charge = int(spectrum["params"].get("charge", [0])[0])
+        else:
+            precursor_mz, precursor_charge = None, 0
+
+        if self.valid_charge is None or precursor_charge in self.valid_charge:
+            return MassSpectrum(
+                filename=str(self.peak_file),
+                scan_id=f"index={self._counter}",
+                mz=spectrum["m/z array"],
+                intensity=spectrum["intensity array"],
+                ms_level=self._assumed_ms_level,
+                precursor_mz=precursor_mz,
+                precursor_charge=precursor_charge,
+                peak_annotations=spectrum["peak_annotations"],
+            )
+
+        raise ValueError("Invalid precursor charge.")
+    
 class TdfParser(BaseParser):
     """Parse mass spectra from a TDF file.
 
@@ -700,7 +856,6 @@ class TdfParser(BaseParser):
 
         raise ValueError("Invalid precursor charge.")
 
-
 class ParserFactory:
     """Figure out what parser to use."""
 
@@ -718,6 +873,9 @@ class ParserFactory:
             Keyword arguments to pass to the parser.
 
         """
+        if "peak_annotations" in kwargs:
+            return AsfParser(peak_file, **kwargs)
+        
         for parser in cls.parsers:
             try:
                 return parser(peak_file, **kwargs)

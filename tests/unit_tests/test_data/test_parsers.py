@@ -12,6 +12,7 @@ from depthcharge.data.parsers import (
     MzxmlParser,
     ParserFactory,
     TdfParser,
+    AsfParser,
 )
 from depthcharge.data.preprocessing import scale_to_unit_norm
 
@@ -63,7 +64,35 @@ SMALL_MGF_MZS = [
 MGF_FIELD = CustomField("t", lambda x: x["params"]["title"], pa.string())
 MZML_FIELD = CustomField("index", lambda x: x["index"], pa.int64())
 MZXML_FIELD = CustomField("CE", lambda x: x["collisionEnergy"], pa.float64())
+ASF_FIELD1 = CustomField("test1", lambda x: [float(anno.get("test1", 0)) for anno in x["peak_annotations"]], pa.list_(pa.float64()))
+ASF_FIELD2 = CustomField("test2", lambda x: [float(anno.get("test2", 0)) for anno in x["peak_annotations"]], pa.list_(pa.float64()))
 
+@pytest.mark.parametrize(
+    ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
+    [
+        (2, None, None, None, (3,7)),
+        (2, None, [2], None, (2,7)),
+        (None, None, None, None, (3,7)),
+        (None, scale_to_unit_norm, None, None, (3,7)),
+        (None, None, None, ASF_FIELD1, (3,8)), 
+        (None, None, None, [ASF_FIELD1, ASF_FIELD2], (3,9))
+    ],
+)
+def test_asf(
+    real_asf, ms_level, preprocessing_fn, valid_charge, custom_fields, shape
+):
+    """A simple ASF test."""
+    parsed = pl.from_arrow(
+        AsfParser(
+            real_asf,
+            ms_level=ms_level,
+            preprocessing_fn=preprocessing_fn,
+            valid_charge=valid_charge,
+            custom_fields=custom_fields,
+            peak_annotations=["test1", "test2"]
+        ).iter_batches(None)
+    )
+    assert parsed.shape == shape
 
 def test_mgf_and_base(mgf_small):
     """MGF file with a missing charge."""
