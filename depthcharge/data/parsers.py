@@ -536,7 +536,7 @@ class MgfParser(BaseParser):
 
         raise ValueError("Invalid precursor charge.")
 
-class AsfParser(BaseParser):
+class AsfParser(MgfParser):
     """Parse mass spectra from an ASF file (augmented mass spectra 
     similar to the MGF format)
     
@@ -580,14 +580,7 @@ class AsfParser(BaseParser):
             valid_charge=valid_charge,
             custom_fields=custom_fields,
             progress=progress,
-            id_type="index",
         )
-        self._counter = -1
-        if ms_level is not None:
-            self._assumed_ms_level = sorted(self.ms_level)[0]
-        else:
-            self._assumed_ms_level = None
-        
         self.peak_annotations=peak_annotations 
 
     def sniff(self) -> None:
@@ -630,15 +623,14 @@ class AsfParser(BaseParser):
                     if "=" in line:
                         key, value = line.split("=", 1)
                         if key == "CHARGE":
-                            if len(value) == 2: 
-                                value = value[0]
+                            value = value[0]
 
                         if key == "PEPMASS":
                             if len(value.split()) == 2: 
                                 value = (value.split()[0], value.split()[1])   
                                 spectrum["params"][key.lower()] = value
                                 continue 
-                        
+
                         if key == "SEQ": 
                             spectrum["params"][key.lower()] =  value 
                             continue 
@@ -671,26 +663,9 @@ class AsfParser(BaseParser):
             The dictionary defining the spectrum in MGF format.
 
         """
-        self._counter += 1
-        if self.ms_level is not None and 1 not in self.ms_level:
-            precursor_mz = float(spectrum["params"]["pepmass"][0])
-            precursor_charge = int(spectrum["params"].get("charge", [0])[0])
-        else:
-            precursor_mz, precursor_charge = None, 0
-
-        if self.valid_charge is None or precursor_charge in self.valid_charge:
-            return MassSpectrum(
-                filename=str(self.peak_file),
-                scan_id=f"index={self._counter}",
-                mz=spectrum["m/z array"],
-                intensity=spectrum["intensity array"],
-                ms_level=self._assumed_ms_level,
-                precursor_mz=precursor_mz,
-                precursor_charge=precursor_charge,
-                peak_annotations=spectrum["peak_annotations"],
-            )
-
-        raise ValueError("Invalid precursor charge.")
+        ms = super().parse_spectrum(spectrum)
+        ms.peak_annotations = spectrum.get("peak_annotations", [])
+        return ms
     
 class TdfParser(BaseParser):
     """Parse mass spectra from a TDF file.

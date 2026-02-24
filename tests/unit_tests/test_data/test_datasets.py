@@ -52,7 +52,6 @@ def test_peak_annotations(tokenizer, real_asf):
     )
 
     spec = dataset[0]
-    print(spec)
     assert len(spec) == 10
     torch.testing.assert_close(spec["test1"][0][0], torch.tensor(1.0))
     torch.testing.assert_close(spec["test2"][0][0], torch.tensor(4.0))
