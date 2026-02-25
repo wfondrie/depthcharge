@@ -68,7 +68,7 @@ def spectra_to_stream(
     ms_level : int, list of int, or None, optional
         The level(s) of tandem mass spectra to keep. `None` will retain
         all spectra.
-    peak_annotations : str or Iterable[str], optional 
+    peak_annotations : str or Iterable[str], optional
         The peak level annotation labels for ASF spectra
     preprocessing_fn : Callable or Iterable[Callable], optional
         The function(s) used to preprocess the mass spectra. `None`,
@@ -98,7 +98,7 @@ def spectra_to_stream(
             "progress": progress,
             "peak_annotations": peak_annotations,
         }
-    else: 
+    else:
         parser_args = {
             "ms_level": ms_level,
             "valid_charge": valid_charge,
@@ -303,8 +303,9 @@ def spectra_to_df(
         Additional fields to extract during peak file parsing.
     progress : bool, optional
         Enable or disable the progress bar.
-    peak_annotations : str or Iterable[str], optional 
+    peak_annotations : str or Iterable[str], optional
         Labels for additional peak level annotations
+
     Returns
     -------
     polars.DataFrame

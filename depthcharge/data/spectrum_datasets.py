@@ -22,7 +22,7 @@ from torch import nn
 from torch.utils.data import IterableDataset
 
 from .. import utils
-from ..tokenizers import Tokenizer, PeptideTokenizer
+from ..tokenizers import PeptideTokenizer
 from . import arrow
 
 LOGGER = logging.getLogger(__name__)
@@ -313,7 +313,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     parse_kwargs : dict, optional
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
         peak files that are provided. This argument has no affect for
-        DataFrame or parquet file inputs. 
+        DataFrame or parquet file inputs.
     **kwargs : dict
         Keyword arguments to initialize a
         `[lance.torch.data.LanceDataset](https://github.com/lance-format/lance/blob/92aa361099f42a40e9aa9f9915d041fe1dd30671/python/python/lance/torch/data.py#L177)`.
@@ -328,6 +328,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         The tokenizer for the annotations.
     annotations : str
         The annotation column in the dataset.
+
     """
 
     def __init__(
@@ -379,7 +380,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             add_stop=self.tokenizer.stop_token is not None,
         )
         return batch
-        
+
     @classmethod
     def from_lance(
         cls,

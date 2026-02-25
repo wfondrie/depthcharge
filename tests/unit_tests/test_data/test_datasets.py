@@ -27,27 +27,39 @@ def tokenizer():
 def test_addition(mgf_small, tmp_path):
     """Testing adding a file."""
     dataset = SpectrumDataset(mgf_small, path=tmp_path / "test", batch_size=1)
-    assert dataset.n_spectra == 2 
+    assert dataset.n_spectra == 2
 
     dataset = dataset.add_spectra(mgf_small)
     assert dataset.n_spectra == 4
 
 def test_peak_annotations(tokenizer, real_asf):
-    test1 = CustomField("test1", lambda x: [float(anno.get("test1", 0)) for anno in x["peak_annotations"]], pa.list_(pa.float64()))
-    test2 = CustomField("test2", lambda x: [float(anno.get("test2", 0)) for anno in x["peak_annotations"]], pa.list_(pa.float64()))
+    """Tests the addition of peak annotations to the spectrum dataset."""
+    test1 = CustomField(
+                "test1",
+                lambda x: [float(anno.get("test1", 0))
+                          for anno in x["peak_annotations"]],
+                pa.list_(pa.float64())
+            )
+    test2 = CustomField(
+                "test2",
+                lambda x: [float(anno.get("test2", 0))
+                           for anno in x["peak_annotations"]],
+                pa.list_(pa.float64())
+            )
+
     seq = CustomField("seq", lambda x: x["params"]["seq"], pa.string())
 
     parse_kwargs = dict(
-        custom_fields = [test1, test2, seq], 
+        custom_fields = [test1, test2, seq],
         preprocessing_fn=[],
         peak_annotations=["test1", "test2"]
     )
 
     dataset = AnnotatedSpectrumDataset(
-        real_asf, 
+        real_asf,
         "seq",
         tokenizer,
-        batch_size=1, 
+        batch_size=1,
         parse_kwargs=parse_kwargs,
     )
 

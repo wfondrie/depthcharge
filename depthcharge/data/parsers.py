@@ -537,16 +537,15 @@ class MgfParser(BaseParser):
         raise ValueError("Invalid precursor charge.")
 
 class AsfParser(MgfParser):
-    """Parse mass spectra from an ASF file (augmented mass spectra 
-    similar to the MGF format)
-    
-    Parameters 
+    """Parse mass spectra from an ASF file.
+
+    Parameters
     ----------
-    peak_file : PathLike 
-        The ASF file to parse. 
-    ms_level : int 
-        The MS level of the spectra to parse. 
-    peak_annotations: Iterable[str] 
+    peak_file : PathLike
+        The ASF file to parse.
+    ms_level : int
+        The MS level of the spectra to parse.
+    peak_annotations: Iterable[str]
         The annotations for the peak level annotations.
     preprocessing_fn : Callable or Iterable[Callable], optional
         The function(s) used to preprocess the mass spectra.
@@ -560,6 +559,7 @@ class AsfParser(MgfParser):
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
+
     """
 
     def __init__(
@@ -581,7 +581,7 @@ class AsfParser(MgfParser):
             custom_fields=custom_fields,
             progress=progress,
         )
-        self.peak_annotations=peak_annotations 
+        self.peak_annotations=peak_annotations
 
     def sniff(self) -> None:
         """Quickly test a file for the correct type.
@@ -596,11 +596,7 @@ class AsfParser(MgfParser):
             if not next(mzdat).startswith("BEGIN IONS"):
                 raise OSError("Not an ASF file.")
 
-    @contextmanager
-    def open(self):
-        """Open the ASF file for reading."""
-        f = open(str(self.peak_file), "r")
-        def _iter():
+    def _iter(self, f): # noqa: C901
             spectrum = None
 
             for line in f:
@@ -626,14 +622,14 @@ class AsfParser(MgfParser):
                             value = value[0]
 
                         if key == "PEPMASS":
-                            if len(value.split()) == 2: 
-                                value = (value.split()[0], value.split()[1])   
+                            if len(value.split()) == 2:
+                                value = (value.split()[0], value.split()[1])
                                 spectrum["params"][key.lower()] = value
-                                continue 
+                                continue
 
-                        if key == "SEQ": 
-                            spectrum["params"][key.lower()] =  value 
-                            continue 
+                        if key == "SEQ":
+                            spectrum["params"][key.lower()] =  value
+                            continue
 
                         spectrum["params"][key.lower()] = [value]
                     elif line:
@@ -647,11 +643,18 @@ class AsfParser(MgfParser):
 
                             extra = {}
                             for i, label in enumerate(self.peak_annotations):
-                                extra[label] = parts[i + 2] if i + 2 < len(parts) else None
+                                if i + 2 < len(parts):
+                                    extra[label] = parts[i + 2]
+                                else:
+                                    extra[label] = None
 
                             spectrum["peak_annotations"].append(extra)
-        
-        yield _iter()
+
+    @contextmanager
+    def open(self):
+        """Open the ASF file for reading."""
+        f = open(str(self.peak_file))
+        yield self._iter(f)
 
 
     def parse_spectrum(self, spectrum: dict) -> MassSpectrum:
@@ -666,7 +669,7 @@ class AsfParser(MgfParser):
         ms = super().parse_spectrum(spectrum)
         ms.peak_annotations = spectrum.get("peak_annotations", [])
         return ms
-    
+
 class TdfParser(BaseParser):
     """Parse mass spectra from a TDF file.
 
@@ -850,7 +853,7 @@ class ParserFactory:
         """
         if "peak_annotations" in kwargs:
             return AsfParser(peak_file, **kwargs)
-        
+
         for parser in cls.parsers:
             try:
                 return parser(peak_file, **kwargs)
