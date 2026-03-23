@@ -597,65 +597,86 @@ class AsfParser(MgfParser):
                 raise OSError("Not an ASF file.")
 
     def _iter(self, f): # noqa: C901
-            spectrum = None
+        spectrum = None
+        for line in f:
+            line = line.strip()
 
-            for line in f:
-                line = line.strip()
+            if line.upper() == "BEGIN IONS":
+                spectrum = {
+                    "params": {},
+                    "m/z array": [],
+                    "intensity array": [],
+                    "peak_annotations": []
+                }
 
-                if line.upper() == "BEGIN IONS":
-                    spectrum = {
-                        "params": {},
-                        "m/z array": [],
-                        "intensity array": [],
-                        "peak_annotations": []
-                    }
+            elif line.upper() == "END IONS":
+                if spectrum is not None: 
+                    required_keys = ["title", "pepmass", "charge"]
+                    for key in required_keys:
+                        print(spectrum.get("params"))
+                        if key not in spectrum.get("params"):
+                            raise KeyError(f"Missing required key in spectrum: {key}")
 
-                elif line.upper() == "END IONS":
-                    if spectrum is not None:
-                        yield spectrum
-                    spectrum = None
+                    try:
+                        mass = float(spectrum.get("params")["pepmass"][0]) 
+                    except (TypeError, ValueError, IndexError):
+                        raise ValueError(f"Invalid pepmass value: {spectrum.get('pepmass')}")
 
-                elif spectrum is not None:
-                    if "=" in line:
-                        key, value = line.split("=", 1)
-                        if key == "CHARGE":
-                            value = value[0]
+                    try:
+                        charge_list = spectrum.get("params", {}).get("charge", [])
+                        if not charge_list:
+                            raise ValueError("Missing charge in spectrum params")
+                        charge_str = charge_list[0]
+                        if charge_str.endswith("+"):
+                            charge_str = charge_str[:-1]
+                        charge = int(charge_str)
+                    except (TypeError, ValueError, IndexError) as e:
+                        raise ValueError(f"Invalid CHARGE value: {charge_list}") from e
 
-                        if key == "PEPMASS":
-                            if len(value.split()) == 2:
-                                value = (value.split()[0], value.split()[1])
-                                spectrum["params"][key.lower()] = value
-                                continue
+                    yield spectrum 
 
-                        if key == "SEQ":
-                            spectrum["params"][key.lower()] =  value
+                spectrum = None
+            
+            elif spectrum is not None:
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    if key == "CHARGE":
+                        value = value[0]
+
+                    if key == "PEPMASS":
+                        if len(value.split()) == 2:
+                            value = (value.split()[0], value.split()[1])
+                            spectrum["params"][key.lower()] = value
                             continue
 
-                        spectrum["params"][key.lower()] = [value]
-                    elif line:
-                        parts = line.split()
-                        if len(parts) >= 2:
-                            mz = float(parts[0])
-                            intensity = float(parts[1])
+                    if key == "SEQ":
+                        spectrum["params"][key.lower()] =  value
+                        continue
 
-                            spectrum["m/z array"].append(mz)
-                            spectrum["intensity array"].append(intensity)
+                    spectrum["params"][key.lower()] = [value]
+                elif line:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        mz = float(parts[0])
+                        intensity = float(parts[1])
 
-                            extra = {}
-                            for i, label in enumerate(self.peak_annotations):
-                                if i + 2 < len(parts):
-                                    extra[label] = parts[i + 2]
-                                else:
-                                    extra[label] = None
+                        spectrum["m/z array"].append(mz)
+                        spectrum["intensity array"].append(intensity)
 
-                            spectrum["peak_annotations"].append(extra)
+                        extra = {}
+                        for i, label in enumerate(self.peak_annotations):
+                            if i + 2 < len(parts):
+                                extra[label] = parts[i + 2]
+                            else:
+                                extra[label] = None
+
+                        spectrum["peak_annotations"].append(extra)
 
     @contextmanager
     def open(self):
         """Open the ASF file for reading."""
         f = open(str(self.peak_file))
         yield self._iter(f)
-
 
     def parse_spectrum(self, spectrum: dict) -> MassSpectrum:
         """Parse a single spectrum.

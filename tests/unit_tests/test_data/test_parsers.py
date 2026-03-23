@@ -15,6 +15,7 @@ from depthcharge.data.parsers import (
     TdfParser,
 )
 from depthcharge.data.preprocessing import scale_to_unit_norm
+import sys 
 
 SMALL_MGF_MZS = [
     [
@@ -231,9 +232,10 @@ def test_mgf(
     ],
 )
 def test_tdf(
-    real_tdf, ms_level, preprocessing_fn, valid_charge, custom_fields, shape
+    real_tdf, ms_level, preprocessing_fn, valid_charge, custom_fields, shape, monkeypatch
 ):
-    """A simple TDF test."""
+    """A simple TDF test forced to macOS."""
+
     parsed = pl.from_arrow(
         TdfParser(
             real_tdf,
@@ -243,6 +245,8 @@ def test_tdf(
             custom_fields=custom_fields,
         ).iter_batches(None)
     )
+
+    # Check shape of the resulting data
     assert parsed.shape == shape
 
 
