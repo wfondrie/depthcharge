@@ -1,2 +1,0 @@
-*.tdf filter=lfs diff=lfs merge=lfs -text
-*.tdf_bin filter=lfs diff=lfs merge=lfs -text
