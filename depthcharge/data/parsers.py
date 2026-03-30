@@ -193,7 +193,7 @@ class BaseParser(ABC):
                 try:
                     parsed = self.parse_spectrum(spectrum)
                     if parsed is None:
-                        raise ValueError("parsed is None")
+                        continue
 
                     if self.preprocessing_fn is not None:
                         for processor in self.preprocessing_fn:
