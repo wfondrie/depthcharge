@@ -252,25 +252,6 @@ class BaseParser(ABC):
         self._batch = None
         return out
 
-class DiaParser(BaseParser):
-    
-    def __init__(self, annotation_file, annotations_list): 
-        # Annotations_list must be a list so that we can now what is in the tsv 
-        # Annotations_file is a file or the tsv file with the annotations 
-        self.annotation_file = annotation_file 
-        self.annotations_list = annotations_list 
-    def sniff(self) -> None: 
-        if self.annotation_file is None: 
-            raise OSError("Annotation TSV must be present for a DiaParser")
-
-        if self.annotation_file.suffix.lower() != ".tsv":
-            raise OSError("Annotation file must be a tsv file")
-
-        if self.annotations_list is None: 
-            raise OSError("Must have an annotations_list for a DiaParser")
-
-    
-
 class MzmlParser(BaseParser):
     """Parse mass spectra from an mzML file.
 
@@ -374,6 +355,33 @@ class MzmlParser(BaseParser):
             )
 
         raise ValueError("Invalid precursor charge.")
+
+
+class DiaParser(MzmlParser):
+    
+    def __init__(self, annotation_file, annotations_list): 
+        # Annotations_list must be a list so that we can now what is in the tsv 
+        # Annotations_file is a file or the tsv file with the annotations 
+        self.annotation_file = annotation_file 
+        self.annotations_list = annotations_list 
+    def sniff(self) -> None: 
+        if self.annotation_file is None: 
+            raise OSError("Annotation TSV must be present for a DiaParser")
+
+        if self.annotation_file.suffix.lower() != ".tsv":
+            raise OSError("Annotation file must be a tsv file")
+
+        if self.annotations_list is None: 
+            raise OSError("Must have an annotations_list for a DiaParser")
+
+        super.sniff(self) 
+    
+    # Inherit open from MzmlParser 
+    # Basically need to do this 
+    # Open up each MS2 spectrum, and then open up mzML and 
+    # reset the mzs with the MS1 spectra 
+    def parse_spectrum(): 
+
 
 
 class MzxmlParser(BaseParser):
