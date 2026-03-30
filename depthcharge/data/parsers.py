@@ -220,10 +220,14 @@ class BaseParser(ABC):
                 # Update the batch:
                 if len(self._batch["scan_id"]) == batch_size:
                     yield self._yield_batch()
-
+            
+            if self._batch is None: 
+                raise ValueError("Batch is None when iter batching")
+            
             # Get the remainder:
             if self._batch is not None:
                 yield self._yield_batch()
+            
 
         if n_skipped:
             warnings.warn(
@@ -249,6 +253,8 @@ class BaseParser(ABC):
     def _yield_batch(self) -> pa.RecordBatch:
         """Yield the batch."""
         out = pa.RecordBatch.from_pydict(self._batch, schema=self.schema)
+        if out is None: 
+            raise ValueError("yield batch yielded nothing")
         self._batch = None
         return out
 

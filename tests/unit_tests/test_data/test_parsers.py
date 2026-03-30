@@ -195,14 +195,19 @@ def test_tdf(
     real_tdf, ms_level, preprocessing_fn, valid_charge, custom_fields, shape
 ):
     """A simple TDF test."""
-    parsed = pl.from_arrow(
-        TdfParser(
+    batches = TdfParser(
             real_tdf,
             ms_level=ms_level,
             preprocessing_fn=preprocessing_fn,
             valid_charge=valid_charge,
             custom_fields=custom_fields,
         ).iter_batches(None)
+
+    if batches is None: 
+        raise ValueError("Tdf batches is None ")
+    
+    parsed = pl.from_arrow(
+        batches
     )
     assert parsed.shape == shape
 
