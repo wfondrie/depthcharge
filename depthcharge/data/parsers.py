@@ -221,9 +221,6 @@ class BaseParser(ABC):
                 if len(self._batch["scan_id"]) == batch_size:
                     yield self._yield_batch()
             
-            if self._batch is None: 
-                raise ValueError("Batch is None when iter batching")
-            
             # Get the remainder:
             if self._batch is not None:
                 yield self._yield_batch()
