@@ -236,14 +236,19 @@ def test_tdf(
 ):
     """A simple TDF test forced to macOS."""
 
-    parsed = pl.from_arrow(
-        TdfParser(
+    batches = TdfParser(
             real_tdf,
             ms_level=ms_level,
             preprocessing_fn=preprocessing_fn,
             valid_charge=valid_charge,
             custom_fields=custom_fields,
         ).iter_batches(None)
+    
+    if batches is None:
+        raise ValueError("batches is None nothing have been iter_batched ")
+    
+    parsed = pl.from_arrow(
+        batches
     )
 
     # Check shape of the resulting data

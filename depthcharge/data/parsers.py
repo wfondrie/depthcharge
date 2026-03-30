@@ -193,7 +193,7 @@ class BaseParser(ABC):
                 try:
                     parsed = self.parse_spectrum(spectrum)
                     if parsed is None:
-                        continue
+                        raise ValueError("parsed is None")
 
                     if self.preprocessing_fn is not None:
                         for processor in self.preprocessing_fn:
@@ -210,9 +210,7 @@ class BaseParser(ABC):
                     }
 
                 except (IndexError, KeyError, ValueError) as exc:
-                    last_exc = exc
-                    n_skipped += 1
-                    continue
+                    raise exc
 
                 # Parse custom fields:
                 entry.update(self.parse_custom_fields(spectrum))
@@ -222,6 +220,9 @@ class BaseParser(ABC):
                 if len(self._batch["scan_id"]) == batch_size:
                     yield self._yield_batch()
 
+            if self._batch is None: 
+                raise ValueError("Self.batch is None when iter batched")
+            
             # Get the remainder:
             if self._batch is not None:
                 yield self._yield_batch()
@@ -250,6 +251,9 @@ class BaseParser(ABC):
     def _yield_batch(self) -> pa.RecordBatch:
         """Yield the batch."""
         out = pa.RecordBatch.from_pydict(self._batch, schema=self.schema)
+        if out is None: 
+            raise ValueError("yield batched is None")
+        
         self._batch = None
         return out
 
