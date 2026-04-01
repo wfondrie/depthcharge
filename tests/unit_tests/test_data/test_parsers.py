@@ -269,7 +269,7 @@ def test_custom_fields(mgf_small):
         )
 
 def test_dia_parser_factory(real_mzml, real_dia_annotations):
-    parser = ParserFactory().get_parser(real_mzml, {"annotation_file": real_dia_annotations})
+    parser = ParserFactory().get_parser(real_mzml, annotation_file=real_dia_annotations)    
     assert isinstance(parser, DiaParser)
 
 def test_invalid_file(tmp_path):
