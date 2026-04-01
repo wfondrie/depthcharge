@@ -407,10 +407,6 @@ class DiaParser(MzmlParser):
         annotations["window_size"] = spectrum['window_size']
         annotations["rts"] = list(rts) + list(ms1_rts)
         for ann in spectrum["annotations"]: 
-            if ann=="retention_time": 
-                continue 
-            if ann=="precursor_m/z":
-                continue
             annotations[ann] = spectrum["annotations"][ann]
         
         mzs = []
@@ -436,24 +432,17 @@ class DiaParser(MzmlParser):
 
         filtered = self.anns.loc[self.anns['scan'] == spectrum["id"]]
 
-        if len(filtered) > 0 and "sequence" in filtered.columns:
-            label = filtered.iloc[0]["sequence"]
-            if pd.isna(label):
-                label = None
-        else:
-            label = None
+        label = None
+        if "sequence" in filtered.columns:
+            label = filtered.iloc["sequence"]
 
-        if len(filtered) > 0 and "charge" in filtered.columns:
-            charge = filtered.iloc[0]["charge"]
-            precursor_charge = charge if not pd.isna(charge) else spectrum.get("charge", None)
-        else:
-            precursor_charge = spectrum.get("charge", None)
-
-        if len(filtered) > 0 and "rt" in filtered.columns:
-            charge = filtered.iloc[0]["charge"]
-            rt = charge if not pd.isna(charge) else spectrum.get("charge", None)
-        else:
-            rt = spectrum.get("retention_time", None)
+        charge = spectrum.get("charge", None)
+        if "charge" in filtered.columns:
+            charge = filtered["charge"]
+            
+        rt = spectrum.get("retention_time", None)
+        if "rt" in filtered.columns:
+            rt = filtered["rt"]
             
         return MassSpectrum(
             filename=str(self.peak_file),
@@ -464,7 +453,7 @@ class DiaParser(MzmlParser):
             precursor_mz=spectrum["precursor_m/z"],
             annotations=annotations,
             label=label,
-            precursor_charge=precursor_charge,
+            precursor_charge=charge,
         )
 
     @contextmanager
