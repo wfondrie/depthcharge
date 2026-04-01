@@ -384,14 +384,8 @@ class DiaParser(MzmlParser):
         self.scan_width = scan_width
     
     def sniff(self) -> None: 
-        if self.annotation_file is None: 
-            raise OSError("Annotation TSV must be present for a DiaParser")
-
-        if self.annotation_file.suffix.lower() != ".tsv":
-            raise OSError("Annotation file must be a tsv file")
-
-        if self.annotations_list is None: 
-            raise OSError("Must have an annotations_list for a DiaParser")
+        if self.anns is None: 
+            raise OSError("Annotations must be present for a DiaParser")
 
         super().sniff(self) 
 
@@ -948,7 +942,7 @@ class TdfParser(BaseParser):
 class ParserFactory:
     """Figure out what parser to use."""
 
-    parsers = [MzmlParser, MzxmlParser, MgfParser, TdfParser, DiaParser]
+    parsers = [MzmlParser, MzxmlParser, MgfParser, TdfParser]
 
     @classmethod
     def get_parser(cls, peak_file: PathLike, **kwargs: dict) -> BaseParser:
