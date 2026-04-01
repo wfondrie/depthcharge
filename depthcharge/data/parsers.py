@@ -497,7 +497,7 @@ class DiaParser(MzmlParser):
         part = 0
         last_rt = 0
         cycle_time = None
-        with MzML(self.peak_file) as reader:
+        with MzML(str(self.peak_file)) as reader:
             for spec in reader:
                 if spec['ms level'] == 1:
                     cur_rt = 60 * spec['scanList']['scan'][0]['scan start time']
