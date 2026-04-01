@@ -478,7 +478,6 @@ class DiaParser(MzmlParser):
             for set in precs_to_spec: 
                 for key, spec in set.items():
                     if 'ms1_scans' not in spec:
-                        n_skipped += 1
                         warnings.warn("Spectra does not have a MS1 scan. DiaParser requires MS1 scans.")
                         continue
                     prec, rt, charge = key
@@ -572,6 +571,7 @@ class DiaParser(MzmlParser):
                                         if (mz, rt, charge) not in prec_to_spec:
                                             prec_to_spec[(mz, rt, charge)] = {}
                                             prec_to_spec[(mz, rt, charge)]['annotations'] = {}
+                                            prec_to_spec[(mz, rt, charge)]['id'] = scan
                                         if 'annotations' not in prec_to_spec[(mz, rt, charge)]:
                                             prec_to_spec[(mz, rt, charge)]['annotations'] = {}
                                         if 'scans' not in prec_to_spec[(mz, rt, charge)]:
