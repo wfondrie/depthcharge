@@ -78,7 +78,7 @@ def test_additional_dia(real_mzml, real_dia_annotations):
             custom_fields=DIA_FIELD,
         )
     
-    
+
 @pytest.mark.parametrize(
     ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
     [
@@ -268,6 +268,9 @@ def test_custom_fields(mgf_small):
             ).iter_batches(None)
         )
 
+def test_dia_parser_factory(real_mzml, real_dia_annotations):
+    parser = ParserFactory().get_parser(real_mzml, {"annotation_file": real_dia_annotations})
+    assert isinstance(parser, DiaParser)
 
 def test_invalid_file(tmp_path):
     """Test an invalid file raises an error."""

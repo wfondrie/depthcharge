@@ -467,8 +467,7 @@ class DiaParser(MzmlParser):
             for set in precs_to_spec: 
                 for key, spec in set.items():
                     if 'ms1_scans' not in spec:
-                        warnings.warn("Spectra does not have a MS1 scan. DiaParser requires MS1 scans.")
-                        continue
+                        warnings.warn("Spectra does not have a MS1 scan. DiaParser requires MS1 scans."); continue
                     prec, rt, charge = key
                     spec["precursor_m/z"] = prec
                     spec["retention_time"] = rt
@@ -538,9 +537,7 @@ class DiaParser(MzmlParser):
                     scan = spec["id"]
                     filtered = self.anns.loc[self.anns['scan'] == scan]
                     if len(filtered) > 1:
-                        n_skipped += 1
-                        last_exc = f"There are {len(filtered.columns)} spectra with {scan}. Scans must be unique"
-                        continue 
+                        n_skipped += 1; last_exc = f"There are {len(filtered.columns)} spectra with {scan}. Scans must be unique"; continue 
 
                     window = spec['precursorList']['precursor'][0]['isolationWindow']
                     window_center = window['isolation window target m/z']
@@ -940,7 +937,6 @@ class ParserFactory:
             Keyword arguments to pass to the parser.
 
         """
-        print(f"KWARGS: {kwargs}")
         if "annotation_file" in kwargs:
             return DiaParser(peak_file, **kwargs)
         
