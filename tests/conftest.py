@@ -26,6 +26,9 @@ def real_tdf():
     """Get a real TDF file."""
     return DATA_DIR / "test.d"
 
+@pytest.fixture 
+def real_dia_annotations(): 
+    return DATA_DIR / "sample_dia_annotations.tsv"
 
 @pytest.fixture
 def real_mgf():

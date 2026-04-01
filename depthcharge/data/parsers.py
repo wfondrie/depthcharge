@@ -9,6 +9,8 @@ from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from os import PathLike, fspath
 from typing import Any
+import numpy as np 
+import pandas as pd 
 
 import pyarrow as pa
 import timsrust_pyo3
@@ -358,12 +360,29 @@ class MzmlParser(BaseParser):
 
 
 class DiaParser(MzmlParser):
+    def __init__(
+        self,
+        peak_file: PathLike,
+        annotation_file: PathLike, 
+        scan_width: int,
+        ms_level: int = 2,
+        preprocessing_fn: Callable | Iterable[Callable] | None = None,
+        valid_charge: Iterable[int] | None = None,
+        custom_fields: dict[str, Iterable[str]] | None = None,
+        progress: bool = True,
+    ) -> None:
+        """Initialize the DiaParser."""
+        super().__init__(
+            peak_file,
+            ms_level=ms_level,
+            preprocessing_fn=preprocessing_fn,
+            valid_charge=valid_charge,
+            custom_fields=custom_fields,
+            progress=progress,
+        )
+        self.anns = pd.read_csv(annotation_file, sep="\t")
+        self.scan_width = scan_width
     
-    def __init__(self, annotation_file, annotations_list): 
-        # Annotations_list must be a list so that we can now what is in the tsv 
-        # Annotations_file is a file or the tsv file with the annotations 
-        self.annotation_file = annotation_file 
-        self.annotations_list = annotations_list 
     def sniff(self) -> None: 
         if self.annotation_file is None: 
             raise OSError("Annotation TSV must be present for a DiaParser")
@@ -374,13 +393,212 @@ class DiaParser(MzmlParser):
         if self.annotations_list is None: 
             raise OSError("Must have an annotations_list for a DiaParser")
 
-        super.sniff(self) 
-    
-    # Inherit open from MzmlParser 
-    # Basically need to do this 
-    # Open up each MS2 spectrum, and then open up mzML and 
-    # reset the mzs with the MS1 spectra 
-    def parse_spectrum(): 
+        super().sniff(self) 
+
+    def parse_spectrum(self, spectrum: dict) -> MassSpectrum: 
+        scans = np.array(spectrum['scans'], dtype=object)
+        rts = np.array(spectrum['rts'])
+        ms1_scans = np.array(spectrum['ms1_scans'], dtype=object)
+        ms1_rts = np.array(spectrum['ms1_rts'])
+
+        abs_rts = [np.abs(x) for x in rts]
+        sorted_rt_idxs = np.argsort(abs_rts)[:self.scan_width]
+        rts = rts[sorted_rt_idxs]
+        scans = scans[sorted_rt_idxs]
+
+        abs_ms1_rts = [np.abs(x) for x in ms1_rts]
+        sorted_ms1_rt_idxs = np.argsort(abs_ms1_rts)[:self.scan_width]
+        ms1_rts = ms1_rts[sorted_ms1_rt_idxs]
+        ms1_scans = ms1_scans[sorted_ms1_rt_idxs]
+
+        annotations = {}
+        annotations["window_width"] = spectrum['window_width']
+        annotations["window_size"] = spectrum['window_size']
+        annotations["rts"] = list(rts) + list(ms1_rts)
+        for ann in spectrum["annotations"]: 
+            if ann=="retention_time": 
+                continue 
+            if ann=="precursor_m/z":
+                continue
+            annotations[ann] = spectrum["annotations"][ann]
+        
+        mzs = []
+        intensities = []
+        scan_numbers = []
+        rt_values = []
+        for scan, cur_rt in zip(scans,rts):
+            for mz, intensity in scan: 
+                mzs.append(mz)
+                intensities.append(intensity) 
+                scan_numbers.append(2)
+                rt_values.append(cur_rt)
+        
+        for scan, cur_rt in zip(ms1_scans, ms1_rts):
+            for mz1, intensity1 in scan: 
+                mzs.append(mz1)
+                intensities.append(intensity1)
+                scan_numbers.append(1) 
+                rt_values.append(cur_rt)
+
+        annotations["scan_numbers"] = scan_numbers
+        annotations["rts"] = rt_values
+
+        filtered = self.anns.loc[self.anns['scan'] == spectrum["id"]]
+
+        if len(filtered) > 0 and "sequence" in filtered.columns:
+            label = filtered.iloc[0]["sequence"]
+            if pd.isna(label):
+                label = None
+        else:
+            label = None
+
+        if len(filtered) > 0 and "charge" in filtered.columns:
+            charge = filtered.iloc[0]["charge"]
+            precursor_charge = charge if not pd.isna(charge) else spectrum.get("charge", None)
+        else:
+            precursor_charge = spectrum.get("charge", None)
+
+        if len(filtered) > 0 and "rt" in filtered.columns:
+            charge = filtered.iloc[0]["charge"]
+            rt = charge if not pd.isna(charge) else spectrum.get("charge", None)
+        else:
+            rt = spectrum.get("retention_time", None)
+            
+        return MassSpectrum(
+            filename=str(self.peak_file),
+            scan_id=spectrum["id"],
+            mz=mzs,
+            intensity=intensities,
+            retention_time=rt,
+            precursor_mz=spectrum["annotations"]["precursor_m/z"],
+            annotations=annotations,
+            label=label,
+            precursor_charge=precursor_charge,
+        )
+
+    def open(self) -> Iterable[dict]: 
+        n_skipped = 0
+        last_exc = None
+        f_to_mzrt_to_pep, max_mz, window_size, cycle_time = self.get_centers()
+        precs_to_spec = []
+        for part in f_to_mzrt_to_pep.keys():
+            precs_to_spec.append(self.extract_spectra(f_to_mzrt_to_pep, part, (self.scan_width + 1) * cycle_time, max_mz, window_size))
+
+        for set in precs_to_spec: 
+            for key, spec in set.items():
+                if 'ms1_scans' not in spec:
+                    n_skipped += 1
+                    last_exc = "The spectrum did not have the ms1_scans. DiaParser requires a MS1 scan."
+                    continue
+                prec, rt, charge = key
+                spec["precursor_m/z"] = prec
+                spec["retention_time"] = rt
+                spec["charge"] =  charge 
+                yield spec 
+        if n_skipped > 0:
+            warnings.warn(
+                    f"Skipped {n_skipped} spectra with invalid information."
+                    f"Last error was: \n {str(last_exc)}"
+                )
+
+
+    def get_centers(self):
+        f_to_mzrt_to_pep = {}
+        max_mz = 0
+        num_spectra = 0
+        part = 0
+        last_rt = 0
+        cycle_time = None
+        with MzML(self.peak_file) as reader:
+            for spec in reader:
+                if spec['ms level'] == 1:
+                    cur_rt = 60 * spec['scanList']['scan'][0]['scan start time']
+                    cycle_time = cur_rt - last_rt
+                    last_rt = cur_rt
+                if spec['ms level'] == 2:
+                    window = spec['precursorList']['precursor'][0]['isolationWindow']
+                    window_center = window['isolation window target m/z']
+                    lower_offset = window['isolation window lower offset']
+                    upper_offset = window['isolation window upper offset']
+                    window_size = upper_offset + lower_offset
+                    cur_rt = 60 * spec['scanList']['scan'][0]['scan start time']
+                    if num_spectra % 50000 == 0:
+                        part += 1
+                        f_to_mzrt_to_pep[part] = {}
+                    num_spectra += 1
+                    key = (int(window_center/10), int(cur_rt/10))
+                    max_mz = max(max_mz,int(window_center/10))
+                    if key in f_to_mzrt_to_pep[part]:
+                        f_to_mzrt_to_pep[part][key].append((window_center, cur_rt, 1))
+                    else:
+                        f_to_mzrt_to_pep[part][key] = [(window_center, cur_rt, 1)]
+        return f_to_mzrt_to_pep, max_mz, window_size, cycle_time
+
+    def extract_spectra(self, f_to_mzrt_to_pep, part, time_width, max_mz, window_size):
+        prec_to_spec = {}
+        n_skipped = 0
+        last_exc = None
+        with MzML(self.peak_file) as reader:
+            for spec in reader:
+                cur_rt = 60 * spec['scanList']['scan'][0]['scan start time']
+                if spec['ms level'] == 1:
+                    for scan_rt in range(int(cur_rt/10) - 1, int(cur_rt/10) + 1):
+                        for scan_window in range(max_mz+1):
+                            if (scan_window, scan_rt) in f_to_mzrt_to_pep[part]:
+                                for mz, rt, charge in f_to_mzrt_to_pep[part][(scan_window, scan_rt)]:
+                                    if np.abs(rt - cur_rt) < time_width: 
+                                        mzs = spec['m/z array']
+                                        intensities = spec['intensity array']
+
+                                        if (mz, rt, charge) not in prec_to_spec:
+                                            prec_to_spec[(mz, rt, charge)] = {}
+                                        if 'ms1_scans' not in prec_to_spec[(mz, rt, charge)]:
+                                            prec_to_spec[(mz, rt, charge)]['ms1_scans'] = []
+                                            prec_to_spec[(mz, rt, charge)]['ms1_rts'] = []
+                                        prec_to_spec[(mz, rt, charge)]['ms1_scans'].append([x for x in zip(mzs, intensities)])
+                                        prec_to_spec[(mz, rt, charge)]['ms1_rts'].append(cur_rt - rt)
+                                        prec_to_spec[(mz, rt, charge)]['window_size'] = window_size
+                elif spec['ms level'] == 2:
+                    scan = spec["id"]
+                    filtered = self.anns.loc[self.anns['scan'] == scan]
+                    if len(filtered) > 1:
+                        n_skipped += 1
+                        last_exc = f"There are {len(filtered.columns)} spectra with {scan}. Scans must be unique"
+                        continue 
+
+                    window = spec['precursorList']['precursor'][0]['isolationWindow']
+                    window_center = window['isolation window target m/z']
+                    lower_offset = window['isolation window lower offset']
+                    upper_offset = window['isolation window upper offset']
+                
+                    for scan_rt in range(int(cur_rt/10) - 1, int(cur_rt/10) + 1):
+                        for scan_window in range(int((window_center - lower_offset)/10) - 1, int((window_center + upper_offset)/10) + 1):
+                            if (scan_window, scan_rt) in f_to_mzrt_to_pep[part]:
+                                for mz, rt, charge in f_to_mzrt_to_pep[part][(scan_window, scan_rt)]:
+                                    in_mz = mz > window_center - lower_offset and mz < window_center + upper_offset
+                                    rt_diff = np.abs(rt - cur_rt)
+                                    if in_mz and rt_diff < time_width:
+                                        mzs = spec['m/z array']
+                                        intensities = spec['intensity array']
+
+                                        if (mz, rt, charge) not in prec_to_spec:
+                                            prec_to_spec[(mz, rt, charge)] = {}
+                                            prec_to_spec[(mz, rt, charge)]['annotations'] = {}
+                                        if 'scans' not in prec_to_spec[(mz, rt, charge)]:
+                                            prec_to_spec[(mz, rt, charge)]['scans'] = []
+                                            prec_to_spec[(mz, rt, charge)]['rts'] = []
+                                            prec_to_spec[(mz, rt, charge)]['window_width'] = max(lower_offset, upper_offset) 
+                                        prec_to_spec[(mz, rt, charge)]['scans'].append([x for x in zip(mzs, intensities)])
+                                        prec_to_spec[(mz, rt, charge)]['rts'].append(cur_rt - rt)
+                                        row = filtered.iloc[0]
+                                        for ann in filtered.columns:
+                                            prec_to_spec[(mz, rt, charge)]['annotations'][ann] = row[ann]
+        if n_skipped > 0: 
+            warnings.warn(
+                f"Skipped {n_skipped} spectra with invalid information."
+                f"Last error was: \n {str(last_exc)}"
+            )
+        return prec_to_spec
 
 
 
@@ -730,7 +948,7 @@ class TdfParser(BaseParser):
 class ParserFactory:
     """Figure out what parser to use."""
 
-    parsers = [MzmlParser, MzxmlParser, MgfParser, TdfParser]
+    parsers = [MzmlParser, MzxmlParser, MgfParser, TdfParser, DiaParser]
 
     @classmethod
     def get_parser(cls, peak_file: PathLike, **kwargs: dict) -> BaseParser:
@@ -744,6 +962,9 @@ class ParserFactory:
             Keyword arguments to pass to the parser.
 
         """
+        if "annotation_file" in kwargs:
+            return DiaParser(peak_file, **kwargs)
+        
         for parser in cls.parsers:
             try:
                 return parser(peak_file, **kwargs)

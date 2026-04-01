@@ -350,9 +350,13 @@ class MassSpectrum(MsmsSpectrum):
         A label for the mass spectrum. This is typically an
         annotation, such as the generating peptide sequence,
         but is distinct from spectrum_utils' annotation.
-
+    annotations: dict, optional
+        Additional spectrum annotations. In the form of 
+        a dictionary mapping the name of the annotation to the 
+        value.
     """
-
+    # okay so we can technically put the retention time and ms_levels and everything inside annotations 
+    # and that would be fine 
     def __init__(
         self,
         filename: str,
@@ -365,6 +369,7 @@ class MassSpectrum(MsmsSpectrum):
         precursor_mz: float | None = None,
         precursor_charge: int | None = None,
         label: str | None = None,
+        annotations: dict | None = None,
     ) -> None:
         """Initialize a MassSpectrum."""
         self.filename = filename
@@ -391,6 +396,8 @@ class MassSpectrum(MsmsSpectrum):
             intensity=intensity,
             retention_time=retention_time,
         )
+
+        self.annotations = annotations
 
     @property
     def usi(self) -> str:
