@@ -572,6 +572,8 @@ class DiaParser(MzmlParser):
                                         if (mz, rt, charge) not in prec_to_spec:
                                             prec_to_spec[(mz, rt, charge)] = {}
                                             prec_to_spec[(mz, rt, charge)]['annotations'] = {}
+                                        if 'annotations' not in prec_to_spec[(mz, rt, charge)]:
+                                            prec_to_spec[(mz, rt, charge)]['annotations'] = {}
                                         if 'scans' not in prec_to_spec[(mz, rt, charge)]:
                                             prec_to_spec[(mz, rt, charge)]['scans'] = []
                                             prec_to_spec[(mz, rt, charge)]['rts'] = []
