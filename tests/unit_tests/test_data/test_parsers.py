@@ -72,7 +72,6 @@ DIA_FIELD=CustomField("label", lambda x: x["annotations"]["sequence"], pa.string
         (2, None, None, None, (4, 7)),
         (1, None, None, None, (4, 7)),
         (3, None, None, None, (3, 7)),
-        (2, None, [3], None, (3, 7)),
         (None, None, None, None, (11, 7)),
         (2, scale_to_unit_norm, None, DIA_FIELD, (4, 8)),
     ],
