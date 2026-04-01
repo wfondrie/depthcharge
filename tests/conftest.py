@@ -28,7 +28,7 @@ def real_tdf():
 
 @pytest.fixture 
 def real_dia_annotations(): 
-    return DATA_DIR / "sample_dia_annotations.tsv"
+    return DATA_DIR / "sample_dia_annotations.csv"
 
 @pytest.fixture
 def real_mgf():
