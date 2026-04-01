@@ -383,7 +383,11 @@ class DiaParser(MzmlParser):
         if annotation_file is None:
             raise ValueError("DiaParsers must have annotation files")
         
-        self.anns = pd.read_csv(annotation_file, sep="\t")
+        try:
+            self.anns = pd.read_csv(annotation_file, sep="\t")
+        except Exception as e:
+            print(f"Failed to read annotation_file: {annotation_file}, error: {e}")
+            raise
         self.scan_width = scan_width
     
     def sniff(self) -> None: 
