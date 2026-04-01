@@ -539,7 +539,6 @@ class DiaParser(MzmlParser):
 
                                         if (mz, rt, charge) not in prec_to_spec:
                                             prec_to_spec[(mz, rt, charge)] = {}
-                                            prec_to_spec[(mz, rt, charge)]['id'] = scan
                                         if 'ms1_scans' not in prec_to_spec[(mz, rt, charge)]:
                                             prec_to_spec[(mz, rt, charge)]['ms1_scans'] = []
                                             prec_to_spec[(mz, rt, charge)]['ms1_rts'] = []
