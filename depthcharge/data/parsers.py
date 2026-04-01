@@ -467,31 +467,28 @@ class DiaParser(MzmlParser):
             precursor_charge=precursor_charge,
         )
 
-    def open(self) -> Iterable[dict]: 
-        n_skipped = 0
-        last_exc = None
+    @contextmanager
+    def open(self) -> Iterable[dict]:
         f_to_mzrt_to_pep, max_mz, window_size, cycle_time = self.get_centers()
         precs_to_spec = []
         for part in f_to_mzrt_to_pep.keys():
             precs_to_spec.append(self.extract_spectra(f_to_mzrt_to_pep, part, (self.scan_width + 1) * cycle_time, max_mz, window_size))
 
-        for set in precs_to_spec: 
-            for key, spec in set.items():
-                if 'ms1_scans' not in spec:
-                    n_skipped += 1
-                    last_exc = "The spectrum did not have the ms1_scans. DiaParser requires a MS1 scan."
-                    continue
-                prec, rt, charge = key
-                spec["precursor_m/z"] = prec
-                spec["retention_time"] = rt
-                spec["charge"] =  charge 
-                yield spec 
-        if n_skipped > 0:
-            warnings.warn(
-                    f"Skipped {n_skipped} spectra with invalid information."
-                    f"Last error was: \n {str(last_exc)}"
-                )
+        def _iter():
+            for set in precs_to_spec: 
+                for key, spec in set.items():
+                    if 'ms1_scans' not in spec:
+                        n_skipped += 1
+                        warnings.warn("Spectra does not have a MS1 scan. DiaParser requires MS1 scans.")
+                        continue
+                    prec, rt, charge = key
+                    spec["precursor_m/z"] = prec
+                    spec["retention_time"] = rt
+                    spec["charge"] =  charge 
 
+                    yield spec 
+
+        yield _iter()
 
     def get_centers(self):
         f_to_mzrt_to_pep = {}
