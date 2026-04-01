@@ -380,14 +380,17 @@ class DiaParser(MzmlParser):
             custom_fields=custom_fields,
             progress=progress,
         )
+        if annotation_file is None:
+            raise ValueError("DiaParsers must have annotation files")
+        
         self.anns = pd.read_csv(annotation_file, sep="\t")
         self.scan_width = scan_width
     
     def sniff(self) -> None: 
-        if self.anns is None: 
+        if not hasattr(self, "anns") or self.anns is None:
             raise OSError("Annotations must be present for a DiaParser")
 
-        super().sniff(self) 
+        super().sniff()
 
     def parse_spectrum(self, spectrum: dict) -> MassSpectrum: 
         scans = np.array(spectrum['scans'], dtype=object)
