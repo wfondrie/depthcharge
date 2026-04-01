@@ -461,7 +461,7 @@ class DiaParser(MzmlParser):
             mz=mzs,
             intensity=intensities,
             retention_time=rt,
-            precursor_mz=spectrum["annotations"]["precursor_m/z"],
+            precursor_mz=spectrum["precursor_m/z"],
             annotations=annotations,
             label=label,
             precursor_charge=precursor_charge,
