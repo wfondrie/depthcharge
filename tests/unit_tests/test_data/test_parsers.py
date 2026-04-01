@@ -82,6 +82,7 @@ def test_dia(real_mzml, real_dia_annotations, ms_level, preprocessing_fn, valid_
         DiaParser(
             real_mzml,
             annotation_file=real_dia_annotations,
+            scan_width=1,
             ms_level=ms_level,
             preprocessing_fn=preprocessing_fn,
             valid_charge=valid_charge,

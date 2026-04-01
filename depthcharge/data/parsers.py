@@ -962,6 +962,7 @@ class ParserFactory:
             Keyword arguments to pass to the parser.
 
         """
+        print(f"KWARGS: {kwargs}")
         if "annotation_file" in kwargs:
             return DiaParser(peak_file, **kwargs)
         
