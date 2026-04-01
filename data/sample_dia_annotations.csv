@@ -1,0 +1,5 @@
+scan	sequence
+controllerType=0 controllerNumber=1 scan=501	AAAAAAAAAAA
+controllerType=0 controllerNumber=1 scan=504	KKKKKKKKKKK
+controllerType=0 controllerNumber=1 scan=507	CCCCCCCCCCC
+controllerType=0 controllerNumber=1 scan=510	GGGGGGGGGGG
