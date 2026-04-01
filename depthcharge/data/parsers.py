@@ -434,15 +434,15 @@ class DiaParser(MzmlParser):
 
         label = None
         if "sequence" in filtered.columns:
-            label = filtered.iloc["sequence"]
+            label = filtered["sequence"].iloc[0]
 
         charge = spectrum.get("charge", None)
         if "charge" in filtered.columns:
-            charge = filtered["charge"]
+            charge = filtered["charge"].iloc[0]
             
         rt = spectrum.get("retention_time", None)
         if "rt" in filtered.columns:
-            rt = filtered["rt"]
+            rt = filtered["rt"].iloc[0]
             
         return MassSpectrum(
             filename=str(self.peak_file),
