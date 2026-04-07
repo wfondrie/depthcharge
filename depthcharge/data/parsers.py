@@ -208,6 +208,7 @@ class BaseParser(ABC):
                         "precursor_charge": parsed.precursor_charge,
                         "mz_array": parsed.mz,
                         "intensity_array": parsed.intensity,
+                        "annotations": parsed.annotations
                     }
 
                 except (IndexError, KeyError, ValueError) as exc:
