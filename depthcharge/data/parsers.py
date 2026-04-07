@@ -215,7 +215,8 @@ class BaseParser(ABC):
                     last_exc = exc
                     n_skipped += 1
                     continue
-
+                
+                spectrum["annotations"] = parsed.annotations,
                 # Parse custom fields:
                 entry.update(self.parse_custom_fields(spectrum))
                 self._update_batch(entry)
@@ -453,7 +454,6 @@ class DiaParser(MzmlParser):
                     spec["precursor_m/z"] = prec
                     spec["retention_time"] = rt
                     spec["charge"] =  charge 
-
                     yield spec 
 
         yield _iter()
