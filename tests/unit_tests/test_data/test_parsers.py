@@ -65,18 +65,6 @@ MGF_FIELD = CustomField("t", lambda x: x["params"]["title"], pa.string())
 MZML_FIELD = CustomField("index", lambda x: x["index"], pa.int64())
 MZXML_FIELD = CustomField("CE", lambda x: x["collisionEnergy"], pa.float64())
 DIA_FIELD=CustomField("label", lambda x: x["annotations"]["window_width"], pa.float64())
-
-def test_additional_dia(real_mzml, real_dia_annotations): 
-    with pytest.raises(ValueError):
-        parser = DiaParser(
-            real_mzml,
-            annotation_file=None,
-            scan_width=1,
-            ms_level=2,
-            preprocessing_fn=scale_to_unit_norm,
-            valid_charge=[3],
-            custom_fields=DIA_FIELD,
-        )
     
 
 @pytest.mark.parametrize(

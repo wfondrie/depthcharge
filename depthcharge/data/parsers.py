@@ -398,7 +398,7 @@ class DiaParser(MzmlParser):
         ms1_scans = ms1_scans[sorted_ms1_rt_idxs]
 
         annotations = {}
-        annotations["window_width"] = spectrum['window_width']
+        annotations["window_width"] = spectrum.get("window_width")
         annotations["window_size"] = spectrum['window_size']
         annotations["rts"] = list(rts) + list(ms1_rts)
         for ann in spectrum["annotations"]: 
@@ -425,6 +425,7 @@ class DiaParser(MzmlParser):
         annotations["scan_numbers"] = scan_numbers
         annotations["rts"] = rt_values
 
+        warnings.warn(f"THESE ARE THE ANNOTATIONS: {annotations}")
         return MassSpectrum(
             filename=str(self.peak_file),
             scan_id=spectrum["id"],
@@ -491,8 +492,6 @@ class DiaParser(MzmlParser):
 
     def extract_spectra(self, f_to_mzrt_to_pep, part, time_width, max_mz, window_size):
         prec_to_spec = {}
-        n_skipped = 0
-        last_exc = None
         with MzML(str(self.peak_file)) as reader:
             for spec in reader:
                 cur_rt = 60 * spec['scanList']['scan'][0]['scan start time']
@@ -541,11 +540,6 @@ class DiaParser(MzmlParser):
                                             prec_to_spec[(mz, rt, charge)]['window_width'] = max(lower_offset, upper_offset) 
                                         prec_to_spec[(mz, rt, charge)]['scans'].append([x for x in zip(mzs, intensities)])
                                         prec_to_spec[(mz, rt, charge)]['rts'].append(cur_rt - rt)
-        if n_skipped > 0: 
-            warnings.warn(
-                f"Skipped {n_skipped} spectra with invalid information."
-                f"Last error was: \n {str(last_exc)}"
-            )
         return prec_to_spec
 
 
