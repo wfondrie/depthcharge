@@ -64,7 +64,7 @@ SMALL_MGF_MZS = [
 MGF_FIELD = CustomField("t", lambda x: x["params"]["title"], pa.string())
 MZML_FIELD = CustomField("index", lambda x: x["index"], pa.int64())
 MZXML_FIELD = CustomField("CE", lambda x: x["collisionEnergy"], pa.float64())
-DIA_FIELD=CustomField("label", lambda x: x["annotations"]["window_width"], pa.float64())
+DIA_FIELD=CustomField("label", lambda x: x["window_width"], pa.float64())
     
 
 @pytest.mark.parametrize(

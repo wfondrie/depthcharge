@@ -215,7 +215,6 @@ class BaseParser(ABC):
                     n_skipped += 1
                     continue
 
-                spectrum["annotations"] = parsed.annotations,
                 # Parse custom fields:
                 entry.update(self.parse_custom_fields(spectrum))
                 self._update_batch(entry)
@@ -402,8 +401,6 @@ class DiaParser(MzmlParser):
         annotations["window_width"] = spectrum.get("window_width")
         annotations["window_size"] = spectrum['window_size']
         annotations["rts"] = list(rts) + list(ms1_rts)
-        for ann in spectrum["annotations"]: 
-            annotations[ann] = spectrum["annotations"][ann]
         
         mzs = []
         intensities = []
@@ -527,12 +524,11 @@ class DiaParser(MzmlParser):
                                     if in_mz and rt_diff < time_width:
                                         mzs = spec['m/z array']
                                         intensities = spec['intensity array']
+                                        prec_to_spec[(mz, rt, charge)]['id'] = scan
 
                                         if (mz, rt, charge) not in prec_to_spec:
                                             prec_to_spec[(mz, rt, charge)] = {}
-                                        if 'annotations' not in prec_to_spec[(mz, rt, charge)]:
-                                            prec_to_spec[(mz, rt, charge)]['annotations'] = {}
-                                            prec_to_spec[(mz, rt, charge)]['id'] = scan
+                                        
                                         if 'scans' not in prec_to_spec[(mz, rt, charge)]:
                                             prec_to_spec[(mz, rt, charge)]['scans'] = []
                                             prec_to_spec[(mz, rt, charge)]['rts'] = []
