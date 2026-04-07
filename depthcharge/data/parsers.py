@@ -426,7 +426,6 @@ class DiaParser(MzmlParser):
         annotations["scan_numbers"] = scan_numbers
         annotations["rts"] = rt_values
 
-        warnings.warn(f"THESE ARE THE ANNOTATIONS: {annotations}")
         return MassSpectrum(
             filename=str(self.peak_file),
             scan_id=spectrum["id"],
