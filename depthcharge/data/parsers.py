@@ -10,7 +10,6 @@ from contextlib import contextmanager
 from os import PathLike, fspath
 from typing import Any
 import numpy as np 
-import pandas as pd 
 
 import pyarrow as pa
 import timsrust_pyo3
@@ -215,7 +214,7 @@ class BaseParser(ABC):
                     last_exc = exc
                     n_skipped += 1
                     continue
-                
+
                 spectrum["annotations"] = parsed.annotations,
                 # Parse custom fields:
                 entry.update(self.parse_custom_fields(spectrum))
