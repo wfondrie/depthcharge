@@ -363,7 +363,6 @@ class DiaParser(MzmlParser):
     def __init__(
         self,
         peak_file: PathLike,
-        annotation_file: PathLike, 
         scan_width: int,
         ms_level: int = 2,
         preprocessing_fn: Callable | Iterable[Callable] | None = None,
@@ -380,10 +379,6 @@ class DiaParser(MzmlParser):
             custom_fields=custom_fields,
             progress=progress,
         )
-        if annotation_file is None:
-            raise ValueError("DiaParsers must have annotation files")
-        
-        self.anns = pd.read_csv(annotation_file, sep="\t")
         self.scan_width = scan_width
 
     def parse_spectrum(self, spectrum: dict) -> MassSpectrum: 
@@ -430,30 +425,15 @@ class DiaParser(MzmlParser):
         annotations["scan_numbers"] = scan_numbers
         annotations["rts"] = rt_values
 
-        filtered = self.anns.loc[self.anns['scan'] == spectrum["id"]]
-
-        label = None
-        if "sequence" in filtered.columns:
-            label = filtered["sequence"].iloc[0]
-
-        charge = spectrum.get("charge", None)
-        if "charge" in filtered.columns:
-            charge = filtered["charge"].iloc[0]
-            
-        rt = spectrum.get("retention_time", None)
-        if "rt" in filtered.columns:
-            rt = filtered["rt"].iloc[0]
-            
         return MassSpectrum(
             filename=str(self.peak_file),
             scan_id=spectrum["id"],
             mz=mzs,
             intensity=intensities,
-            retention_time=rt,
-            precursor_mz=spectrum["precursor_m/z"],
+            retention_time=spectrum.get("retention_time", None),
+            precursor_mz=spectrum.get("precursor_m/z", None),
             annotations=annotations,
-            label=label,
-            precursor_charge=charge,
+            precursor_charge=spectrum.get("charge", None),
         )
 
     @contextmanager
@@ -535,10 +515,6 @@ class DiaParser(MzmlParser):
                                         prec_to_spec[(mz, rt, charge)]['window_size'] = window_size
                 elif spec['ms level'] == 2:
                     scan = spec["id"]
-                    filtered = self.anns.loc[self.anns['scan'] == scan]
-                    if len(filtered) > 1:
-                        n_skipped += 1; last_exc = f"There are {len(filtered.columns)} spectra with {scan}. Scans must be unique"; continue 
-
                     window = spec['precursorList']['precursor'][0]['isolationWindow']
                     window_center = window['isolation window target m/z']
                     lower_offset = window['isolation window lower offset']
@@ -565,9 +541,6 @@ class DiaParser(MzmlParser):
                                             prec_to_spec[(mz, rt, charge)]['window_width'] = max(lower_offset, upper_offset) 
                                         prec_to_spec[(mz, rt, charge)]['scans'].append([x for x in zip(mzs, intensities)])
                                         prec_to_spec[(mz, rt, charge)]['rts'].append(cur_rt - rt)
-                                        row = filtered.iloc[0]
-                                        for ann in filtered.columns:
-                                            prec_to_spec[(mz, rt, charge)]['annotations'][ann] = row[ann]
         if n_skipped > 0: 
             warnings.warn(
                 f"Skipped {n_skipped} spectra with invalid information."
@@ -937,7 +910,7 @@ class ParserFactory:
             Keyword arguments to pass to the parser.
 
         """
-        if "annotation_file" in kwargs:
+        if "scan_width" in kwargs:
             return DiaParser(peak_file, **kwargs)
         
         for parser in cls.parsers:

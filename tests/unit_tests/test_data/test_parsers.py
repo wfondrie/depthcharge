@@ -64,7 +64,7 @@ SMALL_MGF_MZS = [
 MGF_FIELD = CustomField("t", lambda x: x["params"]["title"], pa.string())
 MZML_FIELD = CustomField("index", lambda x: x["index"], pa.int64())
 MZXML_FIELD = CustomField("CE", lambda x: x["collisionEnergy"], pa.float64())
-DIA_FIELD=CustomField("label", lambda x: x["annotations"]["sequence"], pa.string())
+DIA_FIELD=CustomField("label", lambda x: x["annotations"]["window_width"], pa.float64())
 
 def test_additional_dia(real_mzml, real_dia_annotations): 
     with pytest.raises(ValueError):
@@ -88,11 +88,10 @@ def test_additional_dia(real_mzml, real_dia_annotations):
         (2, scale_to_unit_norm, None, DIA_FIELD, (4, 8)),
     ],
 )
-def test_dia(real_mzml, real_dia_annotations, ms_level, preprocessing_fn, valid_charge, custom_fields, shape): 
+def test_dia(real_mzml, ms_level, preprocessing_fn, valid_charge, custom_fields, shape): 
     parsed = pl.from_arrow(
         DiaParser(
             real_mzml,
-            annotation_file=real_dia_annotations,
             scan_width=1,
             ms_level=ms_level,
             preprocessing_fn=preprocessing_fn,
@@ -268,8 +267,8 @@ def test_custom_fields(mgf_small):
             ).iter_batches(None)
         )
 
-def test_dia_parser_factory(real_mzml, real_dia_annotations):
-    parser = ParserFactory().get_parser(real_mzml, annotation_file=real_dia_annotations, scan_width=1)    
+def test_dia_parser_factory(real_mzml):
+    parser = ParserFactory().get_parser(real_mzml, scan_width=1)    
     assert isinstance(parser, DiaParser)
 
 def test_invalid_file(tmp_path):
