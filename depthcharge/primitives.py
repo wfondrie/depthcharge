@@ -147,8 +147,8 @@ class Peptide:
 
         seq = [None] * len(pep)
         mods = [None] * (len(pep) + 2)
-        mods[0] = meta["n_term"]
-        mods[-1] = meta["c_term"]
+        mods[0] = meta["n_term"] or None
+        mods[-1] = meta["c_term"] or None
         for idx, (res, var_mods) in enumerate(pep):
             seq[idx] = res
             if res in static_mods:
