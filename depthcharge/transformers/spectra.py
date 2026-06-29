@@ -128,10 +128,16 @@ class SpectrumTransformerEncoder(
         """
         spectra = torch.stack([mz_array, intensity_array], dim=2)
 
-        # Create the padding mask:
+        # Creating the padding mask.
+        # NOTE: src_key_padding_mask.new_zeros() is used instead of
+        # torch.tensor([[False]] * batch_size) because the list-comprehension
+        # form uses data-dependent Python control flow that TorchDynamo cannot
+        # trace symbolically, causing a graph break that prevents CUDA Graph
+        # capture. new_zeros() is a tensor factory method that Dynamo traces
+        # as a static symbolic operation, keeping the graph intact.
         src_key_padding_mask = spectra.sum(dim=2) == 0
-        global_token_mask = torch.tensor([[False]] * spectra.shape[0]).type_as(
-            src_key_padding_mask
+        global_token_mask = src_key_padding_mask.new_zeros(
+            spectra.shape[0], 1
         )
         src_key_padding_mask = torch.cat(
             [global_token_mask, src_key_padding_mask], dim=1

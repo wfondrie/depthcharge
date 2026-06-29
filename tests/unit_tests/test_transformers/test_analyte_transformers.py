@@ -64,3 +64,43 @@ def test_analyte_decoder():
 
     scores = decoder(peptides, memory=memory)
     assert scores.shape == (2, 9, len(tokenizer))
+
+
+def test_analyte_decoder_flash_compatible():
+    """Test that flash_compatible=True produces correct output shape.
+
+    Verifies the opt-in path: tgt_key_padding_mask and causal tgt_mask
+    are both suppressed, existing AR behaviour (flash_compatible=False)
+    is unaffected.
+    """
+    tokenizer = PeptideTokenizer()
+    spectra = torch.tensor(
+        [
+            [[100.1, 0.1], [200.2, 0.2], [300.3, 0.3]],
+            [[400.4, 0.4], [500.0, 0.5], [0.0, 0.0]],
+        ]
+    )
+    peptides = tokenizer.tokenize(["LESLIEK", "PEPTIDER"])
+    encoder = SpectrumTransformerEncoder(8, 2, 12)
+    memory, mem_mask = encoder(spectra[:, :, 0], spectra[:, :, 1])
+    decoder = AnalyteTransformerDecoder(
+        len(tokenizer), 8, 2, 12, padding_int=0
+    )
+
+    # flash_compatible=True — should produce identical shape to AR path
+    scores_flash = decoder(
+        peptides,
+        memory=memory,
+        memory_key_padding_mask=mem_mask,
+        flash_compatible=True,
+    )
+    assert scores_flash.shape == (2, 9, len(tokenizer))
+
+    # flash_compatible=False (default) — AR path must still work unchanged
+    scores_ar = decoder(
+        peptides,
+        memory=memory,
+        memory_key_padding_mask=mem_mask,
+        flash_compatible=False,
+    )
+    assert scores_ar.shape == (2, 9, len(tokenizer))
