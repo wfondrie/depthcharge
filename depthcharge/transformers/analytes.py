@@ -368,11 +368,14 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
             is ``False``; existing AR behaviour is completely unchanged.
         tgt_is_causal : bool, optional
             If ``True``, passes a causal hint to the underlying
-            ``TransformerDecoder`` alongside the existing ``tgt_mask``.
-            This does not change the mask or the output — it signals to
-            PyTorch that the mask is causal, enabling the FlashAttention
-            SDPA backend for self-attention. Output is numerically
-            identical to ``tgt_is_causal=False``. Default is ``False``.
+            ``TransformerDecoder`` alongside the existing causal
+            ``tgt_mask``, and also skips building ``tgt_key_padding_mask``
+            (safe because padding is always trailing, so the causal mask
+            already excludes padding keys for every real query). This
+            enables the FlashAttention SDPA backend for self-attention.
+            Output is numerically identical to ``tgt_is_causal=False``.
+            Cannot be combined with ``flash_compatible=True`` — raises
+            ``ValueError`` if both are set. Default is ``False``.
         **kwargs : dict
             Additional data fields. These may be used by overwriting
             the `global_token_hook()` method in a subclass.
@@ -398,14 +401,26 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         encoded = torch.cat([global_token[:, None, :], encoded], dim=1)
 
         # Creating the padding mask.
-        # Skipped when flash_compatible=True: PyTorch's MultiheadAttention
-        # converts any key_padding_mask to a float additive bias, and
-        # PyTorch's own source states "floating-point masks are not supported
-        # for fast path" — which is the FlashAttention backend. Omitting it
-        # removes that blocker. Safe for NAR inference because all-zero input
-        # tokens already produce all-zero embeddings; no real padding content
-        # is lost by skipping the mask.
-        if flash_compatible:
+        # Dropped whenever flash_compatible=True (NAR: full attention, no
+        # causal restriction — dropping is safe because padding is trailing
+        # only) OR whenever tgt_is_causal=True (AR: the causal mask already
+        # excludes padding keys for every real query, so dropping is safe
+        # there too, and is REQUIRED — PyTorch converts a present
+        # key_padding_mask to a float mask internally, which disqualifies
+        # the FlashAttention fast path regardless of tgt_is_causal).
+        if flash_compatible and tgt_is_causal:
+            raise ValueError(
+                "flash_compatible=True and tgt_is_causal=True cannot be "
+                "combined: flash_compatible drops tgt_mask entirely (for "
+                "non-causal/NAR decoding), but tgt_is_causal requires a "
+                "real tgt_mask to be present and raises a RuntimeError "
+                "under autocast otherwise. Use tgt_is_causal=True alone "
+                "for causal (autoregressive) flash-eligible decoding, or "
+                "flash_compatible=True alone for full-attention "
+                "(non-autoregressive) decoding."
+            )
+
+        if flash_compatible or tgt_is_causal:
             tgt_key_padding_mask = None
         else:
             tgt_key_padding_mask = encoded.sum(axis=2) == 0

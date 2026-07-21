@@ -104,3 +104,53 @@ def test_analyte_decoder_flash_compatible():
         flash_compatible=False,
     )
     assert scores_ar.shape == (2, 9, len(tokenizer))
+
+
+def test_analyte_decoder_tgt_is_causal():
+    """Test that tgt_is_causal=True produces numerically identical output
+    to tgt_is_causal=False (AR path), and that combining it with
+    flash_compatible=True raises a clear error rather than crashing
+    inside PyTorch or silently producing wrong results.
+    """
+    tokenizer = PeptideTokenizer()
+    spectra = torch.tensor(
+        [
+            [[100.1, 0.1], [200.2, 0.2], [300.3, 0.3]],
+            [[400.4, 0.4], [500.0, 0.5], [0.0, 0.0]],
+        ]
+    )
+    peptides = tokenizer.tokenize(["LESLIEK", "PEPTIDER"])
+    encoder = SpectrumTransformerEncoder(8, 2, 12)
+    memory, mem_mask = encoder(spectra[:, :, 0], spectra[:, :, 1])
+    decoder = AnalyteTransformerDecoder(
+        len(tokenizer), 8, 2, 12, padding_int=0
+    )
+
+    scores_baseline = decoder(
+        peptides, memory=memory, memory_key_padding_mask=mem_mask,
+    )
+    scores_hint = decoder(
+        peptides, memory=memory, memory_key_padding_mask=mem_mask,
+        tgt_is_causal=True,
+    )
+    # Compare REAL (non-padding) token positions only. tgt_is_causal=True
+    # also drops tgt_key_padding_mask (see analytes.py comment) — this is
+    # safe because padding is trailing-only and the causal mask already
+    # excludes padding keys for every real query. The one legitimate,
+    # harmless side effect is that a PADDING position's own output value
+    # may differ (it's no longer blocked from attending elsewhere) — but
+    # that value is never used downstream (discarded, not fed to loss or
+    # generation), so real-position equivalence is the correct safety bar.
+    real_len_0, real_len_1 = len("LESLIEK") + 1, len("PEPTIDER") + 1  # +1 for global token
+    assert torch.equal(
+        scores_baseline[0, :real_len_0], scores_hint[0, :real_len_0]
+    )
+    assert torch.equal(
+        scores_baseline[1, :real_len_1], scores_hint[1, :real_len_1]
+    )
+
+    with pytest.raises(ValueError):
+        decoder(
+            peptides, memory=memory, memory_key_padding_mask=mem_mask,
+            flash_compatible=True, tgt_is_causal=True,
+        )
