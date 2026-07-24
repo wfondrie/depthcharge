@@ -107,10 +107,12 @@ def test_analyte_decoder_flash_compatible():
 
 
 def test_analyte_decoder_tgt_is_causal():
-    """Test that tgt_is_causal=True produces numerically identical output
-    to tgt_is_causal=False (AR path), and that combining it with
-    flash_compatible=True raises a clear error rather than crashing
-    inside PyTorch or silently producing wrong results.
+    """Test tgt_is_causal=True matches baseline and rejects bad combos.
+
+    Verifies tgt_is_causal=True produces numerically identical output
+    to tgt_is_causal=False (AR path) at real token positions, and that
+    combining it with flash_compatible=True raises a clear error rather
+    than crashing inside PyTorch or silently producing wrong results.
     """
     tokenizer = PeptideTokenizer()
     spectra = torch.tensor(
@@ -141,7 +143,9 @@ def test_analyte_decoder_tgt_is_causal():
     # may differ (it's no longer blocked from attending elsewhere) — but
     # that value is never used downstream (discarded, not fed to loss or
     # generation), so real-position equivalence is the correct safety bar.
-    real_len_0, real_len_1 = len("LESLIEK") + 1, len("PEPTIDER") + 1  # +1 for global token
+    # +1 for the prepended global token in each sequence
+    real_len_0 = len("LESLIEK") + 1
+    real_len_1 = len("PEPTIDER") + 1
     assert torch.equal(
         scores_baseline[0, :real_len_0], scores_hint[0, :real_len_0]
     )

@@ -501,13 +501,23 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
             Passed to `torch.nn.TransformerEncoder.forward()`. The default
             is a mask that is suitable for predicting the next element in
             the sequence.
+        flash_compatible : bool, optional
+            If ``True``, skips building ``tgt_key_padding_mask`` and skips
+            generating the default causal ``tgt_mask``, passing ``None``
+            for both to the underlying ``TransformerDecoder``. This makes
+            the self-attention call compatible with PyTorch's FlashAttention
+            SDPA backend, which cannot handle explicit mask tensors. Default
+            is ``False``; existing AR behaviour is completely unchanged.
         tgt_is_causal : bool, optional
             If ``True``, passes a causal hint to the underlying
-            ``TransformerDecoder`` alongside the existing ``tgt_mask``.
-            This does not change the mask or the output — it signals to
-            PyTorch that the mask is causal, enabling the FlashAttention
-            SDPA backend for self-attention. Output is numerically
-            identical to ``tgt_is_causal=False``. Default is ``False``.
+            ``TransformerDecoder`` alongside the existing causal
+            ``tgt_mask``, and also skips building ``tgt_key_padding_mask``
+            (safe because padding is always trailing, so the causal mask
+            already excludes padding keys for every real query). This
+            enables the FlashAttention SDPA backend for self-attention.
+            Output is numerically identical to ``tgt_is_causal=False``.
+            Cannot be combined with ``flash_compatible=True`` — raises
+            ``ValueError`` if both are set. Default is ``False``.
         **kwargs : dict
             Additional data fields. These may be used by overwriting
             the `global_token_hook()` method in a subclass.
