@@ -136,9 +136,7 @@ class SpectrumTransformerEncoder(
         # capture. new_zeros() is a tensor factory method that Dynamo traces
         # as a static symbolic operation, keeping the graph intact.
         src_key_padding_mask = spectra.sum(dim=2) == 0
-        global_token_mask = src_key_padding_mask.new_zeros(
-            spectra.shape[0], 1
-        )
+        global_token_mask = src_key_padding_mask.new_zeros(spectra.shape[0], 1)
         src_key_padding_mask = torch.cat(
             [global_token_mask, src_key_padding_mask], dim=1
         )
