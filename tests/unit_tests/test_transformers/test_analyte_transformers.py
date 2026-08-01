@@ -129,10 +129,14 @@ def test_analyte_decoder_tgt_is_causal():
     )
 
     scores_baseline = decoder(
-        peptides, memory=memory, memory_key_padding_mask=mem_mask,
+        peptides,
+        memory=memory,
+        memory_key_padding_mask=mem_mask,
     )
     scores_hint = decoder(
-        peptides, memory=memory, memory_key_padding_mask=mem_mask,
+        peptides,
+        memory=memory,
+        memory_key_padding_mask=mem_mask,
         tgt_is_causal=True,
     )
     # Compare REAL (non-padding) token positions only. tgt_is_causal=True
@@ -155,6 +159,9 @@ def test_analyte_decoder_tgt_is_causal():
 
     with pytest.raises(ValueError):
         decoder(
-            peptides, memory=memory, memory_key_padding_mask=mem_mask,
-            flash_compatible=True, tgt_is_causal=True,
+            peptides,
+            memory=memory,
+            memory_key_padding_mask=mem_mask,
+            flash_compatible=True,
+            tgt_is_causal=True,
         )
