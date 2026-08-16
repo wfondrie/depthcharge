@@ -26,7 +26,6 @@ def real_tdf():
     """Get a real TDF file."""
     return DATA_DIR / "test.d"
 
-
 @pytest.fixture
 def real_mgf():
     """Get a real MGF file."""

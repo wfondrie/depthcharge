@@ -12,6 +12,7 @@ from depthcharge.data.parsers import (
     MzxmlParser,
     ParserFactory,
     TdfParser,
+    DiaParser
 )
 from depthcharge.data.preprocessing import scale_to_unit_norm
 
@@ -63,7 +64,30 @@ SMALL_MGF_MZS = [
 MGF_FIELD = CustomField("t", lambda x: x["params"]["title"], pa.string())
 MZML_FIELD = CustomField("index", lambda x: x["index"], pa.int64())
 MZXML_FIELD = CustomField("CE", lambda x: x["collisionEnergy"], pa.float64())
+DIA_FIELD=CustomField("label", lambda x: x["window_width"], pa.float64())
+    
 
+@pytest.mark.parametrize(
+    ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
+    [
+        (2, None, None, None, (4, 7)),
+        (1, None, None, None, (4, 7)),
+        (None, None, None, None, (4, 7)),
+        (2, scale_to_unit_norm, None, DIA_FIELD, (4, 8)),
+    ],
+)
+def test_dia(real_mzml, ms_level, preprocessing_fn, valid_charge, custom_fields, shape): 
+    parsed = pl.from_arrow(
+        DiaParser(
+            real_mzml,
+            scan_width=1,
+            ms_level=ms_level,
+            preprocessing_fn=preprocessing_fn,
+            valid_charge=valid_charge,
+            custom_fields=custom_fields,
+        ).iter_batches(None)
+    )
+    assert parsed.shape == shape
 
 def test_mgf_and_base(mgf_small):
     """MGF file with a missing charge."""
@@ -231,6 +255,9 @@ def test_custom_fields(mgf_small):
             ).iter_batches(None)
         )
 
+def test_dia_parser_factory(real_mzml):
+    parser = ParserFactory().get_parser(real_mzml, scan_width=1)    
+    assert isinstance(parser, DiaParser)
 
 def test_invalid_file(tmp_path):
     """Test an invalid file raises an error."""
