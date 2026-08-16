@@ -331,6 +331,8 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         memory_key_padding_mask: torch.Tensor | None = None,
         memory_mask: torch.Tensor | None = None,
         tgt_mask: torch.Tensor | None = None,
+        flash_compatible: bool = False,
+        tgt_is_causal: bool = False,
         **kwargs: dict,
     ) -> torch.Tensor:
         """Embed a collection of sequences.
@@ -357,6 +359,23 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
             Passed to `torch.nn.TransformerEncoder.forward()`. The default
             is a mask that is suitable for predicting the next element in
             the sequence.
+        flash_compatible : bool, optional
+            If ``True``, skips building ``tgt_key_padding_mask`` and skips
+            generating the default causal ``tgt_mask``, passing ``None``
+            for both to the underlying ``TransformerDecoder``. This makes
+            the self-attention call compatible with PyTorch's FlashAttention
+            SDPA backend, which cannot handle explicit mask tensors. Default
+            is ``False``; existing AR behaviour is completely unchanged.
+        tgt_is_causal : bool, optional
+            If ``True``, passes a causal hint to the underlying
+            ``TransformerDecoder`` alongside the existing causal
+            ``tgt_mask``, and also skips building ``tgt_key_padding_mask``
+            (safe because padding is always trailing, so the causal mask
+            already excludes padding keys for every real query). This
+            enables the FlashAttention SDPA backend for self-attention.
+            Output is numerically identical to ``tgt_is_causal=False``.
+            Cannot be combined with ``flash_compatible=True`` — raises
+            ``ValueError`` if both are set. Default is ``False``.
         **kwargs : dict
             Additional data fields. These may be used by overwriting
             the `global_token_hook()` method in a subclass.
@@ -381,14 +400,39 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         global_token = self.global_token_hook(tokens, *args, **kwargs)
         encoded = torch.cat([global_token[:, None, :], encoded], dim=1)
 
-        # Create the padding mask:
-        tgt_key_padding_mask = encoded.sum(axis=2) == 0
-        tgt_key_padding_mask[:, 0] = False
+        # Creating the padding mask.
+        # Dropped whenever flash_compatible=True (NAR: full attention, no
+        # causal restriction — dropping is safe because padding is trailing
+        # only) OR whenever tgt_is_causal=True (AR: the causal mask already
+        # excludes padding keys for every real query, so dropping is safe
+        # there too, and is REQUIRED — PyTorch converts a present
+        # key_padding_mask to a float mask internally, which disqualifies
+        # the FlashAttention fast path regardless of tgt_is_causal).
+        if flash_compatible and tgt_is_causal:
+            raise ValueError(
+                "flash_compatible=True and tgt_is_causal=True cannot be "
+                "combined: flash_compatible drops tgt_mask entirely (for "
+                "non-causal/NAR decoding), but tgt_is_causal requires a "
+                "real tgt_mask to be present and raises a RuntimeError "
+                "under autocast otherwise. Use tgt_is_causal=True alone "
+                "for causal (autoregressive) flash-eligible decoding, or "
+                "flash_compatible=True alone for full-attention "
+                "(non-autoregressive) decoding."
+            )
+
+        if flash_compatible or tgt_is_causal:
+            tgt_key_padding_mask = None
+        else:
+            tgt_key_padding_mask = encoded.sum(axis=2) == 0
+            tgt_key_padding_mask[:, 0] = False
 
         # Feed through model:
         encoded = self.positional_encoder(encoded)
 
-        if tgt_mask is None:
+        # Skip causal mask generation when flash_compatible=True.
+        # The causal mask is needed only for autoregressive decoding;
+        # NAR full-attention requires no causal constraint.
+        if not flash_compatible and tgt_mask is None:
             tgt_mask = utils.generate_tgt_mask(encoded.shape[1]).to(
                 self.device
             )
@@ -396,7 +440,8 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         return self.transformer_decoder(
             tgt=encoded,
             memory=memory,
-            tgt_mask=tgt_mask,
+            tgt_mask=None if flash_compatible else tgt_mask,
+            tgt_is_causal=tgt_is_causal,
             tgt_key_padding_mask=tgt_key_padding_mask,
             memory_key_padding_mask=memory_key_padding_mask,
             memory_mask=memory_mask,
@@ -428,6 +473,8 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         memory_key_padding_mask: torch.Tensor | None = None,
         memory_mask: torch.Tensor | None = None,
         tgt_mask: torch.Tensor | None = None,
+        tgt_is_causal: bool = False,
+        flash_compatible: bool = False,
         **kwargs: dict,
     ) -> torch.Tensor:
         """Decode a collection of sequences.
@@ -454,6 +501,23 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
             Passed to `torch.nn.TransformerEncoder.forward()`. The default
             is a mask that is suitable for predicting the next element in
             the sequence.
+        flash_compatible : bool, optional
+            If ``True``, skips building ``tgt_key_padding_mask`` and skips
+            generating the default causal ``tgt_mask``, passing ``None``
+            for both to the underlying ``TransformerDecoder``. This makes
+            the self-attention call compatible with PyTorch's FlashAttention
+            SDPA backend, which cannot handle explicit mask tensors. Default
+            is ``False``; existing AR behaviour is completely unchanged.
+        tgt_is_causal : bool, optional
+            If ``True``, passes a causal hint to the underlying
+            ``TransformerDecoder`` alongside the existing causal
+            ``tgt_mask``, and also skips building ``tgt_key_padding_mask``
+            (safe because padding is always trailing, so the causal mask
+            already excludes padding keys for every real query). This
+            enables the FlashAttention SDPA backend for self-attention.
+            Output is numerically identical to ``tgt_is_causal=False``.
+            Cannot be combined with ``flash_compatible=True`` — raises
+            ``ValueError`` if both are set. Default is ``False``.
         **kwargs : dict
             Additional data fields. These may be used by overwriting
             the `global_token_hook()` method in a subclass.
@@ -473,6 +537,8 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
             memory_key_padding_mask=memory_key_padding_mask,
             memory_mask=memory_mask,
             tgt_mask=tgt_mask,
+            flash_compatible=flash_compatible,
+            tgt_is_causal=tgt_is_causal,
             **kwargs,
         )
         return self.score_embeddings(emb)
