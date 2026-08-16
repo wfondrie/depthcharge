@@ -1,0 +1,48 @@
+name: Test PyTorch Versions
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false  # Don't cancel other jobs if one fails
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        torch-version: ["2.0.1", "2.1.2", "2.2.2", "2.3.1", "2.4.1", "2.5.1", "2.6.0", "2.7.1", "2.8.0", "2.9.1"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Create constraint file for PyTorch ${{ matrix.torch-version }}
+      shell: bash
+      run: |
+        echo "torch==${{ matrix.torch-version }}" > constraints.txt
+
+    - name: Install dependencies with PyTorch constraint
+      shell: bash
+      run: |
+        uv pip install --system -e . --group dev \
+          --constraint constraints.txt \
+          --extra-index-url https://download.pytorch.org/whl/cpu
+
+    - name: Verify PyTorch version
+      shell: bash
+      run: |
+        python -c "import torch; print(f'PyTorch version: {torch.__version__}')"
+
+    - name: Run transformer tests
+      shell: bash
+      run: |
+        uv run --no-sync pytest \
+          --verbose \
+          tests/unit_tests/test_transformers/
