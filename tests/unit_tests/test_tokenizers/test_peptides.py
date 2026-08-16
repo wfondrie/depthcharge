@@ -80,6 +80,48 @@ def test_mskb_init():
     assert tokens == ["[Acetyl]-", "E", "D", "I", "T", "H"]
 
 
+def test_replace_deamidated():
+    """Test that deamidated N and Q are replaced with D and E."""
+    seqs = ["N[Deamidated]LESLQ[Deamidated]EK"]
+    tokenizer = PeptideTokenizer.from_proforma(
+        sequences=seqs,
+        replace_n_and_q_deamidated_with_d_and_e=True,
+    )
+
+    # The deamidated residues are dropped from the vocabulary:
+    assert "N[Deamidated]" not in tokenizer.residues
+    assert "Q[Deamidated]" not in tokenizer.residues
+
+    tokens = tokenizer.tokenize(seqs, to_strings=True)[0]
+    assert tokens == list("DLESLEEK")
+
+    # Alternative spellings of deamidation are replaced as well:
+    tokens = tokenizer.tokenize(
+        ["N[Deamidation]LESLQ[U:Deamidated]EK"],
+        to_strings=True,
+    )[0]
+    assert tokens == list("DLESLEEK")
+
+    charges = torch.tensor([2])
+    torch.testing.assert_close(
+        tokenizer.calculate_precursor_ions(seqs, charges),
+        tokenizer.calculate_precursor_ions(["DLESLEEK"], charges),
+    )
+
+    # MassIVE-KB annotations are replaced too:
+    mskb = PeptideTokenizer.from_massivekb(
+        replace_n_and_q_deamidated_with_d_and_e=True,
+    )
+    tokens = mskb.tokenize(["EN+0.984DITQ+0.984H"], to_strings=True)[0]
+    assert tokens == list("EDDITEH")
+
+    # Without the option, deamidated residues remain distinct tokens:
+    tokenizer = PeptideTokenizer.from_proforma(sequences=seqs)
+    tokens = tokenizer.tokenize(seqs, to_strings=True)[0]
+    assert tokens[0] == "N[Deamidated]"
+    assert tokens[5] == "Q[Deamidated]"
+
+
 def test_torch_precursor_ions():
     """Test the calculation of the precursor m/z."""
     seqs = ["LESLIEK", "EDITHR"]
