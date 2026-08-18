@@ -1,5 +1,7 @@
 """Test that parsers work."""
 
+import shutil
+
 import polars as pl
 import pyarrow as pa
 import pytest
@@ -72,7 +74,7 @@ def test_mgf_and_base(mgf_small):
     )
     expected = pl.DataFrame(
         {
-            "peak_file": [mgf_small.name] * 2,
+            "peak_file": [str(mgf_small)] * 2,
             "scan_id": ["index=0", "index=1"],
             "ms_level": [2, 2],
             "precursor_mz": [416.24474357, 257.464565],
@@ -238,3 +240,22 @@ def test_invalid_file(tmp_path):
 
     with pytest.raises(OSError):
         ParserFactory().get_parser(tmp_path / "blah.txt")
+
+
+def test_peak_file_full_path(mgf_small, tmp_path):
+    """peak_file records the full path, not just the base name (#65)."""
+    paths = []
+    for sub in ("a", "b"):
+        path = tmp_path / sub / mgf_small.name
+        path.parent.mkdir()
+        shutil.copy(mgf_small, path)
+        paths.append(path)
+
+    peak_files = [
+        pl.from_arrow(MgfParser(path, preprocessing_fn=[]).iter_batches(None))[
+            "peak_file"
+        ][0]
+        for path in paths
+    ]
+    assert peak_files == [str(paths[0]), str(paths[1])]
+    assert paths[0].name == paths[1].name
