@@ -47,7 +47,7 @@ def test_indexing(tokenizer, mgf_small, tmp_path):
 
     spec = dataset[0]
     assert len(spec) == 7
-    assert spec["peak_file"] == ["small.mgf"]
+    assert spec["peak_file"] == [str(mgf_small)]
     assert spec["scan_id"] == ["index=0"]
     assert spec["ms_level"].item() == 2
     assert (spec["precursor_mz"].item() - 416.2448) < 0.001
@@ -123,7 +123,7 @@ def test_load(tokenizer, tmp_path, mgf_small):
     dataset = SpectrumDataset.from_lance(db_path, 1)
     spec = dataset[0]
     assert len(spec) == 8
-    assert spec["peak_file"] == ["small.mgf"]
+    assert spec["peak_file"] == [str(mgf_small)]
     assert spec["scan_id"] == ["index=0"]
     assert spec["ms_level"] == 2
     assert (spec["precursor_mz"] - 416.2448) < 0.001
