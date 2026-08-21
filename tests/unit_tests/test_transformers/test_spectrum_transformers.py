@@ -84,3 +84,25 @@ def test_properties():
     assert model.dim_feedforward == 48
     assert model.n_layers == 3
     assert model.dropout == 0.1
+
+
+def test_enable_nested_tensor(batch):
+    """Test disabling the nested tensor fast path."""
+    model = SpectrumTransformerEncoder(8, 2, 12).eval()
+    dense = SpectrumTransformerEncoder(
+        8, 2, 12, enable_nested_tensor=False
+    ).eval()
+    dense.load_state_dict(model.state_dict())
+
+    assert model.transformer_encoder.enable_nested_tensor
+    assert not dense.transformer_encoder.enable_nested_tensor
+
+    # The fast path is only eligible under inference mode.
+    with torch.no_grad():
+        emb, mask = model(**batch)
+        dense_emb, dense_mask = dense(**batch)
+
+    assert torch.equal(mask, dense_mask)
+    torch.testing.assert_close(
+        dense_emb[~mask], emb[~mask], atol=1e-5, rtol=1e-5
+    )
