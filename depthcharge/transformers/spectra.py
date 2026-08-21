@@ -37,6 +37,13 @@ class SpectrumTransformerEncoder(
         The function to encode the (m/z, intensity) tuples of each mass
         spectrum. `True` uses the default sinusoidal encoding and `False`
         instead performs a 1 to `d_model` learned linear projection.
+    enable_nested_tensor : bool, optional
+        Use PyTorch's nested tensor fast path in the Transformer encoder.
+        This is passed to ``torch.nn.TransformerEncoder``. The fast path
+        computes a Python ``bool`` from tensor data, which forces a
+        host-device synchronization and prevents ``torch.compile`` from
+        capturing the encoder as a single graph. Set this to ``False``
+        for compiled or CUDA graph inference on fixed-length inputs.
 
     Attributes
     ----------
@@ -61,6 +68,7 @@ class SpectrumTransformerEncoder(
         n_layers: int = 1,
         dropout: float = 0.0,
         peak_encoder: PeakEncoder | Callable | bool = True,
+        enable_nested_tensor: bool = True,
     ) -> None:
         """Initialize a SpectrumEncoder."""
         super().__init__()
@@ -89,6 +97,7 @@ class SpectrumTransformerEncoder(
         self.transformer_encoder = torch.nn.TransformerEncoder(
             layer,
             num_layers=self.n_layers,
+            enable_nested_tensor=enable_nested_tensor,
         )
 
     def forward(

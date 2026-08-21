@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Added the `enable_nested_tensor` parameter to `SpectrumTransformerEncoder`, which allows disabling PyTorch's nested tensor fast path. The fast path forces a host-device synchronization that prevents `torch.compile` from capturing the encoder as a single graph.
 - Changed C-terminal and N-terminal modification check to include empty modifications
 - Added the `replace_n_and_q_deamidated_with_d_and_e` option to the `PeptideTokenizer`, which replaces deamidated N and Q residues with D and E residues, because they are indistinguishable by de novo sequencing.
 
