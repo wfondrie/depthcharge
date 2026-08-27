@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - Changed C-terminal and N-terminal modification check to include empty modifications
 - Added the `replace_n_and_q_deamidated_with_d_and_e` option to the `PeptideTokenizer`, which replaces deamidated N and Q residues with D and E residues, because they are indistinguishable by de novo sequencing.
+- Fixed a dtype error in `AnalyteTransformerDecoder.forward` when called with `tokens=None` by initializing the empty token tensor as `int64`.
 
 ## [v0.4.9]
 ### Added

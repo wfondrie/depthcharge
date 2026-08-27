@@ -372,7 +372,7 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         """
         # Prepare sequences
         if tokens is None:
-            tokens = torch.tensor([[]]).to(self.device)
+            tokens = torch.zeros((1, 0), dtype=torch.int64, device=self.device)
 
         # Encode everything:
         encoded = self.token_encoder(tokens)
