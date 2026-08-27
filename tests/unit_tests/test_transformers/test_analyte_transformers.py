@@ -64,3 +64,17 @@ def test_analyte_decoder():
 
     scores = decoder(peptides, memory=memory)
     assert scores.shape == (2, 9, len(tokenizer))
+
+
+def test_analyte_decoder_none_tokens():
+    """A decoder handles ``tokens=None`` (only the global token)."""
+    tokenizer = PeptideTokenizer()
+    n_tokens = len(tokenizer)
+
+    spectra = torch.tensor([[[100.1, 0.1], [200.2, 0.2], [300.3, 0.3]]])
+    encoder = SpectrumTransformerEncoder(8, 2, 12)
+    memory, mem_mask = encoder(spectra[:, :, 0], spectra[:, :, 1])
+
+    decoder = AnalyteTransformerDecoder(n_tokens, 8, 2, 12, padding_int=0)
+    scores = decoder(None, memory=memory, memory_key_padding_mask=mem_mask)
+    assert scores.shape == (1, 1, n_tokens)
