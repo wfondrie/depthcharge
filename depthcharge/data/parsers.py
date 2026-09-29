@@ -227,8 +227,8 @@ class BaseParser(ABC):
 
         if n_skipped:
             warnings.warn(
-                f"Skipped {n_skipped} spectra with invalid information."
-                f"Last error was: \n {str(last_exc)}"
+                f"Skipped {n_skipped} spectra with invalid information. "
+                f"Last error was: {last_exc}"
             )
 
     def _update_batch(self, entry: dict) -> None:
