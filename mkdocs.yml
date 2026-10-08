@@ -11,6 +11,7 @@ nav:
       - Datasets: "api/datasets.md"
       - Encoders: "api/encoders.md"
       - Transformers: "api/transformers.md"
+      - Feed-forward networks: "api/feedforward.md"
       - Primitives: "api/primitives.md"
   - Changelog: CHANGELOG.md
   - Contributing: CONTRIBUTING.md
@@ -72,7 +73,7 @@ markdown_extensions:
 
 extra:
   social:
-    - icon: fontawesome/brands/twitter
-      link: https://twitter.com/wfondrie
+    - icon: fontawesome/brands/bluesky
+      link: https://bsky.app/profile/willfondrie.com
   version:
     provider: mike

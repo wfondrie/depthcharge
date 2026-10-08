@@ -102,7 +102,7 @@ class _AnalyteTransformer(torch.nn.Module, ModelMixin, TransformerMixin):
         combination of the mass, charge, retention time, or
         ion mobility of an analyte.
 
-        The representation returned by this method is preprended to the
+        The representation returned by this method is prepended to the
         peak representations that are fed into the Transformer and
         ultimately contribute to the analyte representation that is the
         first element of the sequence in the model output.
@@ -365,7 +365,7 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         -------
         embeddings : torch.Tensor of size (batch_size, len_sequence, d_model)
             The output of the Transformer layer containing the embeddings
-            of the tokens in the sequence. These may be tranformed to yield
+            of the tokens in the sequence. These may be transformed to yield
             scores for token predictions using the `.score_embeddings()`
             method.
 

@@ -3,15 +3,15 @@
 ## Requirements
 
 ### Python
-Depthcharge is a Python package and requires Python >= 3.10.
+Depthcharge is a Python package and requires Python 3.10-3.13.
 To check what version of Python you have installed, you can run:
 
 ``` sh
 $ python --version
 ```
 
-If you do not have Python installed, we recommend Miniconda, which also comes with the conda package manager.
-See the [Miniconda documentation](https://docs.conda.io/en/latest/miniconda.html) for details.
+If you do not have Python installed, we recommend [uv](https://docs.astral.sh/uv/), which can install and manage Python versions for you.
+See the [uv documentation](https://docs.astral.sh/uv/guides/install-python/) for details.
 
 ### PyTorch (*optional*)
 Depthcharge creates PyTorch modules which you can use to create deep learning models for your application.
@@ -25,9 +25,12 @@ If you want to interact with cloud resources, install the relevant cloudpathlib 
 
 ## Install depthcharge
 
-Depthcharge can be install with `pip`, directly from PyPI:
+Depthcharge can be installed with `pip`, directly from PyPI:
 ```sh
 $ pip install depthcharge-ms
 ```
 
-Eventually Depthcharge will be made available through Bioconda.
+Or added to a project with uv:
+```sh
+$ uv add depthcharge-ms
+```

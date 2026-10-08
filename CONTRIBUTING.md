@@ -9,31 +9,42 @@ fixing a simple typo in the documentation is immensely helpful.
 
 ## Contributing to the documentation
 
-We use [mkdocs](https://www.mkdocs.org/) generate our
+We use [mkdocs](https://www.mkdocs.org/) to generate our
 documentation and deploy it to this site. Most of the pages on the site are
-created from simple text files written in the Markdown markup language.
-There are three exceptions to this:
+created from simple text files written in the Markdown markup language, which
+live in the `docs/` directory of the repository. There are three exceptions
+to this:
 
-1. The API.
+1. The API reference is generated from the docstrings in the Depthcharge
+   code. To change it, edit the docstrings.
 
-2. The Vignettes are created from Jupyter notebooks.
+2. The tutorials in `docs/getting-started/` are [Quarto](https://quarto.org)
+   documents (`.qmd`) that are executed when the documentation is built.
 
-3. The Code of Conduct, Release Notes, Changlog, and this Contributing document are
-   markdown files that live in the root of the Depthcharge repository.
+3. The Code of Conduct, Changelog, and this Contributing document are
+   Markdown files that live in the root of the Depthcharge repository.
 
 ### Editing most documents
 
-The easiest way to edit a document is by clicking the "Edit on GitHub" like in
-the top right hand corner of each page. You'll be taken to GitHub where
-you can click on the pencil to edit the document.
+The easiest way to edit a document is directly on GitHub: navigate to the
+file in the [Depthcharge repository](https://github.com/wfondrie/depthcharge)
+and click on the pencil icon to edit it.
+Once you're finished, fill in a description of what you changed and click the
+"Propose changes" button.
 
-You can then make your changes directly on GitHub. Once you're finished, fill
-in a description of what you changed and click the "Propose Changes" button.
+Alternatively, these documents can be edited like code. See [Contributing to
+the code](#contributing-to-the-code) below for more details on contributing
+this way.
 
-Alternatively, these documents live in the `docs/` directory of the
-repository and can be edited like code. See [Contributing to the
-code](#contributing-to-the-code) below for more details on contributing this
-way.
+### Building the documentation
+
+To build the documentation locally, install [Quarto](https://quarto.org) and
+the documentation dependencies, then start the mkdocs server:
+
+```bash
+uv sync --extra docs
+uv run mkdocs serve
+```
 
 
 ## Contributing to the code
@@ -77,7 +88,7 @@ uv run pytest tests/
 
 8. Add, commit, and push your changes to your forked repository.
 
-9. On the GitHub page for you forked repository, click "Pull request" to propose
+9. On the GitHub page for your forked repository, click "Pull request" to propose
    adding your changes to Depthcharge.
 
 10. We'll review, discuss, and help you make any revisions that are required. If

@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.4.5]
 ### Changed
-- The `scan_id` column for parsed spectra is not a sting instead of an integer. This is less space efficient, but we ran into issues with Sciex indexing when trying to use only an integer.
+- The `scan_id` column for parsed spectra is now a string instead of an integer. This is less space efficient, but we ran into issues with Sciex indexing when trying to use only an integer.
 
 ## [v0.4.4]
 

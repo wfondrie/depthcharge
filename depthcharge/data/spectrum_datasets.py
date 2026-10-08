@@ -39,7 +39,7 @@ class SpectrumDataset(LanceDataset):
     This is accomplished using the
     [Lance PyTorch integration](https://lance.org/integrations/pytorch).
 
-    The `batch_size` parameter for this class indepedent of the `batch_size`
+    The `batch_size` parameter for this class independent of the `batch_size`
     of the PyTorch DataLoader. Generally, we only want the former parameter to
     greater than 1. Additionally, this dataset should not be
     used with a DataLoader set to `max_workers` > 1, unless specific care is
@@ -66,7 +66,7 @@ class SpectrumDataset(LanceDataset):
         If `None`, a file will be created in a temporary directory.
     parse_kwargs : dict, optional
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
-        peak files that are provided. This argument has no affect for
+        peak files that are provided. This argument has no effect for
         DataFrame or parquet file inputs.
     pad_fields : str or iterable of str, optional
         Additional list columns to pad into a single tensor for each batch,
@@ -202,7 +202,7 @@ class SpectrumDataset(LanceDataset):
 
     @property
     def path(self) -> Path:
-        """The path to the underyling lance dataset."""
+        """The path to the underlying lance dataset."""
         return self._path
 
     @classmethod
@@ -285,7 +285,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     This is accomplished using the
     [Lance PyTorch integration](https://lance.org/integrations/pytorch).
 
-    The `batch_size` parameter for this class indepedent of the `batch_size`
+    The `batch_size` parameter for this class independent of the `batch_size`
     of the PyTorch DataLoader. Generally, we only want the former parameter to
     greater than 1. Additionally, this dataset should not be
     used with a DataLoader set to `max_workers` > 1, unless specific care is
@@ -317,7 +317,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         If ``None``, a file will be created in a temporary directory.
     parse_kwargs : dict, optional
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
-        peak files that are provided. This argument has no affect for
+        peak files that are provided. This argument has no effect for
         DataFrame or parquet file inputs.
     pad_fields : str or iterable of str, optional
         Additional list columns to pad into a single tensor for each batch,
@@ -458,7 +458,7 @@ class StreamingSpectrumDataset(IterableDataset):
     When using a `StreamingSpectrumDataset`, the order of mass spectra
     cannot be shuffled.
 
-    The `batch_size` parameter for this class indepedent of the `batch_size`
+    The `batch_size` parameter for this class independent of the `batch_size`
     of the PyTorch DataLoader. Generally, we only want the former parameter to
     greater than 1. Additionally, this dataset should not be
     used with a DataLoader set to `max_workers` > 1, unless specific care is
@@ -482,7 +482,7 @@ class StreamingSpectrumDataset(IterableDataset):
         columns are ignored.
     **parse_kwargs : dict
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
-        peak files that are provided. This argument has no affect for
+        peak files that are provided. This argument has no effect for
         DataFrame or parquet file inputs.
 
     Attributes

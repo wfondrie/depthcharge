@@ -41,8 +41,8 @@ class BaseParser(ABC):
         any precursor charge is accepted.
     custom_fields : dict of str to list of str, optional
         Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
-        containing the necessary keys to retreive the value from the
+        be the resulting column name and value must be an iterable of
+        containing the necessary keys to retrieve the value from the
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
@@ -240,7 +240,7 @@ class BaseParser(ABC):
         Parameters
         ----------
         entry : dict
-            The elemtn to add.
+            The element to add.
 
         """
         if self._batch is None:
@@ -272,8 +272,8 @@ class MzmlParser(BaseParser):
         any precursor charge is accepted.
     custom_fields : dict of str to list of str, optional
         Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
-        containing the necessary keys to retreive the value from the
+        be the resulting column name and value must be an iterable of
+        containing the necessary keys to retrieve the value from the
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
@@ -377,8 +377,8 @@ class MzxmlParser(BaseParser):
         any precursor charge is accepted.
     custom_fields : dict of str to list of str, optional
         Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
-        containing the necessary keys to retreive the value from the
+        be the resulting column name and value must be an iterable of
+        containing the necessary keys to retrieve the value from the
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
@@ -459,8 +459,8 @@ class MgfParser(BaseParser):
         any precursor charge is accepted.
     custom_fields : dict of str to list of str, optional
         Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
-        containing the necessary keys to retreive the value from the
+        be the resulting column name and value must be an iterable of
+        containing the necessary keys to retrieve the value from the
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
@@ -555,7 +555,7 @@ class TdfParser(BaseParser):
         any precursor charge is accepted.
     custom_fields : dict of str to list of str, optional
         Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
+        be the resulting column name and value must be an iterable of
         containing the necessary keys to retrieve the value from the
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
