@@ -703,6 +703,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -737,7 +746,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed" class="md-nav__link">
+  <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -761,7 +770,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_1" class="md-nav__link">
+  <a href="#fixed_2" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -794,7 +803,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_2" class="md-nav__link">
+  <a href="#fixed_3" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -851,7 +860,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_3" class="md-nav__link">
+  <a href="#fixed_4" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1079,7 +1088,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_4" class="md-nav__link">
+  <a href="#fixed_5" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1136,7 +1145,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_5" class="md-nav__link">
+  <a href="#fixed_6" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1160,7 +1169,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_6" class="md-nav__link">
+  <a href="#fixed_7" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1402,6 +1411,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fixed
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1436,7 +1454,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed" class="md-nav__link">
+  <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1460,7 +1478,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_1" class="md-nav__link">
+  <a href="#fixed_2" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1493,7 +1511,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_2" class="md-nav__link">
+  <a href="#fixed_3" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1550,7 +1568,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_3" class="md-nav__link">
+  <a href="#fixed_4" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1778,7 +1796,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fixed_4" class="md-nav__link">
+  <a href="#fixed_5" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1835,7 +1853,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_5" class="md-nav__link">
+  <a href="#fixed_6" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -1859,7 +1877,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#fixed_6" class="md-nav__link">
+  <a href="#fixed_7" class="md-nav__link">
     <span class="md-ellipsis">
       Fixed
     </span>
@@ -2024,12 +2042,18 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li>Added the <code>peak_file_hash</code> column to parsed mass spectra, which contains a fingerprint of the contents of the originating peak file. This distinguishes peak files that share the same name.</li>
 <li>Added <code>depthcharge.data.hash_peak_file()</code>, which quickly computes the fingerprint of a peak file from its size and first and last 1 MiB.</li>
 <li>Added the <code>peak_file_hashes</code> property to <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code>.</li>
+<li>Added the <code>overwrite</code> parameter to <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code>.</li>
 </ul>
 <h3 id="changed">Changed</h3>
 <ul>
 <li><code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code> now skip peak files that have already been added, as determined by their <code>peak_file_hash</code>, with a warning.</li>
 <li>Because of the new <code>peak_file_hash</code> column, <code>add_spectra()</code> cannot add peak files to Lance datasets that were created with previous versions of depthcharge.</li>
+<li>When a Lance dataset already exists at <code>path</code>, <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code> now add only the peak files that it does not already contain, instead of overwriting it. This makes re-creating a dataset with the same peak files fast. Use <code>overwrite=True</code> for the previous behavior. DataFrame and parquet inputs, custom fields that are missing from the existing dataset, and datasets created with previous versions of depthcharge raise a <code>ValueError</code> unless <code>overwrite=True</code>.</li>
 <li><code>preprocessing.scale_to_unit_norm()</code>, which is part of the default <code>preprocessing_fn</code>, now scales intensities to an L2 norm of 1. Previously, it divided intensities by their sum, so they summed to 1 instead. Models trained with the previous behavior may need to be retrained or use the previous function as a custom <code>preprocessing_fn</code>.</li>
+</ul>
+<h3 id="fixed">Fixed</h3>
+<ul>
+<li><code>add_spectra()</code> can now add peak files to datasets created from polars DataFrames, which previously failed because of mismatched Arrow types.</li>
 </ul>
 <h2 id="v050">[v0.5.0]</h2>
 <h3 id="added_1">Added</h3>
@@ -2042,7 +2066,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <ul>
 <li>Spectra with invalid custom fields are now skipped and counted in the skipped spectra warning, instead of raising an error.</li>
 </ul>
-<h3 id="fixed">Fixed</h3>
+<h3 id="fixed_1">Fixed</h3>
 <ul>
 <li>Fixed formatting of the warning for skipped spectra (missing space and stray line break), and included the exception type in it.</li>
 <li>The skipped spectra warning is now raised even when iteration over a peak file stops early.</li>
@@ -2050,7 +2074,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li>Fixed <code>AnalyteTransformerDecoder.embed()</code> (and therefore <code>forward()</code>) failing when called with <code>tokens=None</code>, due to the empty token tensor having a float dtype and a batch size of 1.</li>
 </ul>
 <h2 id="v0410">[v0.4.10]</h2>
-<h3 id="fixed_1">Fixed</h3>
+<h3 id="fixed_2">Fixed</h3>
 <ul>
 <li>Changed C-terminal and N-terminal modification check to include empty modifications</li>
 </ul>
@@ -2061,7 +2085,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li>Added the <code>hf_converter</code> keyword to <code>SpectrumDataset._to_tensor</code> and <code>AnnotatedSpectrumDataset._to_tensor</code> for pylance compatibility.</li>
 <li>Added Jupyter to documentation dependencies.</li>
 </ul>
-<h3 id="fixed_2">Fixed</h3>
+<h3 id="fixed_3">Fixed</h3>
 <ul>
 <li>Fixed peptide tokenizer detokenizing in reverse.</li>
 <li>Handle MGF <code>index=</code> prefixes during parsing.</li>
@@ -2077,7 +2101,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li><code>Tokenizer.detokenize()</code> now truncates the output to the first stop token it finds, if <code>trim_stop_token=True</code>.</li>
 </ul>
 <h2 id="v047">[v0.4.7]</h2>
-<h3 id="fixed_3">Fixed</h3>
+<h3 id="fixed_4">Fixed</h3>
 <ul>
 <li>Add stop and start tokens for <code>AnnotatedSpectrumDataset</code>, when available.</li>
 <li>When <code>reverse</code> is used for the <code>PeptideTokenizer</code>, automatically reverse the decoded peptide.</li>
@@ -2152,7 +2176,7 @@ Depthcharge now uses Apache Arrow-based formats instead of HDF5; spectra are con
 <ul>
 <li>Support for fine-tuning the wavelengths used for encoding floating point numbers like m/z and intensity to the <code>FloatEncoder</code> and <code>PeakEncoder</code>.</li>
 </ul>
-<h3 id="fixed_4">Fixed</h3>
+<h3 id="fixed_5">Fixed</h3>
 <ul>
 <li>The <code>tgt_mask</code> in the <code>PeptideTransformerDecoder</code> was the incorrect type.
   Now it is <code>bool</code> as it should be.
@@ -2175,12 +2199,12 @@ Depthcharge now uses Apache Arrow-based formats instead of HDF5; spectra are con
 <li>Changing peak encodings. Instead of encoding the intensity using a linear projection and summing with the sinusoidal m/z encodings, now the intensity is also sinusoidally encoded and is combined with the sinusoidal m/z encodings using a linear layer.</li>
 </ul>
 <h2 id="v023-2023-08-18">[v0.2.3] - 2023-08-18</h2>
-<h3 id="fixed_5">Fixed</h3>
+<h3 id="fixed_6">Fixed</h3>
 <ul>
 <li>Applied hotfix from v0.3.1</li>
 </ul>
 <h2 id="v022-2023-05-15">[v0.2.2] - 2023-05-15</h2>
-<h3 id="fixed_6">Fixed</h3>
+<h3 id="fixed_7">Fixed</h3>
 <ul>
 <li>Fixed retrieving version information.</li>
 </ul>

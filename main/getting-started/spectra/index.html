@@ -1297,7 +1297,11 @@ available using the <code>parse_kwargs</code> parameter.</p>
 column, along with a fingerprint of that file's contents in the
 <code>peak_file_hash</code> column. This fingerprint distinguishes peak files that
 share the same name, and it lets the dataset skip peak files that have
-already been added:</p>
+already been added. Likewise, if we create a dataset with a <code>path</code> where
+a Lance dataset already exists, only the peak files that it does not
+already contain are parsed and added, unless we specify
+<code>overwrite=True</code>. With <code>add_spectra()</code>, we're warned when a peak file is
+skipped:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">caught</span><span class="p">:</span>

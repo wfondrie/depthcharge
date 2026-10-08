@@ -2441,7 +2441,7 @@ making this unlikely for peak files.</p>
 
 
 <h2 id="depthcharge.data.SpectrumDataset" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">SpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">SpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
@@ -2469,8 +2469,13 @@ used to handle the
 <p>Peak files are identified using a fingerprint of their contents
 (see <code>depthcharge.data.hash_peak_file()</code>), which is stored in the
 <code>peak_file_hash</code> column. Peak files that have already been added
-to the dataset are skipped with a warning.</p>
-<p>If you wish to use an existing lance dataset, use the <code>from_lance()</code>
+to the dataset are skipped.</p>
+<p>If a lance dataset already exists at <code>path</code>, only the peak files that it
+does not already contain are parsed and added to it, unless <code>overwrite</code>
+is <code>True</code>. This makes it fast to re-create a dataset with the same peak
+files. Note that depthcharge does not verify that the existing dataset was
+created with the same <code>parse_kwargs</code>, such as preprocessing. To use an
+existing lance dataset without adding spectra, use the <code>from_lance()</code>
 method.</p>
 
 
@@ -2537,6 +2542,27 @@ If <code>None</code>, a file will be created in a temporary directory.</p>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
                       <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>overwrite</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>Replace the lance dataset at <code>path</code> if it exists, rather than
+adding new peak files to it.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="bool">bool</span></code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>False</code>
                   </span>
               </p>
             </td>
@@ -3009,7 +3035,7 @@ columns are ignored.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, pad_fields=None, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code>
+                    <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, pad_fields=None, overwrite=False, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -3039,14 +3065,14 @@ columns are ignored.</p>
 
 
 <h2 id="depthcharge.data.AnnotatedSpectrumDataset" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">AnnotatedSpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">AnnotatedSpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, pad_fields=None, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, pad_fields=None, overwrite=False, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code></p>
 
 
 
@@ -3067,8 +3093,13 @@ used to handle the
 <p>Peak files are identified using a fingerprint of their contents
 (see <code>depthcharge.data.hash_peak_file()</code>), which is stored in the
 <code>peak_file_hash</code> column. Peak files that have already been added
-to the dataset are skipped with a warning.</p>
-<p>If you wish to use an existing lance dataset, use the <code>from_lance()</code>
+to the dataset are skipped.</p>
+<p>If a lance dataset already exists at <code>path</code>, only the peak files that it
+does not already contain are parsed and added to it, unless <code>overwrite</code>
+is <code>True</code>. This makes it fast to re-create a dataset with the same peak
+files. Note that depthcharge does not verify that the existing dataset was
+created with the same <code>parse_kwargs</code>, such as preprocessing. To use an
+existing lance dataset without adding spectra, use the <code>from_lance()</code>
 method.</p>
 
 
@@ -3168,6 +3199,27 @@ If <code>None</code>, a file will be created in a temporary directory.</p>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
                       <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>overwrite</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>Replace the lance dataset at <code>path</code> if it exists, rather than
+adding new peak files to it.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="bool">bool</span></code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>False</code>
                   </span>
               </p>
             </td>
@@ -3701,7 +3753,7 @@ columns are ignored.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><a class="autorefs autorefs-internal" title="AnnotatedSpectrumDataset(spectra, annotations, tokenizer, batch_size, path=None, parse_kwargs=None, pad_fields=None, **kwargs) (depthcharge.data.spectrum_datasets.AnnotatedSpectrumDataset)" href="#depthcharge.data.AnnotatedSpectrumDataset">AnnotatedSpectrumDataset</a></code>
+                    <code><a class="autorefs autorefs-internal" title="AnnotatedSpectrumDataset(spectra, annotations, tokenizer, batch_size, path=None, parse_kwargs=None, pad_fields=None, overwrite=False, **kwargs) (depthcharge.data.spectrum_datasets.AnnotatedSpectrumDataset)" href="#depthcharge.data.AnnotatedSpectrumDataset">AnnotatedSpectrumDataset</a></code>
                 </span>
             </td>
             <td class="doc-returns-details">
