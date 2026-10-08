@@ -186,53 +186,50 @@ class BaseParser(ABC):
 
         n_skipped = 0
         last_exc = None
-        try:
-            with self.open() as spectra:
-                self._batch = None
-                for spectrum in tqdm(spectra, **pbar_args):
-                    try:
-                        parsed = self.parse_spectrum(spectrum)
-                        if parsed is None:
-                            continue
-
-                        if self.preprocessing_fn is not None:
-                            for processor in self.preprocessing_fn:
-                                parsed = processor(parsed)
-
-                        entry = {
-                            "peak_file": self.peak_file.name,
-                            "scan_id": str(parsed.scan_id),
-                            "ms_level": parsed.ms_level,
-                            "precursor_mz": parsed.precursor_mz,
-                            "precursor_charge": parsed.precursor_charge,
-                            "mz_array": parsed.mz,
-                            "intensity_array": parsed.intensity,
-                        }
-
-                        # Parse custom fields:
-                        entry.update(self.parse_custom_fields(spectrum))
-
-                    except (IndexError, KeyError, ValueError) as exc:
-                        last_exc = exc
-                        n_skipped += 1
+        with self.open() as spectra:
+            self._batch = None
+            for spectrum in tqdm(spectra, **pbar_args):
+                try:
+                    parsed = self.parse_spectrum(spectrum)
+                    if parsed is None:
                         continue
 
-                    self._update_batch(entry)
+                    if self.preprocessing_fn is not None:
+                        for processor in self.preprocessing_fn:
+                            parsed = processor(parsed)
 
-                    # Update the batch:
-                    if len(self._batch["scan_id"]) == batch_size:
-                        yield self._yield_batch()
+                    entry = {
+                        "peak_file": self.peak_file.name,
+                        "scan_id": str(parsed.scan_id),
+                        "ms_level": parsed.ms_level,
+                        "precursor_mz": parsed.precursor_mz,
+                        "precursor_charge": parsed.precursor_charge,
+                        "mz_array": parsed.mz,
+                        "intensity_array": parsed.intensity,
+                    }
 
-                # Get the remainder:
-                if self._batch is not None:
+                except (IndexError, KeyError, ValueError) as exc:
+                    last_exc = exc
+                    n_skipped += 1
+                    continue
+
+                # Parse custom fields:
+                entry.update(self.parse_custom_fields(spectrum))
+                self._update_batch(entry)
+
+                # Update the batch:
+                if len(self._batch["scan_id"]) == batch_size:
                     yield self._yield_batch()
 
-        finally:
-            if n_skipped:
-                warnings.warn(
-                    f"Skipped {n_skipped} spectra with invalid information. "
-                    f"Last error was: {last_exc!r}"
-                )
+            # Get the remainder:
+            if self._batch is not None:
+                yield self._yield_batch()
+
+        if n_skipped:
+            warnings.warn(
+                f"Skipped {n_skipped} spectra with invalid information."
+                f"Last error was: \n {str(last_exc)}"
+            )
 
     def _update_batch(self, entry: dict) -> None:
         """Update the batch.
