@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import logging
 import uuid
+import warnings
 from collections.abc import Generator, Iterable
 from os import PathLike
 from pathlib import Path
@@ -24,6 +25,7 @@ from torch.utils.data import IterableDataset
 from .. import utils
 from ..tokenizers import PeptideTokenizer
 from . import arrow
+from .parsers import hash_peak_file
 
 LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +47,11 @@ class SpectrumDataset(LanceDataset):
     used with a DataLoader set to `max_workers` > 1, unless specific care is
     used to handle the
     [caveats of a PyTorch IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset)
+
+    Peak files are identified using a fingerprint of their contents
+    (see `depthcharge.data.hash_peak_file()`), which is stored in the
+    `peak_file_hash` column. Peak files that have already been added
+    to the dataset are skipped with a warning.
 
     If you wish to use an existing lance dataset, use the `from_lance()`
     method.
@@ -80,6 +87,7 @@ class SpectrumDataset(LanceDataset):
     Attributes
     ----------
     peak_files : list of str
+    peak_file_hashes : list of str
     path : Path
     n_spectra : int
     dataset : lance.LanceDataset
@@ -114,7 +122,7 @@ class SpectrumDataset(LanceDataset):
 
         # Now parse spectra.
         if spectra is not None:
-            spectra = utils.listify(spectra)
+            spectra = _filter_duplicates(utils.listify(spectra))
             batch = next(_get_records(spectra, **self._init_kwargs))
             lance.write_dataset(
                 _get_records(spectra, **self._parse_kwargs),
@@ -138,8 +146,10 @@ class SpectrumDataset(LanceDataset):
     ) -> SpectrumDataset:
         """Add mass spectrometry data to the lance dataset.
 
-        Note that depthcharge does not verify whether the provided spectra
-        already exist in the lance dataset.
+        Peak files that have already been added to the dataset, as
+        determined by their `peak_file_hash`, are skipped with a warning.
+        Depthcharge does not verify whether spectra from DataFrame or parquet
+        inputs already exist in the lance dataset.
 
         Parameters
         ----------
@@ -150,7 +160,14 @@ class SpectrumDataset(LanceDataset):
             mzXML, MGF, or Bruker TDF format.
 
         """
-        spectra = utils.listify(spectra)
+        spectra = _filter_duplicates(
+            utils.listify(spectra),
+            existing=self.peak_file_hashes,
+        )
+        if not spectra:
+            warnings.warn("No new spectra were added to the dataset.")
+            return self
+
         batch = next(_get_records(spectra, **self._init_kwargs))
         self.dataset = lance.write_dataset(
             _get_records(spectra, **self._parse_kwargs),
@@ -197,6 +214,20 @@ class SpectrumDataset(LanceDataset):
             self.dataset.to_table(columns=["peak_file"])
             .column(0)
             .unique()
+            .to_pylist()
+        )
+
+    @property
+    def peak_file_hashes(self) -> list[str]:
+        """The fingerprints of the peak files in the lance dataset."""
+        if "peak_file_hash" not in self.dataset.schema.names:
+            return []
+
+        return (
+            self.dataset.to_table(columns=["peak_file_hash"])
+            .column(0)
+            .unique()
+            .drop_null()
             .to_pylist()
         )
 
@@ -292,6 +323,11 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     used to handle the
     [caveats of a PyTorch IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset)
 
+    Peak files are identified using a fingerprint of their contents
+    (see `depthcharge.data.hash_peak_file()`), which is stored in the
+    `peak_file_hash` column. Peak files that have already been added
+    to the dataset are skipped with a warning.
+
     If you wish to use an existing lance dataset, use the `from_lance()`
     method.
 
@@ -331,6 +367,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     Attributes
     ----------
     peak_files : list of str
+    peak_file_hashes : list of str
     path : Path
     n_spectra : int
     dataset : lance.LanceDataset
@@ -540,6 +577,74 @@ def _get_records(
                 spectra = arrow.spectra_to_stream(spectra, **kwargs)
 
         yield from spectra
+
+
+def _filter_duplicates(
+    data: list[pl.DataFrame | PathLike],
+    existing: Iterable[str] = (),
+) -> list[pl.DataFrame | PathLike]:
+    """Remove peak files that have already been added.
+
+    Parameters
+    ----------
+    data : list of polars.DataFrame or PathLike
+        The data to add.
+    existing : iterable of str, optional
+        The fingerprints of peak files that have already been added.
+
+    Returns
+    -------
+    list of polars.DataFrame or PathLike
+        The data to add, without duplicate peak files. DataFrame and
+        parquet inputs are always kept.
+
+    """
+    seen = set(existing)
+    keep = []
+    skipped = []
+    for spectra in data:
+        if _is_peak_file(spectra):
+            peak_file_hash = hash_peak_file(spectra)
+            if peak_file_hash in seen:
+                skipped.append(AnyPath(spectra).name)
+                continue
+
+            seen.add(peak_file_hash)
+
+        keep.append(spectra)
+
+    if skipped:
+        warnings.warn(
+            f"Skipped {len(skipped)} peak file(s) that were already added to "
+            f"the dataset: {', '.join(skipped)}"
+        )
+
+    return keep
+
+
+def _is_peak_file(data: pl.DataFrame | PathLike) -> bool:
+    """Determine whether data is a peak file.
+
+    Parameters
+    ----------
+    data : polars.DataFrame or PathLike
+        The data to check.
+
+    Returns
+    -------
+    bool
+        False if the data is a DataFrame or parquet file, True otherwise.
+
+    """
+    if isinstance(data, pl.DataFrame | pl.LazyFrame):
+        return False
+
+    try:
+        pq.ParquetFile(data)
+    except (pa.ArrowInvalid, TypeError, OSError):
+        return True
+
+    return False
 
 
 def _get_pad_fields(pad_fields: str | Iterable[str] | None) -> tuple[str]:

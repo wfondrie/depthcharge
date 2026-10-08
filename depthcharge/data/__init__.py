@@ -8,6 +8,7 @@ from .arrow import (
     spectra_to_stream,
 )
 from .fields import CustomField
+from .parsers import hash_peak_file
 from .spectrum_datasets import (
     AnnotatedSpectrumDataset,
     SpectrumDataset,
