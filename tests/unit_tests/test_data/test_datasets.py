@@ -2,6 +2,7 @@
 
 import pickle
 import shutil
+import warnings
 
 import polars as pl
 import pyarrow as pa
@@ -75,6 +76,79 @@ def test_duplicate_inputs(mgf_small, tmp_path):
     assert dataset.n_spectra == 2
 
 
+def test_existing_path(mgf_small, tmp_path):
+    """Test that an existing dataset is reused and extended."""
+    path = tmp_path / "test.lance"
+    other = _modified_copy(mgf_small, tmp_path / "other.mgf")
+
+    SpectrumDataset(mgf_small, path=path, batch_size=1)
+
+    # The same peak files are not parsed again:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        dataset = SpectrumDataset(mgf_small, path=path, batch_size=1)
+
+    assert dataset.n_spectra == 2
+
+    # Only new peak files are added:
+    dataset = SpectrumDataset([mgf_small, other], path=path, batch_size=1)
+    assert dataset.n_spectra == 4
+    assert sorted(dataset.peak_file_hashes) == sorted(
+        [hash_peak_file(mgf_small), hash_peak_file(other)]
+    )
+
+    # Overwrite replaces the dataset:
+    dataset = SpectrumDataset(other, path=path, batch_size=1, overwrite=True)
+    assert dataset.n_spectra == 2
+    assert dataset.peak_file_hashes == [hash_peak_file(other)]
+
+
+def test_existing_path_errors(mgf_small, tmp_path):
+    """Test inputs that cannot be added to an existing dataset."""
+    path = tmp_path / "test.lance"
+    df = arrow.spectra_to_df(mgf_small, progress=False)
+    SpectrumDataset(df, path=path, batch_size=1)
+
+    # DataFrames cannot be checked for duplicates:
+    with pytest.raises(ValueError, match="cannot be checked"):
+        SpectrumDataset(df, path=path, batch_size=1)
+
+    # Custom fields must already be in the dataset:
+    seq = CustomField("seq", lambda x: x["params"]["seq"], pa.string())
+    with pytest.raises(ValueError, match="missing the custom fields: seq"):
+        SpectrumDataset(
+            mgf_small,
+            path=path,
+            batch_size=1,
+            parse_kwargs={"custom_fields": seq},
+        )
+
+    # Datasets without peak file hashes cannot be extended:
+    SpectrumDataset(
+        df.drop("peak_file_hash"), path=path, batch_size=1, overwrite=True
+    )
+    with pytest.raises(ValueError, match="previous version"):
+        SpectrumDataset(mgf_small, path=path, batch_size=1)
+
+    with pytest.raises(ValueError, match=r"Unexpected: \['peak_file_hash'\]"):
+        SpectrumDataset.from_lance(path, 1).add_spectra(mgf_small)
+
+
+def test_add_to_dataframe_dataset(mgf_small, tmp_path):
+    """Test adding peak files to a dataset created from a DataFrame."""
+    other = _modified_copy(mgf_small, tmp_path / "other.mgf")
+    df = arrow.spectra_to_df(mgf_small, progress=False)
+    path = tmp_path / "test.lance"
+    dataset = SpectrumDataset(df, path=path, batch_size=1)
+    dataset.add_spectra(other)
+    assert dataset.n_spectra == 4
+
+    dataset = SpectrumDataset(
+        [mgf_small, other, tmp_path / "other.mgf"], path=path, batch_size=1
+    )
+    assert dataset.n_spectra == 4
+
+
 def test_indexing(tokenizer, mgf_small, tmp_path):
     """Test retrieving spectra."""
     mgf_small2 = _modified_copy(mgf_small, tmp_path / "mgf_small2.mgf")
@@ -107,6 +181,7 @@ def test_indexing(tokenizer, mgf_small, tmp_path):
         path=tmp_path / "test.lance",
         batch_size=1,
         parse_kwargs=parse_kwargs,
+        overwrite=True,
     )
     spec = dataset[0]
     assert len(spec) == 9
@@ -184,6 +259,7 @@ def test_formats(tmp_path, real_mgf, real_mzml, real_mzxml):
             spectra=input_type,
             path=tmp_path / "test",
             batch_size=1,
+            overwrite=True,
         )
 
 
@@ -259,6 +335,7 @@ def test_pad_fields(tmp_path):
         path=tmp_path / "test",
         batch_size=2,
         pad_fields="custom_array",
+        overwrite=True,
     )
     batch = next(iter(dataset))
     torch.testing.assert_close(batch["custom_array"], expected)

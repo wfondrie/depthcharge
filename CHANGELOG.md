@@ -9,11 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the `peak_file_hash` column to parsed mass spectra, which contains a fingerprint of the contents of the originating peak file. This distinguishes peak files that share the same name.
 - Added `depthcharge.data.hash_peak_file()`, which quickly computes the fingerprint of a peak file from its size and first and last 1 MiB.
 - Added the `peak_file_hashes` property to `SpectrumDataset` and `AnnotatedSpectrumDataset`.
+- Added the `overwrite` parameter to `SpectrumDataset` and `AnnotatedSpectrumDataset`.
 
 ### Changed
 - `SpectrumDataset` and `AnnotatedSpectrumDataset` now skip peak files that have already been added, as determined by their `peak_file_hash`, with a warning.
 - Because of the new `peak_file_hash` column, `add_spectra()` cannot add peak files to Lance datasets that were created with previous versions of depthcharge.
+- When a Lance dataset already exists at `path`, `SpectrumDataset` and `AnnotatedSpectrumDataset` now add only the peak files that it does not already contain, instead of overwriting it. This makes re-creating a dataset with the same peak files fast. Use `overwrite=True` for the previous behavior. DataFrame and parquet inputs, custom fields that are missing from the existing dataset, and datasets created with previous versions of depthcharge raise a `ValueError` unless `overwrite=True`.
 - `preprocessing.scale_to_unit_norm()`, which is part of the default `preprocessing_fn`, now scales intensities to an L2 norm of 1. Previously, it divided intensities by their sum, so they summed to 1 instead. Models trained with the previous behavior may need to be retrained or use the previous function as a custom `preprocessing_fn`.
+
+### Fixed
+- `add_spectra()` can now add peak files to datasets created from polars DataFrames, which previously failed because of mismatched Arrow types.
 
 ## [v0.5.0]
 ### Added
