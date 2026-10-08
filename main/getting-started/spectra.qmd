@@ -7,11 +7,11 @@ We think that the biggest barriers to building deep learning models for mass spe
 
 ## Parsing Mass Spectra
 
-Depthcharge supports reading mass spectra from a variety of open formats: mzML, mzXML, and MGF.[^1]
+Depthcharge supports reading mass spectra from a variety of formats: mzML, mzXML, MGF, and Bruker .d (TDF).[^1]
 Under the hood, Depthcharge uses the Apache Arrow data format to store mass spectrometry data in a tabular manner, and likewise Apache Parquet to store individual mass spectrometry data files on disk.
 This means that standard data science tools like Pandas or Polars can be used to interact with our mass spectra after it is parsed by Depthcharge.
 
-[^1]: We plan to support the Bruker .d format will be supported through timsrust.
+[^1]: Bruker .d files are read using [timsrust](https://github.com/MannLabs/timsrust).
 
 For example, we can read an mzML file into a `polars.DataFrame` using `spectra_to_df()`:
 
@@ -28,7 +28,7 @@ import depthcharge as dc
 
 mzml_file = "../../data/TMT10-Trial-8.mzML"
 
-# Read an mzML into a DataFramoe:
+# Read an mzML into a DataFrame:
 df = dc.data.spectra_to_df(mzml_file, progress=False)
 print(df.head())
 ```
@@ -48,11 +48,11 @@ print(pl.from_arrow(batch))
 
 ### Spectrum Preprocessing
 
-Preprocessing steps, such as filtering peaks and transforming intensities is performed during parsing using and controlled using the `preprocessing_fn` parameter in all of the above functions.
+Preprocessing steps, such as filtering peaks and transforming intensities, are performed during parsing and controlled using the `preprocessing_fn` parameter in all of the above functions.
 Depthcharge is closely tied into the [spectrum\_utils package](https://spectrum-utils.readthedocs.io/en/latest/) and any of the processing methods within spectrum\_utils may be applied to spectra in Depthcharge as well.
 Additionally, custom functions can be specified that accept a `depthcharge.MassSpectrum` as input and return a `depthcharge.MassSpectrum` as output.
 
-The `preprocessing_fn` parameter defines collection of functions to apply to each mass spectrum in sequence.
+The `preprocessing_fn` parameter defines a collection of functions to apply to each mass spectrum in sequence.
 The default `preprocessing_fn` is:
 
 ```{python}
@@ -66,7 +66,7 @@ The default `preprocessing_fn` is:
 ```
 
 However, we can change this process to meet our needs.
-As an example, let's create rather useless preprocessing function that sets the intensity of all the peaks to a value of one:
+As an example, let's create a rather useless preprocessing function that sets the intensity of all the peaks to a value of one:
 
 ```{python}
 import numpy as np
@@ -131,7 +131,7 @@ print(df.head())
 
 ### Adding Additional Outside Data
 
-As a DataFrame or Parquet file, the parsed mass spectra are relatively easy to manipulate uses standard data science tools like Polars and Pandas.
+As a DataFrame or Parquet file, the parsed mass spectra are relatively easy to manipulate using standard data science tools like Polars and Pandas.
 However, we can also efficiently add new data to our mass spectra during parsing by providing a separate metadata dataframe as the `metadata_df` parameter.
 We require that this dataframe have a `scan_id` field and it may optionally have a `peak_file` field that will be used to join the metadata table with the parsed spectra.
 
@@ -177,10 +177,10 @@ parse_kwargs = {"progress": False}
 dataset = SpectrumDataset(mzml_file, batch_size=2, parse_kwargs=parse_kwargs)
 ```
 
-The `SpectrumDataset` and `AnnoatatedSpectrumDataset` use the native [PyTorch integration in Lance](https://lance.org/integrations/pytorch) and all of the corresponding parameters are available as keyword arguments.
-Furthermore, all three of these classes are [PyTorch `IterableDataset` classes](https://pytorch.org/docs/stable/data.html#iterable-style-datasets), so they are ready to be used directly to train and evaulate deep learning models with PyTorch.
+The `SpectrumDataset` and `AnnotatedSpectrumDataset` use the native [PyTorch integration in Lance](https://lance.org/integrations/pytorch) and all of the corresponding parameters are available as keyword arguments.
+Furthermore, all three of these classes are [PyTorch `IterableDataset` classes](https://pytorch.org/docs/stable/data.html#iterable-style-datasets), so they are ready to be used directly to train and evaluate deep learning models with PyTorch.
 
-**A word of caution:** the batch size and any parallelism a best handled by the dataset class itself rather than the PyTorch `DataLoader`; hence, we recommend initializing `DataLoaders` with `num_workers` <= 1 and `batch_size` = 1, or simply:
+**A word of caution:** the batch size and any parallelism are best handled by the dataset class itself rather than the PyTorch `DataLoader`; hence, we recommend initializing `DataLoaders` with `num_workers` <= 1 and `batch_size` = 1, or simply:
 
 ```{python}
 from torch.utils.data import DataLoader
@@ -191,8 +191,40 @@ for batch in loader:
     print(batch["scan_id"], batch["precursor_mz"])
 ```
 
+Within each batch, the `mz_array` and `intensity_array` columns are padded with zeros to the length of the longest mass spectrum, yielding a single tensor for each.
+Other list columns, such as those extracted with a `CustomField`, can be padded in the same manner using the `pad_fields` parameter of the dataset classes.
 
-## Transfomer Models for Mass Spectra
+### Datasets of Annotated Mass Spectra
+
+To train a model to predict an analyte from a mass spectrum, such as for de novo peptide sequencing, we need the annotation for each mass spectrum.
+The `AnnotatedSpectrumDataset` class uses a tokenizer to transform the annotations into tensors as each batch is loaded.
+Here, we'll use the peptides that we added with the `metadata_df` above, keeping only the mass spectra that have a peptide:
+
+```{python}
+from depthcharge.data import AnnotatedSpectrumDataset
+from depthcharge.tokenizers import PeptideTokenizer
+
+annotated_df = dc.data.spectra_to_df(
+    mzml_file,
+    progress=False,
+    metadata_df=metadata_df,
+).filter(pl.col("peptide").is_not_null())
+
+tokenizer = PeptideTokenizer()
+annotated = AnnotatedSpectrumDataset(
+    annotated_df,
+    annotations="peptide",
+    tokenizer=tokenizer,
+    batch_size=2,
+)
+
+annotated_loader = DataLoader(annotated, batch_size=None)
+batch = next(iter(annotated_loader))
+print(batch["peptide"])
+```
+
+
+## Transformer Models for Mass Spectra
 
 Now that we know how to parse mass spectra, we can now build a model that uses them.
 In Depthcharge, we've designed Transformer models specifically for this task: the `SpectrumTransformerEncoder`.
@@ -247,6 +279,36 @@ model = MyModel()
 for batch in loader:
     out = model(**batch)
     print(out[0].shape)
+```
+
+## Decoding Analytes from Mass Spectra
+
+Depthcharge also provides Transformer models for analytes, such as peptides and small molecules.
+The `AnalyteTransformerDecoder` predicts the next token of an analyte, given the previous tokens and the representations of a mass spectrum from a `SpectrumTransformerEncoder`.
+Using our annotated dataset from above:
+
+```{python}
+from depthcharge.transformers import AnalyteTransformerDecoder
+
+encoder = SpectrumTransformerEncoder()
+decoder = AnalyteTransformerDecoder(tokenizer)
+
+for batch in annotated_loader:
+    memory, mask = encoder(batch["mz_array"], batch["intensity_array"])
+    scores = decoder(
+        batch["peptide"],
+        memory=memory,
+        memory_key_padding_mask=mask,
+    )
+    print(scores.shape)
+```
+
+The scores are the raw outputs (logits) for each possible token at each position in the sequence, which can be used to train the model with a cross-entropy loss.
+To predict the first token of a sequence, we can call the decoder with `None` for the tokens:
+
+```{python}
+scores = decoder(None, memory=memory, memory_key_padding_mask=mask)
+print(scores.shape)
 ```
 
 These Depthcharge modules are merely an accessible starting point for us to build a model fully customized to our task at hand.

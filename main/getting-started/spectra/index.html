@@ -486,12 +486,36 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Building PyTorch Datasets from Mass Spectra">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#datasets-of-annotated-mass-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Datasets of Annotated Mass Spectra
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
-  <a href="#transfomer-models-for-mass-spectra" class="md-nav__link">
+  <a href="#transformer-models-for-mass-spectra" class="md-nav__link">
     <span class="md-ellipsis">
-      Transfomer Models for Mass Spectra
+      Transformer Models for Mass Spectra
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decoding-analytes-from-mass-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decoding Analytes from Mass Spectra
     </span>
   </a>
   
@@ -676,6 +700,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/feedforward/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Feed-forward networks
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/primitives/" class="md-nav__link">
         
   
@@ -838,12 +885,36 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Building PyTorch Datasets from Mass Spectra">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#datasets-of-annotated-mass-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Datasets of Annotated Mass Spectra
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
-  <a href="#transfomer-models-for-mass-spectra" class="md-nav__link">
+  <a href="#transformer-models-for-mass-spectra" class="md-nav__link">
     <span class="md-ellipsis">
-      Transfomer Models for Mass Spectra
+      Transformer Models for Mass Spectra
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decoding-analytes-from-mass-spectra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Decoding Analytes from Mass Spectra
     </span>
   </a>
   
@@ -876,10 +947,10 @@ representing the mass spectra in an efficient manner for learning, (3)
 constructing models that leverage the structure of the data in a mass
 spectrum.</p>
 <h2 id="parsing-mass-spectra">Parsing Mass Spectra</h2>
-<p>Depthcharge supports reading mass spectra from a variety of open
-formats: mzML, mzXML, and MGF.<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup> Under the hood, Depthcharge uses the
-Apache Arrow data format to store mass spectrometry data in a tabular
-manner, and likewise Apache Parquet to store individual mass
+<p>Depthcharge supports reading mass spectra from a variety of formats:
+mzML, mzXML, MGF, and Bruker .d (TDF).<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup> Under the hood, Depthcharge
+uses the Apache Arrow data format to store mass spectrometry data in a
+tabular manner, and likewise Apache Parquet to store individual mass
 spectrometry data files on disk. This means that standard data science
 tools like Pandas or Polars can be used to interact with our mass
 spectra after it is parsed by Depthcharge.</p>
@@ -890,7 +961,7 @@ spectra after it is parsed by Depthcharge.</p>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">mzml_file</span> <span class="o">=</span> <span class="s2">&quot;../../data/TMT10-Trial-8.mzML&quot;</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Read an mzML into a DataFramoe:</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Read an mzML into a DataFrame:</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">df</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_df</span><span class="p">(</span><span class="n">mzml_file</span><span class="p">,</span> <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
 </span></code></pre></div>
@@ -988,7 +1059,7 @@ spectra after it is parsed by Depthcharge.</p>
 </details>
 <h3 id="spectrum-preprocessing">Spectrum Preprocessing</h3>
 <p>Preprocessing steps, such as filtering peaks and transforming
-intensities is performed during parsing using and controlled using the
+intensities, are performed during parsing and controlled using the
 <code>preprocessing_fn</code> parameter in all of the above functions. Depthcharge
 is closely tied into the <a href="https://spectrum-utils.readthedocs.io/en/latest/">spectrum_utils
 package</a> and any of
@@ -996,7 +1067,7 @@ the processing methods within spectrum_utils may be applied to spectra
 in Depthcharge as well. Additionally, custom functions can be specified
 that accept a <code>depthcharge.MassSpectrum</code> as input and return a
 <code>depthcharge.MassSpectrum</code> as output.</p>
-<p>The <code>preprocessing_fn</code> parameter defines collection of functions to
+<p>The <code>preprocessing_fn</code> parameter defines a collection of functions to
 apply to each mass spectrum in sequence. The default <code>preprocessing_fn</code>
 is:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">[</span>
@@ -1007,7 +1078,7 @@ is:</p>
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">]</span>
 </span></code></pre></div>
 <p>However, we can change this process to meet our needs. As an example,
-let's create rather useless preprocessing function that sets the
+let's create a rather useless preprocessing function that sets the
 intensity of all the peaks to a value of one:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
@@ -1128,7 +1199,7 @@ field to extract the retention time for each spectrum:</p>
 </details>
 <h3 id="adding-additional-outside-data">Adding Additional Outside Data</h3>
 <p>As a DataFrame or Parquet file, the parsed mass spectra are relatively
-easy to manipulate uses standard data science tools like Polars and
+easy to manipulate using standard data science tools like Polars and
 Pandas. However, we can also efficiently add new data to our mass
 spectra during parsing by providing a separate metadata dataframe as the
 <code>metadata_df</code> parameter. We require that this dataframe have a <code>scan_id</code>
@@ -1212,18 +1283,18 @@ available using the <code>parse_kwargs</code> parameter.</p>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
 </span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">dataset</span> <span class="o">=</span> <span class="n">SpectrumDataset</span><span class="p">(</span><span class="n">mzml_file</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="n">parse_kwargs</span><span class="p">)</span>
 </span></code></pre></div>
-<p>The <code>SpectrumDataset</code> and <code>AnnoatatedSpectrumDataset</code> use the native
+<p>The <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code> use the native
 <a href="https://lance.org/integrations/pytorch">PyTorch integration in Lance</a>
 and all of the corresponding parameters are available as keyword
 arguments. Furthermore, all three of these classes are <a href="https://pytorch.org/docs/stable/data.html#iterable-style-datasets">PyTorch
 <code>IterableDataset</code>
 classes</a>,
-so they are ready to be used directly to train and evaulate deep
+so they are ready to be used directly to train and evaluate deep
 learning models with PyTorch.</p>
-<p><strong>A word of caution:</strong> the batch size and any parallelism a best handled
-by the dataset class itself rather than the PyTorch <code>DataLoader</code>; hence,
-we recommend initializing <code>DataLoaders</code> with <code>num_workers</code> \&lt;= 1 and
-<code>batch_size</code> = 1, or simply:</p>
+<p><strong>A word of caution:</strong> the batch size and any parallelism are best
+handled by the dataset class itself rather than the PyTorch
+<code>DataLoader</code>; hence, we recommend initializing <code>DataLoaders</code> with
+<code>num_workers</code> \&lt;= 1 and <code>batch_size</code> = 1, or simply:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoader</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
@@ -1237,19 +1308,58 @@ we recommend initializing <code>DataLoaders</code> with <code>num_workers</code>
 [&#39;controllerType=0 controllerNumber=1 scan=507&#39;, &#39;controllerType=0 controllerNumber=1 scan=510&#39;] tensor([1047.6174,  800.4349])
 </code></pre></div>
 </details>
-<h2 id="transfomer-models-for-mass-spectra">Transfomer Models for Mass Spectra</h2>
+<p>Within each batch, the <code>mz_array</code> and <code>intensity_array</code> columns are
+padded with zeros to the length of the longest mass spectrum, yielding a
+single tensor for each. Other list columns, such as those extracted with
+a <code>CustomField</code>, can be padded in the same manner using the <code>pad_fields</code>
+parameter of the dataset classes.</p>
+<h3 id="datasets-of-annotated-mass-spectra">Datasets of Annotated Mass Spectra</h3>
+<p>To train a model to predict an analyte from a mass spectrum, such as for
+de novo peptide sequencing, we need the annotation for each mass
+spectrum. The <code>AnnotatedSpectrumDataset</code> class uses a tokenizer to
+transform the annotations into tensors as each batch is loaded. Here,
+we'll use the peptides that we added with the <code>metadata_df</code> above,
+keeping only the mass spectra that have a peptide:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">depthcharge.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnnotatedSpectrumDataset</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">depthcharge.tokenizers</span><span class="w"> </span><span class="kn">import</span> <span class="n">PeptideTokenizer</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">annotated_df</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">spectra_to_df</span><span class="p">(</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">mzml_file</span><span class="p">,</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">metadata_df</span><span class="o">=</span><span class="n">metadata_df</span><span class="p">,</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;peptide&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">is_not_null</span><span class="p">())</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="n">tokenizer</span> <span class="o">=</span> <span class="n">PeptideTokenizer</span><span class="p">()</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="n">annotated</span> <span class="o">=</span> <span class="n">AnnotatedSpectrumDataset</span><span class="p">(</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>    <span class="n">annotated_df</span><span class="p">,</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>    <span class="n">annotations</span><span class="o">=</span><span class="s2">&quot;peptide&quot;</span><span class="p">,</span>
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>    <span class="n">tokenizer</span><span class="o">=</span><span class="n">tokenizer</span><span class="p">,</span>
+</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>    <span class="n">batch_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span id="__span-10-16"><a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="p">)</span>
+</span><span id="__span-10-17"><a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a>
+</span><span id="__span-10-18"><a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a><span class="n">annotated_loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">annotated</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</span><span id="__span-10-19"><a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a><span class="n">batch</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">annotated_loader</span><span class="p">))</span>
+</span><span id="__span-10-20"><a id="__codelineno-10-20" name="__codelineno-10-20" href="#__codelineno-10-20"></a><span class="nb">print</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="s2">&quot;peptide&quot;</span><span class="p">])</span>
+</span></code></pre></div>
+<details class="note" open="open">
+<summary>output</summary>
+<div class="language-text highlight"><pre><span></span><code>tensor([[11,  5, 17, 11,  9,  5, 10,  1],
+        [ 5,  4,  9, 18,  8, 16,  1,  0]])
+</code></pre></div>
+</details>
+<h2 id="transformer-models-for-mass-spectra">Transformer Models for Mass Spectra</h2>
 <p>Now that we know how to parse mass spectra, we can now build a model
 that uses them. In Depthcharge, we've designed Transformer models
 specifically for this task: the <code>SpectrumTransformerEncoder</code>. However,
 the dataset classes and other modules in Depthcharge are fully
 interoperable with any PyTorch module.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">depthcharge.transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">SpectrumTransformerEncoder</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">SpectrumTransformerEncoder</span><span class="p">()</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">loader</span><span class="p">:</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="s2">&quot;mz_array&quot;</span><span class="p">],</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;intensity_array&quot;</span><span class="p">])</span>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">depthcharge.transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">SpectrumTransformerEncoder</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">SpectrumTransformerEncoder</span><span class="p">()</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">loader</span><span class="p">:</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="s2">&quot;mz_array&quot;</span><span class="p">],</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;intensity_array&quot;</span><span class="p">])</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 </span></code></pre></div>
 <details class="note" open="open">
 <summary>output</summary>
@@ -1266,37 +1376,74 @@ behavior by creating a child class of our Transformer module and
 overriding the <code>global_token_hook</code> method. Let's create a hook that will
 add information about the precursor mass and charge to the global
 representation:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">depthcharge.encoders</span><span class="w"> </span><span class="kn">import</span> <span class="n">FloatEncoder</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyModel</span><span class="p">(</span><span class="n">SpectrumTransformerEncoder</span><span class="p">):</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Our custom model class.&quot;&quot;&quot;</span>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Add parameters for the global token hook.&quot;&quot;&quot;</span>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">precursor_mz_encoder</span> <span class="o">=</span> <span class="n">FloatEncoder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">d_model</span><span class="p">)</span>
-</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">precursor_z_encoder</span> <span class="o">=</span> <span class="n">FloatEncoder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">d_model</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
-</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>
-</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">global_token_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mz_array</span><span class="p">,</span> <span class="n">intensity_array</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a simple representation of the precursor.&quot;&quot;&quot;</span>
-</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>        <span class="n">mz_rep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precursor_mz_encoder</span><span class="p">(</span>
-</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;precursor_mz&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">mz_array</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span>
-</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>        <span class="p">)</span>
-</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a>        <span class="n">charge_rep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precursor_z_encoder</span><span class="p">(</span>
-</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;precursor_charge&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">mz_array</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span>
-</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>        <span class="p">)</span>
-</span><span id="__span-11-19"><a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a>        <span class="k">return</span> <span class="p">(</span><span class="n">mz_rep</span> <span class="o">+</span> <span class="n">charge_rep</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">depthcharge.encoders</span><span class="w"> </span><span class="kn">import</span> <span class="n">FloatEncoder</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyModel</span><span class="p">(</span><span class="n">SpectrumTransformerEncoder</span><span class="p">):</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Our custom model class.&quot;&quot;&quot;</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Add parameters for the global token hook.&quot;&quot;&quot;</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">precursor_mz_encoder</span> <span class="o">=</span> <span class="n">FloatEncoder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">d_model</span><span class="p">)</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">precursor_z_encoder</span> <span class="o">=</span> <span class="n">FloatEncoder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">d_model</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">global_token_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mz_array</span><span class="p">,</span> <span class="n">intensity_array</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a simple representation of the precursor.&quot;&quot;&quot;</span>
+</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>        <span class="n">mz_rep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precursor_mz_encoder</span><span class="p">(</span>
+</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;precursor_mz&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">mz_array</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span>
+</span><span id="__span-12-15"><a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>        <span class="p">)</span>
+</span><span id="__span-12-16"><a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>        <span class="n">charge_rep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precursor_z_encoder</span><span class="p">(</span>
+</span><span id="__span-12-17"><a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;precursor_charge&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">type_as</span><span class="p">(</span><span class="n">mz_array</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:],</span>
+</span><span id="__span-12-18"><a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>        <span class="p">)</span>
+</span><span id="__span-12-19"><a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>        <span class="k">return</span> <span class="p">(</span><span class="n">mz_rep</span> <span class="o">+</span> <span class="n">charge_rep</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
 </span></code></pre></div>
 <p>Now we can use our new <code>MyModel</code> class with our mass spectra:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">model</span> <span class="o">=</span> <span class="n">MyModel</span><span class="p">()</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">loader</span><span class="p">:</span>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="o">**</span><span class="n">batch</span><span class="p">)</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">model</span> <span class="o">=</span> <span class="n">MyModel</span><span class="p">()</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">loader</span><span class="p">:</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="o">**</span><span class="n">batch</span><span class="p">)</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 </span></code></pre></div>
 <details class="note" open="open">
 <summary>output</summary>
 <div class="language-text highlight"><pre><span></span><code>torch.Size([2, 119, 128])
 torch.Size([2, 108, 128])
+</code></pre></div>
+</details>
+<h2 id="decoding-analytes-from-mass-spectra">Decoding Analytes from Mass Spectra</h2>
+<p>Depthcharge also provides Transformer models for analytes, such as
+peptides and small molecules. The <code>AnalyteTransformerDecoder</code> predicts
+the next token of an analyte, given the previous tokens and the
+representations of a mass spectrum from a <code>SpectrumTransformerEncoder</code>.
+Using our annotated dataset from above:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">depthcharge.transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnalyteTransformerDecoder</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">encoder</span> <span class="o">=</span> <span class="n">SpectrumTransformerEncoder</span><span class="p">()</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="n">decoder</span> <span class="o">=</span> <span class="n">AnalyteTransformerDecoder</span><span class="p">(</span><span class="n">tokenizer</span><span class="p">)</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">annotated_loader</span><span class="p">:</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>    <span class="n">memory</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">encoder</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="s2">&quot;mz_array&quot;</span><span class="p">],</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;intensity_array&quot;</span><span class="p">])</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>    <span class="n">scores</span> <span class="o">=</span> <span class="n">decoder</span><span class="p">(</span>
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>        <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;peptide&quot;</span><span class="p">],</span>
+</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>        <span class="n">memory</span><span class="o">=</span><span class="n">memory</span><span class="p">,</span>
+</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>        <span class="n">memory_key_padding_mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span>
+</span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>    <span class="p">)</span>
+</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</span></code></pre></div>
+<details class="note" open="open">
+<summary>output</summary>
+<div class="language-text highlight"><pre><span></span><code>torch.Size([2, 9, 21])
+</code></pre></div>
+</details>
+<p>The scores are the raw outputs (logits) for each possible token at each
+position in the sequence, which can be used to train the model with a
+cross-entropy loss. To predict the first token of a sequence, we can
+call the decoder with <code>None</code> for the tokens:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">scores</span> <span class="o">=</span> <span class="n">decoder</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="n">memory</span><span class="p">,</span> <span class="n">memory_key_padding_mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</span></code></pre></div>
+<details class="note" open="open">
+<summary>output</summary>
+<div class="language-text highlight"><pre><span></span><code>torch.Size([2, 1, 21])
 </code></pre></div>
 </details>
 <p>These Depthcharge modules are merely an accessible starting point for us
@@ -1305,8 +1452,8 @@ to build a model fully customized to our task at hand.</p>
 <hr />
 <ol>
 <li id="fn:1">
-<p>We plan to support the Bruker .d format will be supported through
-timsrust.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+<p>Bruker .d files are read using
+<a href="https://github.com/MannLabs/timsrust">timsrust</a>.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
 </li>
 </ol>
 </div>
@@ -1399,8 +1546,8 @@ timsrust.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to f
       
       
     
-    <a href="https://twitter.com/wfondrie" target="_blank" rel="noopener" title="twitter.com" class="md-social__link">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M459.4 151.7c.3 4.5.3 9.1.3 13.6 0 138.7-105.6 298.6-298.6 298.6-59.5 0-114.7-17.2-161.1-47.1 8.4 1 16.6 1.3 25.3 1.3 49.1 0 94.2-16.6 130.3-44.8-46.1-1-84.8-31.2-98.1-72.8 6.5 1 13 1.6 19.8 1.6 9.4 0 18.8-1.3 27.6-3.6-48.1-9.7-84.1-52-84.1-103v-1.3c14 7.8 30.2 12.7 47.4 13.3-28.3-18.8-46.8-51-46.8-87.4 0-19.5 5.2-37.4 14.3-53C87.4 130.8 165 172.4 252.1 176.9c-1.6-7.8-2.6-15.9-2.6-24C249.5 95.1 296.3 48 354.4 48c30.2 0 57.5 12.7 76.7 33.1 23.7-4.5 46.5-13.3 66.6-25.3-7.8 24.4-24.4 44.8-46.1 57.8 21.1-2.3 41.6-8.1 60.4-16.2-14.3 20.8-32.2 39.3-52.6 54.3"/></svg>
+    <a href="https://bsky.app/profile/willfondrie.com" target="_blank" rel="noopener" title="bsky.app" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M407.8 294.7c-3.3-.4-6.7-.8-10-1.3 3.4.4 6.7.9 10 1.3M288 227.1c-26.1-50.7-97.1-145.2-163.1-191.8C61.6-9.4 37.5-1.7 21.6 5.5 3.3 13.8 0 41.9 0 58.4S9.1 194 15 213.9c19.5 65.7 89.1 87.9 153.2 80.7 3.3-.5 6.6-.9 10-1.4-3.3.5-6.6 1-10 1.4-93.9 14-177.3 48.2-67.9 169.9C220.6 589.1 265.1 437.8 288 361.1c22.9 76.7 49.2 222.5 185.6 103.4 102.4-103.4 28.1-156-65.8-169.9-3.3-.4-6.7-.8-10-1.3 3.4.4 6.7.9 10 1.3 64.1 7.1 133.6-15.1 153.2-80.7C566.9 194 576 75 576 58.4s-3.3-44.7-21.6-52.9c-15.8-7.1-40-14.9-103.2 29.8C385.1 81.9 314.1 176.4 288 227.1"/></svg>
     </a>
   
 </div>
