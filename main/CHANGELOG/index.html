@@ -2053,6 +2053,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 </ul>
 <h3 id="fixed">Fixed</h3>
 <ul>
+<li><code>StreamingSpectrumDataset</code> now respects <code>batch_size</code> for polars DataFrame and parquet file inputs. Previously, these inputs were yielded in batches that matched how the data was stored, regardless of <code>batch_size</code>.</li>
 <li><code>add_spectra()</code> can now add peak files to datasets created from polars DataFrames, which previously failed because of mismatched Arrow types.</li>
 </ul>
 <h2 id="v050">[v0.5.0]</h2>
