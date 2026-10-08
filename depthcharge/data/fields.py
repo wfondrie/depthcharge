@@ -31,4 +31,3 @@ class CustomField:
     name: str
     accessor: Callable
     dtype: pa.DataType
-    pad: bool = False

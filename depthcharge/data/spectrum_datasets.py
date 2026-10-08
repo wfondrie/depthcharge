@@ -68,6 +68,11 @@ class SpectrumDataset(LanceDataset):
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
         peak files that are provided. This argument has no affect for
         DataFrame or parquet file inputs.
+    pad_fields : str or iterable of str, optional
+        Additional list columns to pad into a single tensor for each batch,
+        in the same manner as the `mz_array` and `intensity_array` columns.
+        Each value in these columns must be a list of numbers. Missing
+        columns are ignored.
     **kwargs : dict
         Keyword arguments to initialize a
         `[lance.torch.data.LanceDataset](https://github.com/lance-format/lance/blob/92aa361099f42a40e9aa9f9915d041fe1dd30671/python/python/lance/torch/data.py#L177)`.
@@ -87,9 +92,11 @@ class SpectrumDataset(LanceDataset):
         batch_size: int,
         path: PathLike | None = None,
         parse_kwargs: dict | None = None,
+        pad_fields: str | Iterable[str] | None = None,
         **kwargs: dict,
     ) -> None:
         """Initialize a SpectrumDataset."""
+        self._pad_fields = _get_pad_fields(pad_fields)
         self._parse_kwargs = {} if parse_kwargs is None else parse_kwargs
         self._init_kwargs = copy.copy(self._parse_kwargs)
         self._init_kwargs["batch_size"] = 128
@@ -204,6 +211,7 @@ class SpectrumDataset(LanceDataset):
         path: PathLike,
         batch_size: int,
         parse_kwargs: dict | None = None,
+        pad_fields: str | Iterable[str] | None = None,
         **kwargs: dict,
     ) -> SpectrumDataset:
         """Load a previously created lance dataset.
@@ -218,6 +226,11 @@ class SpectrumDataset(LanceDataset):
         parse_kwargs : dict, optional
             Keyword arguments passed `depthcharge.spectra_to_stream()` for
             peak files that are provided.
+        pad_fields : str or iterable of str, optional
+            Additional list columns to pad into a single tensor for each batch,
+            in the same manner as the `mz_array` and `intensity_array` columns.
+            Each value in these columns must be a list of numbers. Missing
+            columns are ignored.
         **kwargs : dict
             Keyword arguments to initialize a
             `[lance.torch.data.LanceDataset](https://github.com/lance-format/lance/blob/92aa361099f42a40e9aa9f9915d041fe1dd30671/python/python/lance/torch/data.py#L177)`.
@@ -233,6 +246,7 @@ class SpectrumDataset(LanceDataset):
             batch_size=batch_size,
             path=path,
             parse_kwargs=parse_kwargs,
+            pad_fields=pad_fields,
             **kwargs,
         )
 
@@ -257,24 +271,7 @@ class SpectrumDataset(LanceDataset):
             The batch of data as a Python dict.
 
         """
-        batch = {k: _tensorize(v) for k, v in batch.to_pydict().items()}
-        batch["mz_array"] = nn.utils.rnn.pad_sequence(
-            batch["mz_array"],
-            batch_first=True,
-        )
-        batch["intensity_array"] = nn.utils.rnn.pad_sequence(
-            batch["intensity_array"],
-            batch_first=True,
-        )
-        custom_fields = self._parse_kwargs.get("custom_fields")
-        if custom_fields is not None:
-            for field in utils.listify(custom_fields):
-                if field.pad:
-                    batch[field.name] = nn.utils.rnn.pad_sequence(
-                        batch[field.name], batch_first=True
-                    )
-
-        return batch
+        return _to_tensor(batch, self._pad_fields)
 
 
 class AnnotatedSpectrumDataset(SpectrumDataset):
@@ -322,6 +319,11 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
         peak files that are provided. This argument has no affect for
         DataFrame or parquet file inputs.
+    pad_fields : str or iterable of str, optional
+        Additional list columns to pad into a single tensor for each batch,
+        in the same manner as the `mz_array` and `intensity_array` columns.
+        Each value in these columns must be a list of numbers. Missing
+        columns are ignored.
     **kwargs : dict
         Keyword arguments to initialize a
         `[lance.torch.data.LanceDataset](https://github.com/lance-format/lance/blob/92aa361099f42a40e9aa9f9915d041fe1dd30671/python/python/lance/torch/data.py#L177)`.
@@ -347,6 +349,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         batch_size: int,
         path: PathLike = None,
         parse_kwargs: dict | None = None,
+        pad_fields: str | Iterable[str] | None = None,
         **kwargs: dict,
     ) -> None:
         """Initialize an AnnotatedSpectrumDataset."""
@@ -357,6 +360,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             batch_size=batch_size,
             path=path,
             parse_kwargs=parse_kwargs,
+            pad_fields=pad_fields,
             **kwargs,
         )
 
@@ -397,6 +401,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         tokenizer: PeptideTokenizer,
         batch_size: int,
         parse_kwargs: dict | None = None,
+        pad_fields: str | Iterable[str] | None = None,
         **kwargs: dict,
     ) -> AnnotatedSpectrumDataset:
         """Load a previously created lance dataset.
@@ -416,6 +421,11 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         parse_kwargs : dict, optional
             Keyword arguments passed `depthcharge.spectra_to_stream()` for
             peak files that are provided.
+        pad_fields : str or iterable of str, optional
+            Additional list columns to pad into a single tensor for each batch,
+            in the same manner as the `mz_array` and `intensity_array` columns.
+            Each value in these columns must be a list of numbers. Missing
+            columns are ignored.
         **kwargs : dict
             Keyword arguments to initialize a
             `[lance.torch.data.LanceDataset](https://github.com/lance-format/lance/blob/92aa361099f42a40e9aa9f9915d041fe1dd30671/python/python/lance/torch/data.py#L177)`.
@@ -433,6 +443,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             batch_size=batch_size,
             path=path,
             parse_kwargs=parse_kwargs,
+            pad_fields=pad_fields,
             **kwargs,
         )
 
@@ -464,6 +475,11 @@ class StreamingSpectrumDataset(IterableDataset):
     batch_size : int
         The batch size to use for loading mass spectra. Note that this is
         independent from the batch size for the PyTorch DataLoader.
+    pad_fields : str or iterable of str, optional
+        Additional list columns to pad into a single tensor for each batch,
+        in the same manner as the `mz_array` and `intensity_array` columns.
+        Each value in these columns must be a list of numbers. Missing
+        columns are ignored.
     **parse_kwargs : dict
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
         peak files that are provided. This argument has no affect for
@@ -480,11 +496,13 @@ class StreamingSpectrumDataset(IterableDataset):
         self,
         spectra: pl.DataFrame | PathLike | Iterable[PathLike],
         batch_size: int,
+        pad_fields: str | Iterable[str] | None = None,
         **parse_kwargs: dict,
     ) -> None:
         """Initialize a StreamingSpectrumDataset."""
         super().__init__()
         self.batch_size = batch_size
+        self._pad_fields = _get_pad_fields(pad_fields)
         self._spectra = utils.listify(spectra)
         self._parse_kwargs = parse_kwargs
 
@@ -496,7 +514,7 @@ class StreamingSpectrumDataset(IterableDataset):
             **self._parse_kwargs,
         )
         for batch in records:
-            yield _to_tensor(batch)
+            yield _to_tensor(batch, self._pad_fields)
 
 
 def _get_records(
@@ -524,8 +542,27 @@ def _get_records(
         yield from spectra
 
 
+def _get_pad_fields(pad_fields: str | Iterable[str] | None) -> tuple[str]:
+    """Get the columns to pad in each batch.
+
+    Parameters
+    ----------
+    pad_fields : str or iterable of str, optional
+        Additional columns to pad.
+
+    Returns
+    -------
+    tuple of str
+        The columns to pad, including the mass spectrum arrays.
+
+    """
+    pad_fields = [] if pad_fields is None else utils.listify(pad_fields)
+    return tuple(dict.fromkeys(["mz_array", "intensity_array", *pad_fields]))
+
+
 def _to_tensor(
     batch: pa.RecordBatch,
+    pad_fields: Iterable[str] = ("mz_array", "intensity_array"),
 ) -> dict[str, torch.Tensor | list[str | torch.Tensor]]:
     """Convert a record batch to tensors.
 
@@ -533,6 +570,9 @@ def _to_tensor(
     ----------
     batch : pyarrow.RecordBatch
         The batch of data.
+    pad_fields : iterable of str
+        The columns to pad into a single tensor. Missing columns
+        are ignored.
 
     Returns
     -------
@@ -541,16 +581,44 @@ def _to_tensor(
 
     """
     batch = {k: _tensorize(v) for k, v in batch.to_pydict().items()}
-    batch["mz_array"] = nn.utils.rnn.pad_sequence(
-        batch["mz_array"],
-        batch_first=True,
-    )
+    for name in pad_fields:
+        if name in batch:
+            batch[name] = _pad(name, batch[name])
 
-    batch["intensity_array"] = nn.utils.rnn.pad_sequence(
-        batch["intensity_array"],
-        batch_first=True,
-    )
     return batch
+
+
+def _pad(
+    name: str,
+    values: torch.Tensor | list[torch.Tensor],
+) -> torch.Tensor:
+    """Pad a column of 1D tensors into a single 2D tensor.
+
+    Parameters
+    ----------
+    name : str
+        The column name, used for error messages.
+    values : torch.Tensor or list of torch.Tensor
+        The column values for the batch.
+
+    Returns
+    -------
+    torch.Tensor
+        The padded values, with shape (n_rows, max_length).
+
+    """
+    if isinstance(values, torch.Tensor) and values.ndim == 2:
+        return values  # All rows were the same length.
+
+    if isinstance(values, torch.Tensor) or not all(
+        isinstance(x, torch.Tensor) and x.ndim == 1 for x in values
+    ):
+        raise ValueError(
+            f"Cannot pad the '{name}' column. Padded columns must be lists "
+            "of numbers without missing values."
+        )
+
+    return nn.utils.rnn.pad_sequence(values, batch_first=True)
 
 
 def _tensorize(obj: Any) -> Any:  # noqa: ANN401
@@ -574,7 +642,7 @@ def _tensorize(obj: Any) -> Any:  # noqa: ANN401
 
     try:
         return torch.tensor(obj)
-    except ValueError:
+    except (ValueError, RuntimeError):
         obj = [_tensorize(x) for x in obj]
 
     return obj

@@ -196,42 +196,63 @@ def test_with_molecule_tokenizer():
     torch.testing.assert_close(dset.tokens, tokens)
 
 
-def test_custom_field_padding(tmp_path):
-    """Test padding custom fields."""
+def test_pad_fields(tmp_path):
+    """Test padding additional list columns."""
     spectra = pl.DataFrame(
         {
             "mz_array": [[1.0, 2.0], [3.0, 4.0, 5.0]],
             "intensity_array": [[10.0, 20.0], [30.0, 40.0, 50.0]],
             "custom_array": [[1.0, 2.0], [3.0, 4.0, 5.0]],
+            "scalar": [1.0, 2.0],
+            "nulls": [[1.0], None],
         }
     )
+    expected = torch.tensor([[1.0, 2.0, 0.0], [3.0, 4.0, 5.0]])
 
+    # Not padded by default:
+    dataset = SpectrumDataset(spectra, path=tmp_path / "test", batch_size=2)
+    assert isinstance(next(iter(dataset))["custom_array"], list)
+
+    # SpectrumDataset:
     dataset = SpectrumDataset(
         spectra,
         path=tmp_path / "test",
         batch_size=2,
-        parse_kwargs={
-            "custom_fields": CustomField(
-                "custom_array",
-                lambda x: x["custom_array"],
-                pa.list_(pa.float64()),
-                pad=True,
-            )
-        },
+        pad_fields="custom_array",
     )
-
     batch = next(iter(dataset))
+    torch.testing.assert_close(batch["custom_array"], expected)
+    torch.testing.assert_close(batch["mz_array"], expected)
 
-    assert batch["custom_array"].shape == (2, 3)
-    torch.testing.assert_close(
-        batch["custom_array"],
-        torch.tensor(
-            [
-                [1.0, 2.0, 0.0],
-                [3.0, 4.0, 5.0],
-            ]
-        ),
+    # Reopened from lance:
+    dataset = SpectrumDataset.from_lance(
+        tmp_path / "test.lance", 2, pad_fields=["custom_array"]
     )
+    torch.testing.assert_close(next(iter(dataset))["custom_array"], expected)
+
+    # Indexing:
+    torch.testing.assert_close(dataset[1]["custom_array"], expected[[1]])
+
+    # Missing columns are ignored:
+    dataset = SpectrumDataset.from_lance(
+        tmp_path / "test.lance",
+        2,
+        pad_fields=["custom_array", "missing"],
+        columns=["mz_array", "intensity_array"],
+    )
+    batch = next(iter(dataset))
+    assert "custom_array" not in batch
+    torch.testing.assert_close(batch["mz_array"], expected)
+
+    # Streaming:
+    dataset = StreamingSpectrumDataset(spectra, 2, pad_fields="custom_array")
+    torch.testing.assert_close(next(iter(dataset))["custom_array"], expected)
+
+    # Columns that can't be padded:
+    for field in ["scalar", "nulls"]:
+        dataset = StreamingSpectrumDataset(spectra, 2, pad_fields=field)
+        with pytest.raises(ValueError, match=f"pad the '{field}' column"):
+            next(iter(dataset))
 
 
 def test_pickle(tokenizer, tmp_path, mgf_small):
