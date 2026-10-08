@@ -400,3 +400,29 @@ def test_pickle(tokenizer, tmp_path, mgf_small):
         loaded = pickle.load(pkl)
 
     assert dataset.n_spectra == loaded.n_spectra
+
+
+def test_streaming_batch_size(tmp_path):
+    """Test that DataFrame and parquet inputs respect the batch size."""
+    spectra = pl.concat(
+        [
+            pl.DataFrame(
+                {
+                    "scan_id": [f"scan={i}"],
+                    "mz_array": [[1.0, 2.0]],
+                    "intensity_array": [[3.0, 4.0]],
+                }
+            )
+            for i in range(5)
+        ],
+        rechunk=False,
+    )
+    parquet_file = tmp_path / "spectra.parquet"
+    spectra.write_parquet(parquet_file)
+
+    for data in [spectra, spectra.lazy(), parquet_file]:
+        batches = list(StreamingSpectrumDataset(data, batch_size=2))
+        assert [len(b["scan_id"]) for b in batches] == [2, 2, 1]
+        assert [s for b in batches for s in b["scan_id"]] == [
+            f"scan={i}" for i in range(5)
+        ]
