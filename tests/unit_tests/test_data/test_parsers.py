@@ -88,7 +88,7 @@ def test_mgf_and_base(mgf_small):
         }
     ).with_columns(
         [
-            pl.col("intensity_array").cast(pl.List(pl.Float64)),
+            pl.col("intensity_array").cast(pl.List(pl.Float32)),
             pl.col("ms_level").cast(pl.UInt8),
             pl.col("precursor_charge").cast(pl.Int16),
         ]

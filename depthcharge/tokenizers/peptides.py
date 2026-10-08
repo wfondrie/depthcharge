@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import functools
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 import torch
 from pyteomics.proforma import GenericModification, MassModification
@@ -174,18 +175,21 @@ class PeptideTokenizer(Tokenizer):
             The tokens that comprise the peptide sequence.
 
         """
-        pep = self._parse_peptide(sequence)
-        if self.replace_isoleucine_with_leucine:
-            pep.sequence = pep.sequence.replace("I", "L")
-
-        pep = pep.split()
-        if self.replace_n_and_q_deamidated_with_d_and_e:
-            pep = [self.deamidated_to_acid.get(t, t) for t in pep]
-
-        if self.reverse:
-            pep.reverse()
-
-        return pep
+        return list(
+            _split_peptide(
+                sequence,
+                parse_fn=self._parse_peptide,
+                replace_isoleucine_with_leucine=(
+                    self.replace_isoleucine_with_leucine
+                ),
+                deamidated_to_acid=(
+                    tuple(self.deamidated_to_acid.items())
+                    if self.replace_n_and_q_deamidated_with_d_and_e
+                    else None
+                ),
+                reverse=self.reverse,
+            )
+        )
 
     def detokenize(
         self,
@@ -393,3 +397,51 @@ class MskbPeptideTokenizer(PeptideTokenizer):
     """
 
     _parse_peptide = Peptide.from_massivekb
+
+
+@functools.lru_cache(maxsize=2**18)
+def _split_peptide(
+    sequence: str,
+    parse_fn: Callable[[str], Peptide],
+    replace_isoleucine_with_leucine: bool,
+    deamidated_to_acid: tuple[tuple[str, str], ...] | None,
+    reverse: bool,
+) -> tuple[str, ...]:
+    """Split a peptide sequence into tokens, caching the result.
+
+    Parsing peptides is slow, and the same peptides are tokenized
+    repeatedly during training, so the results are cached.
+
+    Parameters
+    ----------
+    sequence : str
+        The peptide sequence.
+    parse_fn : Callable[[str], Peptide]
+        The function used to parse the peptide sequence.
+    replace_isoleucine_with_leucine : bool
+        Replace I with L residues.
+    deamidated_to_acid : tuple of tuple of str, optional
+        Pairs of deamidated residues and their replacements. If `None`,
+        deamidated residues are not replaced.
+    reverse : bool
+        Reverse the sequence, C-terminus to N-terminus.
+
+    Returns
+    -------
+    tuple of str
+        The tokens that comprise the peptide sequence.
+
+    """
+    pep = parse_fn(sequence)
+    if replace_isoleucine_with_leucine:
+        pep.sequence = pep.sequence.replace("I", "L")
+
+    pep = pep.split()
+    if deamidated_to_acid is not None:
+        replacements = dict(deamidated_to_acid)
+        pep = [replacements.get(t, t) for t in pep]
+
+    if reverse:
+        pep.reverse()
+
+    return tuple(pep)

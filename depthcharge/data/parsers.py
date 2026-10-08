@@ -70,12 +70,7 @@ class BaseParser(ABC):
         )
 
         if preprocessing_fn is None:
-            self.preprocessing_fn = [
-                preprocessing.set_mz_range(min_mz=140),
-                preprocessing.filter_intensity(max_num_peaks=200),
-                preprocessing.scale_intensity(scaling="root"),
-                preprocessing.scale_to_unit_norm,
-            ]
+            self.preprocessing_fn = [preprocessing._default]
         else:
             self.preprocessing_fn = utils.listify(preprocessing_fn)
 
@@ -100,7 +95,7 @@ class BaseParser(ABC):
                 pa.field("precursor_mz", pa.float64()),
                 pa.field("precursor_charge", pa.int16()),
                 pa.field("mz_array", pa.list_(pa.float64())),
-                pa.field("intensity_array", pa.list_(pa.float64())),
+                pa.field("intensity_array", pa.list_(pa.float32())),
             ]
         )
 
@@ -300,7 +295,7 @@ class MzmlParser(BaseParser):
 
     def open(self) -> Iterable[dict]:
         """Open the mzML file for reading."""
-        return MzML(str(self.peak_file))
+        return MzML(str(self.peak_file), use_index=False)
 
     def parse_spectrum(self, spectrum: dict) -> MassSpectrum | None:
         """Parse a single spectrum.
@@ -406,7 +401,7 @@ class MzxmlParser(BaseParser):
 
     def open(self) -> Iterable[dict]:
         """Open the mzXML file for reading."""
-        return MzXML(str(self.peak_file))
+        return MzXML(str(self.peak_file), use_index=False)
 
     def parse_spectrum(self, spectrum: dict) -> MassSpectrum | None:
         """Parse a single spectrum.

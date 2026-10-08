@@ -14,13 +14,19 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 import lance
+import numpy as np
 import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
 import torch
 from cloudpathlib import AnyPath
+from lance.sampler import Sampler
 from lance.torch.data import LanceDataset
-from torch import nn
+from lance.torch.dist import (
+    get_dist_world_size,
+    get_global_rank,
+    get_global_world_size,
+)
 from torch.utils.data import IterableDataset
 
 from .. import utils
@@ -44,10 +50,11 @@ class SpectrumDataset(LanceDataset):
 
     The `batch_size` parameter for this class independent of the `batch_size`
     of the PyTorch DataLoader. Generally, we only want the former parameter to
-    greater than 1. Additionally, this dataset should not be
-    used with a DataLoader set to `max_workers` > 1, unless specific care is
-    used to handle the
-    [caveats of a PyTorch IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset)
+    greater than 1. Batches are divided among DataLoader workers and
+    distributed training processes, so that each spectrum is loaded once per
+    epoch. When using DataLoader workers, start them with
+    `multiprocessing_context="spawn"` or `"forkserver"`, because Lance is not
+    safe to use in forked processes.
 
     Peak files are identified using a fingerprint of their contents
     (see `depthcharge.data.hash_peak_file()`), which is stored in the
@@ -89,6 +96,16 @@ class SpectrumDataset(LanceDataset):
         in the same manner as the `mz_array` and `intensity_array` columns.
         Each value in these columns must be a list of numbers. Missing
         columns are ignored.
+    shuffle : bool, optional
+        Shuffle the spectra in a new order each epoch. Blocks of `batch_size`
+        consecutive spectra are read in a random order, then the spectra are
+        shuffled within a buffer of 16 blocks. Shuffling cannot be combined
+        with the `filter`, `sampler`, `samples`, `shard_granularity`, or
+        `with_row_id` options of the `LanceDataset`.
+    seed : int, optional
+        The random seed for shuffling. If `None`, PyTorch's initial seed
+        (`torch.initial_seed()`) is used. In distributed training, every
+        process must use the same seed.
     **kwargs : dict
         Keyword arguments to initialize a
         `[lance.torch.data.LanceDataset](https://github.com/lance-format/lance/blob/92aa361099f42a40e9aa9f9915d041fe1dd30671/python/python/lance/torch/data.py#L177)`.
@@ -111,6 +128,8 @@ class SpectrumDataset(LanceDataset):
         parse_kwargs: dict | None = None,
         pad_fields: str | Iterable[str] | None = None,
         overwrite: bool = False,
+        shuffle: bool = False,
+        seed: int | None = None,
         **kwargs: dict,
     ) -> None:
         """Initialize a SpectrumDataset."""
@@ -160,7 +179,30 @@ class SpectrumDataset(LanceDataset):
         if "to_tensor_fn" not in kwargs:
             kwargs["to_tensor_fn"] = self._to_tensor
 
+        sampler = _get_sampler(shuffle, seed, kwargs)
+        if sampler is not None:
+            kwargs["sampler"] = sampler
+
         super().__init__(dataset, batch_size, **kwargs)
+
+    def set_epoch(self, epoch: int) -> None:
+        """Set the epoch, which determines the order of shuffled spectra.
+
+        The epoch is incremented each time the dataset is iterated over.
+        However, DataLoader workers start from the epoch of the dataset in
+        the main process, unless they are persistent. Without persistent
+        workers, a new order is still used each epoch, except during
+        distributed training. In that case, call this method before each
+        epoch, or use `persistent_workers=True` with the DataLoader.
+
+        Parameters
+        ----------
+        epoch : int
+            The epoch number.
+
+        """
+        if isinstance(self.sampler, _SpectrumSampler):
+            self.sampler.set_epoch(epoch)
 
     def add_spectra(
         self,
@@ -249,6 +291,8 @@ class SpectrumDataset(LanceDataset):
         batch_size: int,
         parse_kwargs: dict | None = None,
         pad_fields: str | Iterable[str] | None = None,
+        shuffle: bool = False,
+        seed: int | None = None,
         **kwargs: dict,
     ) -> SpectrumDataset:
         """Load a previously created lance dataset.
@@ -268,6 +312,17 @@ class SpectrumDataset(LanceDataset):
             in the same manner as the `mz_array` and `intensity_array` columns.
             Each value in these columns must be a list of numbers. Missing
             columns are ignored.
+        shuffle : bool, optional
+            Shuffle the spectra in a new order each epoch. Blocks of
+            `batch_size` consecutive spectra are read in a random order, then
+            the spectra are shuffled within a buffer of 16 blocks. Shuffling
+            cannot be combined with the `filter`, `sampler`, `samples`,
+            `shard_granularity`, or `with_row_id` options of the
+            `LanceDataset`.
+        seed : int, optional
+            The random seed for shuffling. If `None`, PyTorch's initial seed
+            (`torch.initial_seed()`) is used. In distributed training, every
+            process must use the same seed.
         **kwargs : dict
             Keyword arguments to initialize a
             `[lance.torch.data.LanceDataset](https://github.com/lance-format/lance/blob/92aa361099f42a40e9aa9f9915d041fe1dd30671/python/python/lance/torch/data.py#L177)`.
@@ -284,6 +339,8 @@ class SpectrumDataset(LanceDataset):
             path=path,
             parse_kwargs=parse_kwargs,
             pad_fields=pad_fields,
+            shuffle=shuffle,
+            seed=seed,
             **kwargs,
         )
 
@@ -324,10 +381,11 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
 
     The `batch_size` parameter for this class independent of the `batch_size`
     of the PyTorch DataLoader. Generally, we only want the former parameter to
-    greater than 1. Additionally, this dataset should not be
-    used with a DataLoader set to `max_workers` > 1, unless specific care is
-    used to handle the
-    [caveats of a PyTorch IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset)
+    greater than 1. Batches are divided among DataLoader workers and
+    distributed training processes, so that each spectrum is loaded once per
+    epoch. When using DataLoader workers, start them with
+    `multiprocessing_context="spawn"` or `"forkserver"`, because Lance is not
+    safe to use in forked processes.
 
     Peak files are identified using a fingerprint of their contents
     (see `depthcharge.data.hash_peak_file()`), which is stored in the
@@ -374,6 +432,16 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         in the same manner as the `mz_array` and `intensity_array` columns.
         Each value in these columns must be a list of numbers. Missing
         columns are ignored.
+    shuffle : bool, optional
+        Shuffle the spectra in a new order each epoch. Blocks of `batch_size`
+        consecutive spectra are read in a random order, then the spectra are
+        shuffled within a buffer of 16 blocks. Shuffling cannot be combined
+        with the `filter`, `sampler`, `samples`, `shard_granularity`, or
+        `with_row_id` options of the `LanceDataset`.
+    seed : int, optional
+        The random seed for shuffling. If `None`, PyTorch's initial seed
+        (`torch.initial_seed()`) is used. In distributed training, every
+        process must use the same seed.
     **kwargs : dict
         Keyword arguments to initialize a
         `[lance.torch.data.LanceDataset](https://github.com/lance-format/lance/blob/92aa361099f42a40e9aa9f9915d041fe1dd30671/python/python/lance/torch/data.py#L177)`.
@@ -402,6 +470,8 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         parse_kwargs: dict | None = None,
         pad_fields: str | Iterable[str] | None = None,
         overwrite: bool = False,
+        shuffle: bool = False,
+        seed: int | None = None,
         **kwargs: dict,
     ) -> None:
         """Initialize an AnnotatedSpectrumDataset."""
@@ -414,6 +484,8 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             parse_kwargs=parse_kwargs,
             pad_fields=pad_fields,
             overwrite=overwrite,
+            shuffle=shuffle,
+            seed=seed,
             **kwargs,
         )
 
@@ -455,6 +527,8 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         batch_size: int,
         parse_kwargs: dict | None = None,
         pad_fields: str | Iterable[str] | None = None,
+        shuffle: bool = False,
+        seed: int | None = None,
         **kwargs: dict,
     ) -> AnnotatedSpectrumDataset:
         """Load a previously created lance dataset.
@@ -479,6 +553,17 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             in the same manner as the `mz_array` and `intensity_array` columns.
             Each value in these columns must be a list of numbers. Missing
             columns are ignored.
+        shuffle : bool, optional
+            Shuffle the spectra in a new order each epoch. Blocks of
+            `batch_size` consecutive spectra are read in a random order, then
+            the spectra are shuffled within a buffer of 16 blocks. Shuffling
+            cannot be combined with the `filter`, `sampler`, `samples`,
+            `shard_granularity`, or `with_row_id` options of the
+            `LanceDataset`.
+        seed : int, optional
+            The random seed for shuffling. If `None`, PyTorch's initial seed
+            (`torch.initial_seed()`) is used. In distributed training, every
+            process must use the same seed.
         **kwargs : dict
             Keyword arguments to initialize a
             `[lance.torch.data.LanceDataset](https://github.com/lance-format/lance/blob/92aa361099f42a40e9aa9f9915d041fe1dd30671/python/python/lance/torch/data.py#L177)`.
@@ -497,6 +582,8 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             path=path,
             parse_kwargs=parse_kwargs,
             pad_fields=pad_fields,
+            shuffle=shuffle,
+            seed=seed,
             **kwargs,
         )
 
@@ -514,7 +601,7 @@ class StreamingSpectrumDataset(IterableDataset):
     The `batch_size` parameter for this class independent of the `batch_size`
     of the PyTorch DataLoader. Generally, we only want the former parameter to
     greater than 1. Additionally, this dataset should not be
-    used with a DataLoader set to `max_workers` > 1, unless specific care is
+    used with a DataLoader set to `num_workers` > 1, unless specific care is
     used to handle the
     [caveats of a PyTorch IterableDataset](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset)
 
@@ -568,6 +655,218 @@ class StreamingSpectrumDataset(IterableDataset):
         )
         for batch in records:
             yield _to_tensor(batch, self._pad_fields)
+
+
+class _SpectrumSampler(Sampler):
+    """Read batches of spectra, optionally in a random order.
+
+    Batches are divided among DataLoader workers and distributed training
+    processes when iteration starts, so that each spectrum is read once.
+
+    Parameters
+    ----------
+    shuffle : bool
+        Shuffle the spectra.
+    seed : int
+        The random seed for shuffling.
+    buffer_size : int, optional
+        The number of batches to shuffle spectra between.
+
+    """
+
+    def __init__(
+        self,
+        shuffle: bool,
+        seed: int,
+        buffer_size: int = 16,
+    ) -> None:
+        """Initialize the sampler."""
+        self.shuffle = shuffle
+        self.seed = seed
+        self.buffer_size = buffer_size
+        self.epoch = 0
+
+    def set_epoch(self, epoch: int) -> None:
+        """Set the epoch.
+
+        Parameters
+        ----------
+        epoch : int
+            The epoch number.
+
+        """
+        self.epoch = epoch
+
+    def __call__(
+        self,
+        dataset: lance.LanceDataset,
+        *args: tuple,
+        batch_size: int = 128,
+        columns: list[str] | dict[str, str] | None = None,
+        batch_readahead: int = 16,
+        **kwargs: dict,
+    ) -> Generator[pa.RecordBatch]:
+        """Yield batches of spectra.
+
+        Parameters
+        ----------
+        dataset : lance.LanceDataset
+            The dataset to read.
+        *args : tuple
+            Ignored.
+        batch_size : int, optional
+            The number of spectra in each batch.
+        columns : list of str or dict of str to str, optional
+            The columns to read.
+        batch_readahead : int, optional
+            The number of batches to read ahead.
+        **kwargs : dict
+            Ignored.
+
+        Yields
+        ------
+        pyarrow.RecordBatch
+            A batch of spectra.
+
+        """
+        rank, world_size = get_global_rank(), get_global_world_size()
+        n_rows = dataset.count_rows()
+        blocks = [
+            (start, min(start + batch_size, n_rows))
+            for start in range(0, n_rows, batch_size)
+        ]
+
+        rng = np.random.default_rng([self.seed, self.epoch, _shared_seed()])
+        self.epoch += 1
+        if self.shuffle:
+            blocks = [blocks[i] for i in rng.permutation(len(blocks))]
+
+        blocks = blocks[rank::world_size]
+        if not blocks:
+            return
+
+        # Lance's ShardedBatchSampler reads row ranges in the same way:
+        stream = dataset._ds.take_scan(
+            blocks,
+            columns=columns,
+            batch_readahead=batch_readahead,
+        )
+
+        if not self.shuffle:
+            yield from stream
+            return
+
+        buffer = []
+        for batch in stream:
+            buffer.append(batch)
+            if len(buffer) == self.buffer_size:
+                yield from _shuffle_batches(buffer, rng, batch_size)
+                buffer = []
+
+        if buffer:
+            yield from _shuffle_batches(buffer, rng, batch_size)
+
+
+def _shuffle_batches(
+    batches: list[pa.RecordBatch],
+    rng: np.random.Generator,
+    batch_size: int,
+) -> list[pa.RecordBatch]:
+    """Shuffle the rows between record batches.
+
+    Parameters
+    ----------
+    batches : list of pyarrow.RecordBatch
+        The record batches to shuffle.
+    rng : numpy.random.Generator
+        The random number generator.
+    batch_size : int
+        The maximum number of rows in each output batch.
+
+    Returns
+    -------
+    list of pyarrow.RecordBatch
+        The shuffled record batches.
+
+    """
+    table = pa.Table.from_batches(batches)
+    table = table.take(rng.permutation(table.num_rows))
+    return table.combine_chunks().to_batches(batch_size)
+
+
+def _shared_seed() -> int:
+    """Get a seed that is shared by the DataLoader workers for an epoch.
+
+    The DataLoader chooses a new base seed for its workers each epoch,
+    unless they are persistent. However, the base seed differs between
+    distributed training processes, so it is not used in that case.
+
+    Returns
+    -------
+    int
+        The base seed of the DataLoader workers, or 0 if not in a DataLoader
+        worker or during distributed training.
+
+    """
+    info = torch.utils.data.get_worker_info()
+    if info is None or get_dist_world_size() > 1:
+        return 0
+
+    return info.seed - info.id
+
+
+def _get_sampler(
+    shuffle: bool,
+    seed: int | None,
+    kwargs: dict,
+) -> _SpectrumSampler | None:
+    """Get the sampler for a dataset.
+
+    Parameters
+    ----------
+    shuffle : bool
+        Shuffle the spectra.
+    seed : int or None
+        The random seed for shuffling.
+    kwargs : dict
+        The keyword arguments for the LanceDataset.
+
+    Returns
+    -------
+    _SpectrumSampler or None
+        The sampler, or `None` if the LanceDataset options require one
+        of Lance's samplers.
+
+    Raises
+    ------
+    ValueError
+        Raised if shuffling is combined with incompatible options.
+
+    """
+    incompatible = [
+        key
+        for key in [
+            "filter",
+            "sampler",
+            "samples",
+            "shard_granularity",
+            "with_row_id",
+            "rank",
+            "world_size",
+        ]
+        if kwargs.get(key)
+    ]
+    if incompatible:
+        if shuffle:
+            raise ValueError(
+                "Shuffling cannot be combined with the following options: "
+                f"{', '.join(incompatible)}."
+            )
+
+        return None
+
+    seed = torch.initial_seed() if seed is None else seed
+    return _SpectrumSampler(shuffle=shuffle, seed=seed)
 
 
 def _get_records(
@@ -883,45 +1182,113 @@ def _to_tensor(
         The batch of data as a Python dict.
 
     """
-    batch = {k: _tensorize(v) for k, v in batch.to_pydict().items()}
-    for name in pad_fields:
-        if name in batch:
-            batch[name] = _pad(name, batch[name])
+    out = {}
+    for name, column in zip(batch.schema.names, batch.columns):
+        if isinstance(column, pa.ChunkedArray):
+            column = column.combine_chunks()
 
-    return batch
+        values = _column_to_tensor(column, pad=name in pad_fields)
+        if values is None:
+            if name in pad_fields:
+                raise ValueError(
+                    f"Cannot pad the '{name}' column. Padded columns must be "
+                    "lists of numbers without missing values."
+                )
+
+            # Fall back to converting Python objects:
+            values = _tensorize(column.to_pylist())
+
+        out[name] = values
+
+    return out
 
 
-def _pad(
-    name: str,
-    values: torch.Tensor | list[torch.Tensor],
-) -> torch.Tensor:
-    """Pad a column of 1D tensors into a single 2D tensor.
+def _column_to_tensor(
+    column: pa.Array,
+    pad: bool = False,
+) -> torch.Tensor | list[torch.Tensor] | None:
+    """Convert a numeric Arrow column to tensors without Python objects.
+
+    The resulting tensors have the same data types as those created by
+    `torch.tensor()` from the equivalent Python objects.
 
     Parameters
     ----------
-    name : str
-        The column name, used for error messages.
-    values : torch.Tensor or list of torch.Tensor
-        The column values for the batch.
+    column : pyarrow.Array
+        The column to convert.
+    pad : bool, optional
+        Pad a list column into a single 2D tensor. Otherwise, rows of a list
+        column with different lengths are returned as a list of 1D tensors.
 
     Returns
     -------
-    torch.Tensor
-        The padded values, with shape (n_rows, max_length).
+    torch.Tensor, list of torch.Tensor, or None
+        The converted column, or `None` if the column is not a numeric
+        or list of numeric column without missing values.
 
     """
-    if isinstance(values, torch.Tensor) and values.ndim == 2:
-        return values  # All rows were the same length.
+    if not len(column) or column.null_count:
+        return None
 
-    if isinstance(values, torch.Tensor) or not all(
-        isinstance(x, torch.Tensor) and x.ndim == 1 for x in values
-    ):
-        raise ValueError(
-            f"Cannot pad the '{name}' column. Padded columns must be lists "
-            "of numbers without missing values."
-        )
+    is_list = pa.types.is_list(column.type) or pa.types.is_large_list(
+        column.type
+    )
 
-    return nn.utils.rnn.pad_sequence(values, batch_first=True)
+    if is_list:
+        lengths = torch.from_numpy(np.diff(column.offsets.to_numpy()))
+        column = column.flatten()
+        if column.null_count:
+            return None
+    elif pad:
+        return None
+
+    dtype = _torch_dtype(column.type)
+    if dtype is None:
+        return None
+
+    # Copy, because Arrow memory is read-only:
+    values = torch.tensor(column.to_numpy(zero_copy_only=False), dtype=dtype)
+    if not is_list:
+        return values
+
+    max_length = int(lengths.max())
+    if bool((lengths == max_length).all()):
+        return values.reshape(len(lengths), max_length)
+
+    if not pad:
+        return list(values.split(lengths.tolist()))
+
+    mask = torch.arange(max_length) < lengths[:, None]
+    padded = torch.zeros((len(lengths), max_length), dtype=dtype)
+    padded[mask] = values
+    return padded
+
+
+def _torch_dtype(arrow_type: pa.DataType) -> torch.dtype | None:
+    """Get the PyTorch data type for an Arrow data type.
+
+    Parameters
+    ----------
+    arrow_type : pyarrow.DataType
+        The Arrow data type.
+
+    Returns
+    -------
+    torch.dtype or None
+        The data type that `torch.tensor()` uses for the equivalent Python
+        objects, or `None` if the Arrow data type is not numeric.
+
+    """
+    if pa.types.is_floating(arrow_type):
+        return torch.get_default_dtype()
+
+    if pa.types.is_integer(arrow_type):
+        return torch.int64
+
+    if pa.types.is_boolean(arrow_type):
+        return torch.bool
+
+    return None
 
 
 def _tensorize(obj: Any) -> Any:  # noqa: ANN401

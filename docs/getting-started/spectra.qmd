@@ -196,7 +196,7 @@ print(dataset.n_spectra, dataset.peak_file_hashes)
 The `SpectrumDataset` and `AnnotatedSpectrumDataset` use the native [PyTorch integration in Lance](https://lance.org/integrations/pytorch) and all of the corresponding parameters are available as keyword arguments.
 Furthermore, all three of these classes are [PyTorch `IterableDataset` classes](https://pytorch.org/docs/stable/data.html#iterable-style-datasets), so they are ready to be used directly to train and evaluate deep learning models with PyTorch.
 
-**A word of caution:** the batch size and any parallelism are best handled by the dataset class itself rather than the PyTorch `DataLoader`; hence, we recommend initializing `DataLoaders` with `num_workers` <= 1 and `batch_size` = 1, or simply:
+**A word of caution:** the batch size is best handled by the dataset class itself rather than the PyTorch `DataLoader`; hence, we recommend initializing `DataLoaders` with `batch_size=None`:
 
 ```{python}
 from torch.utils.data import DataLoader
@@ -209,6 +209,31 @@ for batch in loader:
 
 Within each batch, the `mz_array` and `intensity_array` columns are padded with zeros to the length of the longest mass spectrum, yielding a single tensor for each.
 Other list columns, such as those extracted with a `CustomField`, can be padded in the same manner using the `pad_fields` parameter of the dataset classes.
+
+By default, mass spectra are loaded in the order they were added.
+For training, we can instead load them in a new random order each epoch with `shuffle=True`, optionally specifying a `seed`:
+
+```{python}
+shuffled = SpectrumDataset.from_lance(dataset.path, batch_size=2, shuffle=True, seed=1)
+for batch in DataLoader(shuffled, batch_size=None):
+    print(batch["scan_id"])
+```
+
+The `SpectrumDataset` and `AnnotatedSpectrumDataset` can also be loaded with multiple `DataLoader` workers, which divide the batches among themselves so that each mass spectrum is loaded once per epoch.
+Lance is not safe to use in forked processes, so start the workers with the `"spawn"` or `"forkserver"` method.
+Starting workers takes a few seconds, so we recommend keeping them alive between epochs with `persistent_workers=True`:
+
+```python
+loader = DataLoader(
+    shuffled,
+    batch_size=None,
+    num_workers=4,
+    multiprocessing_context="spawn",
+    persistent_workers=True,
+)
+```
+
+The `StreamingSpectrumDataset` should be used with at most one worker.
 
 ### Datasets of Annotated Mass Spectra
 
