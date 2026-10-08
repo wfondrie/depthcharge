@@ -37,6 +37,13 @@ These classes are compound classes: they often combine the appropriate encoders 
 
 Transformers live in the [transformers submodule](transformers).
 
+## Feed-forward networks
+
+Many models need a simple feed-forward neural network, such as to make predictions from the representations learned by a Transformer.
+Depthcharge provides a flexible `FeedForward` module for this purpose.
+
+The `FeedForward` module lives in the [feedforward submodule](feedforward).
+
 ## Primitives
 
 Although most users will not interact with our primitive classes directly, they are the building blocks for representing mass spectrometry data types.

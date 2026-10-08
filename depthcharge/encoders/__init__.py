@@ -1,4 +1,4 @@
-"""Avalailable encoders."""
+"""Available encoders."""
 
 from .sinusoidal import (
     FloatEncoder,

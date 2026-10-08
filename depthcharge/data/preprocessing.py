@@ -1,40 +1,61 @@
 """Preprocessing functions for mass spectra.
 
-These functions can be used with datasets (`SpectrumDataset` and
-`AnnotatedSpectrumDataset`).
+Preprocessing functions are applied to each mass spectrum during parsing,
+using the `preprocessing_fn` parameter of `spectra_to_df()`,
+`spectra_to_parquet()`, and `spectra_to_stream()`. For datasets, pass
+`preprocessing_fn` in `parse_kwargs` (`SpectrumDataset` and
+`AnnotatedSpectrumDataset`) or as a keyword argument
+(`StreamingSpectrumDataset`). To apply preprocessing steps sequentially, pass
+a list of functions.
 
-One or more preprocessing function can be applied to each mass spectrum during
-dataset preparation using the `preprocessing_fn` parameter of these classes. To
-apply preprocessing steps sequentially, pass a list of functions to this
-argument.
+The following functions wrap the
+[spectrum_utils](https://spectrum-utils.readthedocs.io) `MsmsSpectrum`
+methods of the same name. Calling one with that method's arguments returns a
+preprocessing function:
+
+- `filter_intensity()`
+- `remove_precursor_peak()`
+- `round()`
+- `scale_intensity()`
+- `set_mz_range()`
+
+Additionally, `scale_to_unit_norm()` is a preprocessing function itself.
 
 We can also define custom preprocessing functions. All preprocessing functions
-must accept a ``MassSpectrum`` as their only argument and return a
-``MassSpectrum``. If a ``Mass Spectrum`` is invalid, the function should raise
-a ``ValueError``.
+must accept a `MassSpectrum` as their only argument and return a
+`MassSpectrum`. If a `MassSpectrum` is invalid, the function should raise a
+`ValueError` and the spectrum will be skipped.
 
 ### Examples
 
-Remove the peaks around the precursor m/z then square root transform
+Remove the peaks around the precursor m/z, then square root transform
 intensities and scale to unit norm:
-```Python
+```python
+from depthcharge.data import SpectrumDataset, preprocessing
+
 SpectrumDataset(
     ...,
-    preprocessing_fn=[
-        preprocessing.remove_precursor_peak,
-        preprocessing.sqrt_and_norm,
-    ],
+    parse_kwargs={
+        "preprocessing_fn": [
+            preprocessing.remove_precursor_peak(0.1, "Da"),
+            preprocessing.scale_intensity("root"),
+            preprocessing.scale_to_unit_norm,
+        ],
+    },
 )
 ```
 
 Apply a custom function:
-```Python
-def my_func(spec: MassSpectrum) -> MassSpectrum:
-    spec._inner._intensity = np.log(spectrum.intensity)
+```python
+import numpy as np
+
+def log_intensity(spectrum: MassSpectrum) -> MassSpectrum:
+    spectrum.intensity = np.log1p(spectrum.intensity)
+    return spectrum
 
 SpectrumDataset(
     ...,
-    preprocessing_fn=my_func,
+    parse_kwargs={"preprocessing_fn": log_intensity},
 )
 ```
 
@@ -57,7 +78,7 @@ def scale_to_unit_norm(spectrum: MassSpectrum) -> MassSpectrum:
 
 
 def _spectrum_utils_fn(func: str) -> Callable:
-    """Wrap spectrum_utils.spectrum.MmsmsSpectrum preprocessing methods."""
+    """Wrap spectrum_utils.spectrum.MsmsSpectrum preprocessing methods."""
 
     @wraps(getattr(MassSpectrum, func))
     def wrapper(
@@ -79,7 +100,7 @@ def _spectrum_utils_fn(func: str) -> Callable:
         Returns
         -------
         Callable
-            A valid deptcharge preprocessing function.
+            A valid depthcharge preprocessing function.
 
         """
 

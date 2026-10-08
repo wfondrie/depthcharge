@@ -39,7 +39,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.readme]
-file = "REAMDE.md"
+file = "README.md"
 content-type = "text/markdown"
 
 [project.urls]

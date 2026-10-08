@@ -42,7 +42,7 @@ class PeptideTokenizer(Tokenizer):
     ----------
     residues : SortedDict[str, float]
         The residues and modifications and their associated masses.
-        terminal modifcations are indicated by `-`.
+        terminal modifications are indicated by `-`.
     deamidated_to_acid : dict[str, str]
         The deamidated residues and the residues that replace them when
         `replace_n_and_q_deamidated_with_d_and_e` is used.
@@ -194,7 +194,7 @@ class PeptideTokenizer(Tokenizer):
         trim_start_token: bool = True,
         trim_stop_token: bool = True,
     ) -> list[str] | list[list[str]]:
-        """Retreive sequences from tokens.
+        """Retrieve sequences from tokens.
 
         Parameters
         ----------
@@ -238,7 +238,7 @@ class PeptideTokenizer(Tokenizer):
         start_token: str | None = None,
         stop_token: str | None = "$",
     ) -> PeptideTokenizer:
-        """Create a tokenizer with the observed peptide modications.
+        """Create a tokenizer with the observed peptide modifications.
 
         Modifications are parsed from ProForma 2.0-compliant peptide strings
         and added to the vocabulary.
@@ -313,7 +313,7 @@ class PeptideTokenizer(Tokenizer):
         start_token: str | None = None,
         stop_token: str | None = "$",
     ) -> MskbPeptideTokenizer:
-        """Create a tokenizer with the observed peptide modications.
+        """Create a tokenizer with the observed peptide modifications.
 
         Modifications are parsed from MassIVE-KB peptide strings
         and added to the vocabulary.
@@ -377,7 +377,7 @@ class MskbPeptideTokenizer(PeptideTokenizer):
     ----------
     residues : SortedDict[str, float]
         The residues and modifications and their associated masses.
-        terminal modifcations are indicated by `-`.
+        terminal modifications are indicated by `-`.
     index : SortedDicte{str, int}
         The mapping of residues and modifications to integer representations.
     reverse_index : list[None | str]
