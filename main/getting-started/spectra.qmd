@@ -1,3 +1,6 @@
+---
+jupyter: python3
+---
 # Modeling Mass Spectra
 
 We think that the biggest barriers to building deep learning models for mass spectra are (1) parsing the data into a reasonable format, (2) representing the mass spectra in an efficient manner for learning, (3) constructing models that leverage the structure of the data in a mass spectrum.
@@ -160,7 +163,7 @@ For this task, Depthcharge provides three dataset classes for mass spectra:
 - `AnnotatedSpectrumDataset` - Use this class for training on annotated mass spectra, such as peptide-spectrum matches.
 - `StreamingSpectrumDataset` - Use this class for running inference on mass spectra.
 
-The `SpectrumDataset` and `AnnotatedSpectrumDataset` classes parse spectra into a [Lance dataset](https://lancedb.github.io/lance/index.html#) which allows for efficient on-disk storage and fast random access of the stored spectra.
+The `SpectrumDataset` and `AnnotatedSpectrumDataset` classes parse spectra into a [Lance dataset](https://lance.org) which allows for efficient on-disk storage and fast random access of the stored spectra.
 
 All of these classes can be created from the same mass spectrometry data formats as above, or can be created from previously parsed mass spectra as dataframes or Parquet files.
 Furthermore, when doing the former, all of the same features for preprocessing and adding additional data are available using the `parse_kwargs` parameter.
@@ -174,7 +177,7 @@ parse_kwargs = {"progress": False}
 dataset = SpectrumDataset(mzml_file, batch_size=2, parse_kwargs=parse_kwargs)
 ```
 
-The `SpectrumDataset` and `AnnoatatedSpectrumDataset` use the native [PyTorch integration in Lance](https://lancedb.github.io/lance/integrations/pytorch.html) and all of the corresponding parameters are available as keyword arguments.
+The `SpectrumDataset` and `AnnoatatedSpectrumDataset` use the native [PyTorch integration in Lance](https://lance.org/integrations/pytorch) and all of the corresponding parameters are available as keyword arguments.
 Furthermore, all three of these classes are [PyTorch `IterableDataset` classes](https://pytorch.org/docs/stable/data.html#iterable-style-datasets), so they are ready to be used directly to train and evaulate deep learning models with PyTorch.
 
 **A word of caution:** the batch size and any parallelism a best handled by the dataset class itself rather than the PyTorch `DataLoader`; hence, we recommend initializing `DataLoaders` with `num_workers` <= 1 and `batch_size` = 1, or simply:
