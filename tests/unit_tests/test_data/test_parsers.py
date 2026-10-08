@@ -1,11 +1,13 @@
 """Test that parsers work."""
 
+import shutil
+
 import polars as pl
 import pyarrow as pa
 import pytest
 from polars.testing import assert_frame_equal, assert_series_equal
 
-from depthcharge.data import CustomField
+from depthcharge.data import CustomField, hash_peak_file
 from depthcharge.data.parsers import (
     MgfParser,
     MzmlParser,
@@ -73,6 +75,7 @@ def test_mgf_and_base(mgf_small):
     expected = pl.DataFrame(
         {
             "peak_file": [mgf_small.name] * 2,
+            "peak_file_hash": [hash_peak_file(mgf_small)] * 2,
             "scan_id": ["index=0", "index=1"],
             "ms_level": [2, 2],
             "precursor_mz": [416.24474357, 257.464565],
@@ -91,25 +94,25 @@ def test_mgf_and_base(mgf_small):
         ]
     )
 
-    assert parsed.shape == (2, 7)
+    assert parsed.shape == (2, 8)
     assert_frame_equal(parsed, expected)
 
     parsed = pl.from_arrow(
         MgfParser(mgf_small, valid_charge=[2]).iter_batches(2),
     )
-    assert parsed.shape == (1, 7)
+    assert parsed.shape == (1, 8)
     assert isinstance(ParserFactory.get_parser(mgf_small), MgfParser)
 
 
 @pytest.mark.parametrize(
     ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
     [
-        (2, None, None, None, (4, 7)),
-        (1, None, None, None, (4, 7)),
-        (3, None, None, None, (3, 7)),
-        (2, None, [3], None, (3, 7)),
-        (None, None, None, None, (11, 7)),
-        (2, scale_to_unit_norm, None, MZML_FIELD, (4, 8)),
+        (2, None, None, None, (4, 8)),
+        (1, None, None, None, (4, 8)),
+        (3, None, None, None, (3, 8)),
+        (2, None, [3], None, (3, 8)),
+        (None, None, None, None, (11, 8)),
+        (2, scale_to_unit_norm, None, MZML_FIELD, (4, 9)),
     ],
 )
 def test_mzml(
@@ -131,12 +134,12 @@ def test_mzml(
 @pytest.mark.parametrize(
     ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
     [
-        (2, None, None, None, (4, 7)),
-        (1, None, None, None, (4, 7)),
-        (3, None, None, None, (3, 7)),
-        (2, None, [3], None, (3, 7)),
-        (None, None, None, None, (11, 7)),
-        (2, scale_to_unit_norm, None, MZXML_FIELD, (4, 8)),
+        (2, None, None, None, (4, 8)),
+        (1, None, None, None, (4, 8)),
+        (3, None, None, None, (3, 8)),
+        (2, None, [3], None, (3, 8)),
+        (None, None, None, None, (11, 8)),
+        (2, scale_to_unit_norm, None, MZXML_FIELD, (4, 9)),
     ],
 )
 def test_mzxml(
@@ -158,12 +161,12 @@ def test_mzxml(
 @pytest.mark.parametrize(
     ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
     [
-        (2, None, None, None, (7, 7)),
-        (1, None, None, None, (7, 7)),
-        (3, None, None, None, (7, 7)),
-        (2, None, [3], None, (3, 7)),
-        (None, None, None, None, (7, 7)),
-        (2, scale_to_unit_norm, None, MGF_FIELD, (7, 8)),
+        (2, None, None, None, (7, 8)),
+        (1, None, None, None, (7, 8)),
+        (3, None, None, None, (7, 8)),
+        (2, None, [3], None, (3, 8)),
+        (None, None, None, None, (7, 8)),
+        (2, scale_to_unit_norm, None, MGF_FIELD, (7, 9)),
     ],
 )
 def test_mgf(
@@ -185,10 +188,10 @@ def test_mgf(
 @pytest.mark.parametrize(
     ["ms_level", "preprocessing_fn", "valid_charge", "custom_fields", "shape"],
     [
-        (2, None, None, None, (3, 7)),
-        (2, None, [3], None, (1, 7)),
-        (None, None, None, None, (3, 7)),
-        (None, scale_to_unit_norm, None, None, (3, 7)),
+        (2, None, None, None, (3, 8)),
+        (2, None, [3], None, (1, 8)),
+        (None, None, None, None, (3, 8)),
+        (None, scale_to_unit_norm, None, None, (3, 8)),
     ],
 )
 def test_tdf(
@@ -260,3 +263,61 @@ def test_invalid_file(tmp_path):
 
     with pytest.raises(OSError):
         ParserFactory().get_parser(tmp_path / "blah.txt")
+
+
+def test_hash_peak_file(mgf_small, tmp_path):
+    """Test peak file fingerprints."""
+    expected = hash_peak_file(mgf_small)
+    assert len(expected) == 32
+
+    # A copy in another directory has the same hash:
+    copied = tmp_path / "copy" / mgf_small.name
+    copied.parent.mkdir()
+    shutil.copy(mgf_small, copied)
+    assert hash_peak_file(copied) == expected
+
+    # A file with the same name but different contents does not:
+    modified = tmp_path / "modified" / mgf_small.name
+    modified.parent.mkdir()
+    modified.write_text(mgf_small.read_text() + "\n")
+    assert hash_peak_file(modified) != expected
+
+
+def test_hash_large_file(tmp_path):
+    """Test that only the start, end, and size of large files are used."""
+    n_bytes = 1024
+    data = bytearray(range(256)) * 16  # 4096 bytes
+
+    def write_hash(name, contents):
+        path = tmp_path / name
+        path.write_bytes(bytes(contents))
+        return hash_peak_file(path, n_bytes=n_bytes)
+
+    original = write_hash("original", data)
+
+    changed_end = data.copy()
+    changed_end[-1] ^= 1
+    assert write_hash("end", changed_end) != original
+
+    changed_start = data.copy()
+    changed_start[0] ^= 1
+    assert write_hash("start", changed_start) != original
+
+    # The middle is not read:
+    changed_middle = data.copy()
+    changed_middle[2048] ^= 1
+    assert write_hash("middle", changed_middle) == original
+
+    assert write_hash("longer", data + b"\0") != original
+
+
+def test_hash_directory(real_tdf, tmp_path):
+    """Test fingerprints of directories, such as Bruker .d."""
+    expected = hash_peak_file(real_tdf)
+
+    copied = tmp_path / real_tdf.name
+    shutil.copytree(real_tdf, copied)
+    assert hash_peak_file(copied) == expected
+
+    (copied / "extra.txt").write_text("extra")
+    assert hash_peak_file(copied) != expected

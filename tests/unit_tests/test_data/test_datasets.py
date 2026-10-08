@@ -15,6 +15,7 @@ from depthcharge.data import (
     SpectrumDataset,
     StreamingSpectrumDataset,
     arrow,
+    hash_peak_file,
 )
 from depthcharge.testing import assert_dicts_equal
 from depthcharge.tokenizers import MoleculeTokenizer, PeptideTokenizer
@@ -26,19 +27,57 @@ def tokenizer():
     return PeptideTokenizer()
 
 
+def _modified_copy(peak_file, new_file):
+    """Copy a peak file, changing its contents but not its spectra."""
+    new_file.parent.mkdir(parents=True, exist_ok=True)
+    new_file.write_text(peak_file.read_text() + "\n")
+    return new_file
+
+
 def test_addition(mgf_small, tmp_path):
     """Testing adding a file."""
     dataset = SpectrumDataset(mgf_small, path=tmp_path / "test", batch_size=1)
     assert dataset.n_spectra == 2
+    assert dataset.peak_file_hashes == [hash_peak_file(mgf_small)]
 
-    dataset = dataset.add_spectra(mgf_small)
+    # Adding the same file again is skipped:
+    with pytest.warns(UserWarning, match="Skipped 1 peak file"):
+        dataset = dataset.add_spectra(mgf_small)
+
+    assert dataset.n_spectra == 2
+
+    # Even if it is a copy in a different directory:
+    copied = tmp_path / "other" / mgf_small.name
+    copied.parent.mkdir()
+    shutil.copy(mgf_small, copied)
+    with pytest.warns(UserWarning, match="No new spectra"):
+        dataset = dataset.add_spectra(copied)
+
+    assert dataset.n_spectra == 2
+
+    # A different file with the same name is added:
+    modified = _modified_copy(mgf_small, tmp_path / "new" / mgf_small.name)
+    dataset = dataset.add_spectra(modified)
     assert dataset.n_spectra == 4
+    assert dataset.peak_files == [mgf_small.name]
+    assert sorted(dataset.peak_file_hashes) == sorted(
+        [hash_peak_file(mgf_small), hash_peak_file(modified)]
+    )
+
+
+def test_duplicate_inputs(mgf_small, tmp_path):
+    """Test that the same peak file is only added once."""
+    with pytest.warns(UserWarning, match=r"already added .*: small\.mgf$"):
+        dataset = SpectrumDataset(
+            [mgf_small, mgf_small], path=tmp_path / "test", batch_size=1
+        )
+
+    assert dataset.n_spectra == 2
 
 
 def test_indexing(tokenizer, mgf_small, tmp_path):
     """Test retrieving spectra."""
-    mgf_small2 = tmp_path / "mgf_small2.mgf"
-    shutil.copy(mgf_small, mgf_small2)
+    mgf_small2 = _modified_copy(mgf_small, tmp_path / "mgf_small2.mgf")
 
     dataset = SpectrumDataset(
         [mgf_small, mgf_small2], path=tmp_path / "test", batch_size=1
@@ -47,7 +86,8 @@ def test_indexing(tokenizer, mgf_small, tmp_path):
     assert dataset.path == tmp_path / "test.lance"
 
     spec = dataset[0]
-    assert len(spec) == 7
+    assert len(spec) == 8
+    assert spec["peak_file_hash"] == [hash_peak_file(mgf_small)]
     assert spec["peak_file"] == ["small.mgf"]
     assert spec["scan_id"] == ["index=0"]
     assert spec["ms_level"].item() == 2
@@ -69,7 +109,7 @@ def test_indexing(tokenizer, mgf_small, tmp_path):
         parse_kwargs=parse_kwargs,
     )
     spec = dataset[0]
-    assert len(spec) == 8
+    assert len(spec) == 9
     assert spec["mz_array"].shape == (
         1,
         14,
@@ -109,7 +149,7 @@ def test_load(tokenizer, tmp_path, mgf_small):
     dataset = AnnotatedSpectrumDataset.from_lance(db_path, "seq", tokenizer, 1)
 
     spec = dataset[0]
-    assert len(spec) == 8
+    assert len(spec) == 9
     assert spec["mz_array"].shape == (1, 14)
     torch.testing.assert_close(
         spec["seq"], tokenizer.tokenize(["LESLIEK"], add_stop=True)
@@ -123,7 +163,7 @@ def test_load(tokenizer, tmp_path, mgf_small):
 
     dataset = SpectrumDataset.from_lance(db_path, 1)
     spec = dataset[0]
-    assert len(spec) == 8
+    assert len(spec) == 9
     assert spec["peak_file"] == ["small.mgf"]
     assert spec["scan_id"] == ["index=0"]
     assert spec["ms_level"] == 2

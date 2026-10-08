@@ -5,7 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Added the `peak_file_hash` column to parsed mass spectra, which contains a fingerprint of the contents of the originating peak file. This distinguishes peak files that share the same name.
+- Added `depthcharge.data.hash_peak_file()`, which quickly computes the fingerprint of a peak file from its size and first and last 1 MiB.
+- Added the `peak_file_hashes` property to `SpectrumDataset` and `AnnotatedSpectrumDataset`.
+
 ### Changed
+- `SpectrumDataset` and `AnnotatedSpectrumDataset` now skip peak files that have already been added, as determined by their `peak_file_hash`, with a warning.
+- Because of the new `peak_file_hash` column, `add_spectra()` cannot add peak files to Lance datasets that were created with previous versions of depthcharge.
 - `preprocessing.scale_to_unit_norm()`, which is part of the default `preprocessing_fn`, now scales intensities to an L2 norm of 1. Previously, it divided intensities by their sum, so they summed to 1 instead. Models trained with the previous behavior may need to be retrained or use the previous function as a custom `preprocessing_fn`.
 
 ## [v0.5.0]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import warnings
 from abc import ABC, abstractmethod
@@ -84,6 +85,7 @@ class BaseParser(ABC):
 
         # Check format:
         self.sniff()
+        self.peak_file_hash = hash_peak_file(self.peak_file)
 
         # Used during parsing:
         self._batch = None
@@ -92,6 +94,7 @@ class BaseParser(ABC):
         self.schema = pa.schema(
             [
                 pa.field("peak_file", pa.string()),
+                pa.field("peak_file_hash", pa.string()),
                 pa.field("scan_id", pa.string()),
                 pa.field("ms_level", pa.uint8()),
                 pa.field("precursor_mz", pa.float64()),
@@ -201,6 +204,7 @@ class BaseParser(ABC):
 
                         entry = {
                             "peak_file": self.peak_file.name,
+                            "peak_file_hash": self.peak_file_hash,
                             "scan_id": str(parsed.scan_id),
                             "ms_level": parsed.ms_level,
                             "precursor_mz": parsed.precursor_mz,
@@ -728,3 +732,77 @@ class ParserFactory:
                 pass
 
         raise OSError("Unknown file format.")
+
+
+def hash_peak_file(peak_file: PathLike, n_bytes: int = 2**20) -> str:
+    """Compute a fast fingerprint of a peak file.
+
+    Reading an entire peak file can be slow, so this fingerprint is computed
+    from the file size and the first and last `n_bytes` of the file, using
+    the BLAKE2b algorithm. Files no larger than `2 * n_bytes` are hashed in
+    full. For directories, such as Bruker .d directories, the relative path
+    and fingerprint of every file within it are combined.
+
+    Because only part of each file is read, two files that differ only in
+    their middle bytes will have the same fingerprint. In practice, the end
+    of most mass spectrometry data files contains an index or checksum,
+    making this unlikely for peak files.
+
+    Parameters
+    ----------
+    peak_file : PathLike
+        The peak file or directory to fingerprint.
+    n_bytes : int, optional
+        The number of bytes to read from the start and the end of each file.
+
+    Returns
+    -------
+    str
+        The fingerprint as a 32 character hexadecimal string.
+
+    """
+    peak_file = AnyPath(peak_file)
+    hasher = hashlib.blake2b(digest_size=16)
+    if peak_file.is_dir():
+        files = sorted(
+            (f.relative_to(peak_file).as_posix(), f)
+            for f in peak_file.rglob("*")
+            if f.is_file()
+        )
+        for rel_path, path in files:
+            hasher.update(rel_path.encode())
+            _update_file_hash(hasher, path, n_bytes)
+    else:
+        _update_file_hash(hasher, peak_file, n_bytes)
+
+    return hasher.hexdigest()
+
+
+def _update_file_hash(
+    hasher: hashlib.blake2b,
+    path: PathLike,
+    n_bytes: int,
+) -> None:
+    """Update a hash with the size, start, and end of a file.
+
+    Parameters
+    ----------
+    hasher : hashlib.blake2b
+        The hash to update.
+    path : PathLike
+        The file to read.
+    n_bytes : int
+        The number of bytes to read from the start and end of the file.
+
+    """
+    with path.open("rb") as handle:
+        size = handle.seek(0, 2)
+        hasher.update(size.to_bytes(8, "little"))
+        handle.seek(0)
+        if size <= 2 * n_bytes:
+            hasher.update(handle.read())
+            return
+
+        hasher.update(handle.read(n_bytes))
+        handle.seek(-n_bytes, 2)
+        hasher.update(handle.read(n_bytes))

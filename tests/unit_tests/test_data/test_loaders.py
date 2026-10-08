@@ -21,7 +21,7 @@ def test_spectrum_loader(mgf_small, tmp_path):
     dset = SpectrumDataset(mgf_small, batch_size=2, path=tmp_path / "test")
     loader = DataLoader(dset)
     batch = next(iter(loader))
-    assert len(batch) == 7
+    assert len(batch) == 8
     assert batch["mz_array"].shape == (1, 2, 20)
     assert isinstance(batch["mz_array"], torch.Tensor)
 
@@ -69,7 +69,7 @@ def test_ann_spectrum_loader(mgf_small):
     )
     loader = DataLoader(dset, num_workers=0)
     batch = next(iter(loader))
-    assert len(batch) == 8
+    assert len(batch) == 9
     assert batch["mz_array"].shape == (1, 1, 13)
     assert isinstance(batch["mz_array"], torch.Tensor)
     torch.testing.assert_close(

@@ -177,6 +177,20 @@ parse_kwargs = {"progress": False}
 dataset = SpectrumDataset(mzml_file, batch_size=2, parse_kwargs=parse_kwargs)
 ```
 
+Each mass spectrum records the peak file it came from in the `peak_file` column, along with a fingerprint of that file's contents in the `peak_file_hash` column.
+This fingerprint distinguishes peak files that share the same name, and it lets the dataset skip peak files that have already been added:
+
+```{python}
+import warnings
+
+with warnings.catch_warnings(record=True) as caught:
+    warnings.simplefilter("always")
+    dataset.add_spectra(mzml_file)
+
+print(caught[0].message)
+print(dataset.n_spectra, dataset.peak_file_hashes)
+```
+
 The `SpectrumDataset` and `AnnotatedSpectrumDataset` use the native [PyTorch integration in Lance](https://lance.org/integrations/pytorch) and all of the corresponding parameters are available as keyword arguments.
 Furthermore, all three of these classes are [PyTorch `IterableDataset` classes](https://pytorch.org/docs/stable/data.html#iterable-style-datasets), so they are ready to be used directly to train and evaluate deep learning models with PyTorch.
 

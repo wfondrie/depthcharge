@@ -37,14 +37,14 @@ PARAM_NAMES = [
 
 custom_field = CustomField("index", lambda x: x["index"], pa.int64())
 PARAM_VALS = [
-    (2, None, None, None, None, True, (4, 7)),
-    (1, None, None, None, None, True, (4, 7)),
-    (3, None, None, None, None, True, (3, 7)),
-    (2, None, [3], None, None, True, (3, 7)),
-    (None, None, None, None, None, True, (11, 7)),
-    (2, scale_to_unit_norm, None, custom_field, None, True, (4, 8)),
-    (2, None, None, None, METADATA_DF1, True, (4, 8)),
-    (2, None, None, None, METADATA_DF2, False, (4, 8)),
+    (2, None, None, None, None, True, (4, 8)),
+    (1, None, None, None, None, True, (4, 8)),
+    (3, None, None, None, None, True, (3, 8)),
+    (2, None, [3], None, None, True, (3, 8)),
+    (None, None, None, None, None, True, (11, 8)),
+    (2, scale_to_unit_norm, None, custom_field, None, True, (4, 9)),
+    (2, None, None, None, METADATA_DF1, True, (4, 9)),
+    (2, None, None, None, METADATA_DF2, False, (4, 9)),
 ]
 
 

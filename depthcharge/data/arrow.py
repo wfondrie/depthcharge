@@ -32,7 +32,8 @@ def spectra_to_stream(
     extracts the mass spectrum and identifying information. By
     default, the schema is:
         peak_file: str
-        scan_id: int
+        peak_file_hash: str
+        scan_id: str
         ms_level: int
         precursor_mz: float
         precursor_charge: int
@@ -144,7 +145,8 @@ def spectra_to_parquet(
     extracts the mass spectrum and identifying information. By
     default, the schema is:
         peak_file: str
-        scan_id: int
+        peak_file_hash: str
+        scan_id: str
         ms_level: int
         precursor_mz: float64
         precursor_charge: int8
@@ -245,7 +247,8 @@ def spectra_to_df(
     extracts the mass spectrum and identifying information. By
     default, the schema is:
         peak_file: str
-        scan_id: int
+        peak_file_hash: str
+        scan_id: str
         ms_level: int
         precursor_mz: float64
         precursor_charge: int8
