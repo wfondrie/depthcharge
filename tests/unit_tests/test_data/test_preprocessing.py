@@ -44,6 +44,14 @@ def test_default(n_peaks, below_min_mz, zeros):
         """
         return MassSpectrum("test", "scan=1", mz.copy(), intensity.copy())
 
+    result = preprocessing._default(spectrum())
+    assert result.intensity.dtype == np.float32
+    if not n_peaks:
+        # spectrum_utils reads out of bounds on empty spectra.
+        assert not len(result.mz)
+        assert not len(result.intensity)
+        return
+
     expected = spectrum()
     for func in [
         preprocessing.set_mz_range(min_mz=140),
@@ -53,7 +61,5 @@ def test_default(n_peaks, below_min_mz, zeros):
     ]:
         expected = func(expected)
 
-    result = preprocessing._default(spectrum())
     np.testing.assert_array_equal(result.mz, expected.mz)
     np.testing.assert_array_equal(result.intensity, expected.intensity)
-    assert result.intensity.dtype == np.float32
