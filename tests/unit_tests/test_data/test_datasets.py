@@ -4,6 +4,7 @@ import pickle
 import shutil
 import warnings
 from collections.abc import Iterable
+from types import SimpleNamespace
 
 import polars as pl
 import pyarrow as pa
@@ -18,6 +19,7 @@ from depthcharge.data import (
     StreamingSpectrumDataset,
     arrow,
     hash_peak_file,
+    spectrum_datasets,
 )
 from depthcharge.testing import assert_dicts_equal
 from depthcharge.tokenizers import MoleculeTokenizer, PeptideTokenizer
@@ -322,6 +324,7 @@ def test_pad_fields(tmp_path):
             "custom_array": [[1.0, 2.0], [3.0, 4.0, 5.0]],
             "scalar": [1.0, 2.0],
             "nulls": [[1.0], None],
+            "inner_nulls": [[1.0, None], [2.0]],
         }
     )
     expected = torch.tensor([[1.0, 2.0, 0.0], [3.0, 4.0, 5.0]])
@@ -367,7 +370,7 @@ def test_pad_fields(tmp_path):
     torch.testing.assert_close(next(iter(dataset))["custom_array"], expected)
 
     # Columns that can't be padded:
-    for field in ["scalar", "nulls"]:
+    for field in ["scalar", "nulls", "inner_nulls"]:
         dataset = StreamingSpectrumDataset(spectra, 2, pad_fields=field)
         with pytest.raises(ValueError, match=f"pad the '{field}' column"):
             next(iter(dataset))
@@ -530,6 +533,13 @@ def test_shuffle(tmp_path, ordered_spectra, tokenizer):
         dataset.set_epoch(1)
         assert _scan_ids(dataset) == epochs[1]
 
+    # More batches than fit in the shuffle buffer:
+    dataset = SpectrumDataset.from_lance(path, 2, shuffle=True, seed=1)
+    scans = _scan_ids(dataset)
+    assert scans != expected
+    assert sorted(scans) == sorted(expected)
+    assert all(len(b["scan_id"]) == 2 for b in dataset)
+
     # The same seed gives the same order:
     dataset = SpectrumDataset.from_lance(path, 8, shuffle=True, seed=1)
     assert _scan_ids(dataset) == epochs[0]
@@ -557,27 +567,47 @@ def test_shuffle(tmp_path, ordered_spectra, tokenizer):
 
 
 @pytest.mark.parametrize("shuffle", [False, True])
-def test_distributed(tmp_path, ordered_spectra, monkeypatch, shuffle):
+@pytest.mark.parametrize("world_size", [3, 10])
+def test_distributed(
+    tmp_path, ordered_spectra, monkeypatch, shuffle, world_size
+):
     """Test that each process loads different spectra."""
     dataset = SpectrumDataset(
         ordered_spectra, 8, path=tmp_path / "test", shuffle=shuffle, seed=1
     )
 
     loaded = []
-    for rank in range(3):
+    for rank in range(world_size):
         monkeypatch.setattr(
             "depthcharge.data.spectrum_datasets.get_global_rank",
             lambda rank=rank: rank,
         )
         monkeypatch.setattr(
             "depthcharge.data.spectrum_datasets.get_global_world_size",
-            lambda: 3,
+            lambda: world_size,
         )
         dataset.set_epoch(0)
         loaded.append(_scan_ids(dataset))
 
-    assert all(loaded)
+    # There are 7 batches, so some processes have none with 10 processes:
+    assert sum(bool(x) for x in loaded) == min(world_size, 7)
     assert sorted(sum(loaded, [])) == sorted(ordered_spectra["scan_id"])
+
+
+def test_shared_seed(monkeypatch):
+    """Test the seed shared by DataLoader workers."""
+    assert spectrum_datasets._shared_seed() == 0
+
+    info = SimpleNamespace(seed=10, id=2)
+    monkeypatch.setattr(torch.utils.data, "get_worker_info", lambda: info)
+    assert spectrum_datasets._shared_seed() == 8
+
+    # Not used during distributed training:
+    monkeypatch.setattr(
+        "depthcharge.data.spectrum_datasets.get_dist_world_size",
+        lambda: 2,
+    )
+    assert spectrum_datasets._shared_seed() == 0
 
 
 def test_dataloader_workers(tmp_path, ordered_spectra):

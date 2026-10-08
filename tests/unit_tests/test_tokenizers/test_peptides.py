@@ -211,3 +211,9 @@ def test_split_cache():
     # Changing an option after initialization is respected:
     default.reverse = True
     assert default.split(seq) == ["K", "N[Deamidated]", "I", "E", "L"]
+
+
+def test_unrecognized_token():
+    """Test that unknown residues raise an error."""
+    with pytest.raises(ValueError, match="Unrecognized token"):
+        PeptideTokenizer().tokenize(["PEPTIDEX"])

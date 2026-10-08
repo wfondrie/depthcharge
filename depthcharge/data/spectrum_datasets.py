@@ -27,7 +27,6 @@ from lance.torch.dist import (
     get_global_rank,
     get_global_world_size,
 )
-from torch import nn
 from torch.utils.data import IterableDataset
 
 from .. import utils
@@ -758,19 +757,41 @@ class _SpectrumSampler(Sampler):
             return
 
         buffer = []
-        for batch in itertools.chain(stream, [None]):
-            if batch is not None:
-                buffer.append(batch)
-                if len(buffer) < self.buffer_size:
-                    continue
+        for batch in stream:
+            buffer.append(batch)
+            if len(buffer) == self.buffer_size:
+                yield from _shuffle_batches(buffer, rng, batch_size)
+                buffer = []
 
-            if not buffer:
-                break
+        if buffer:
+            yield from _shuffle_batches(buffer, rng, batch_size)
 
-            table = pa.Table.from_batches(buffer)
-            table = table.take(rng.permutation(table.num_rows))
-            yield from table.combine_chunks().to_batches(batch_size)
-            buffer = []
+
+def _shuffle_batches(
+    batches: list[pa.RecordBatch],
+    rng: np.random.Generator,
+    batch_size: int,
+) -> list[pa.RecordBatch]:
+    """Shuffle the rows between record batches.
+
+    Parameters
+    ----------
+    batches : list of pyarrow.RecordBatch
+        The record batches to shuffle.
+    rng : numpy.random.Generator
+        The random number generator.
+    batch_size : int
+        The maximum number of rows in each output batch.
+
+    Returns
+    -------
+    list of pyarrow.RecordBatch
+        The shuffled record batches.
+
+    """
+    table = pa.Table.from_batches(batches)
+    table = table.take(rng.permutation(table.num_rows))
+    return table.combine_chunks().to_batches(batch_size)
 
 
 def _shared_seed() -> int:
@@ -1168,10 +1189,14 @@ def _to_tensor(
 
         values = _column_to_tensor(column, pad=name in pad_fields)
         if values is None:
+            if name in pad_fields:
+                raise ValueError(
+                    f"Cannot pad the '{name}' column. Padded columns must be "
+                    "lists of numbers without missing values."
+                )
+
             # Fall back to converting Python objects:
             values = _tensorize(column.to_pylist())
-            if name in pad_fields:
-                values = _pad(name, values)
 
         out[name] = values
 
@@ -1264,39 +1289,6 @@ def _torch_dtype(arrow_type: pa.DataType) -> torch.dtype | None:
         return torch.bool
 
     return None
-
-
-def _pad(
-    name: str,
-    values: torch.Tensor | list[torch.Tensor],
-) -> torch.Tensor:
-    """Pad a column of 1D tensors into a single 2D tensor.
-
-    Parameters
-    ----------
-    name : str
-        The column name, used for error messages.
-    values : torch.Tensor or list of torch.Tensor
-        The column values for the batch.
-
-    Returns
-    -------
-    torch.Tensor
-        The padded values, with shape (n_rows, max_length).
-
-    """
-    if isinstance(values, torch.Tensor) and values.ndim == 2:
-        return values  # All rows were the same length.
-
-    if isinstance(values, torch.Tensor) or not all(
-        isinstance(x, torch.Tensor) and x.ndim == 1 for x in values
-    ):
-        raise ValueError(
-            f"Cannot pad the '{name}' column. Padded columns must be lists "
-            "of numbers without missing values."
-        )
-
-    return nn.utils.rnn.pad_sequence(values, batch_first=True)
 
 
 def _tensorize(obj: Any) -> Any:  # noqa: ANN401
