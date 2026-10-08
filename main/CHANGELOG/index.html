@@ -1819,6 +1819,8 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <ul>
 <li>Changed C-terminal and N-terminal modification check to include empty modifications</li>
 <li>Added the <code>replace_n_and_q_deamidated_with_d_and_e</code> option to the <code>PeptideTokenizer</code>, which replaces deamidated N and Q residues with D and E residues, because they are indistinguishable by de novo sequencing.</li>
+<li>Added the <code>pad_fields</code> option to <code>SpectrumDataset</code>, <code>AnnotatedSpectrumDataset</code>, and <code>StreamingSpectrumDataset</code> (and their <code>from_lance()</code> methods), which pads additional list columns into a single tensor for each batch.</li>
+<li>Columns that are padded now raise an informative error when they cannot be padded, and a list column containing missing values no longer causes an error when converting a batch to tensors.</li>
 </ul>
 <h2 id="v049">[v0.4.9]</h2>
 <h3 id="added">Added</h3>
