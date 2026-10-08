@@ -27,6 +27,10 @@ class PeptideTokenizer(Tokenizer):
     replace_isoleucine_with_leucine : bool, optional
         Replace I with L residues, because they are isomeric and often
         indistinguishable by mass spectrometry.
+    replace_n_and_q_deamidated_with_d_and_e : bool, optional
+        Replace deamidated N and Q residues with D and E residues,
+        respectively, because they are indistinguishable
+        by de novo sequencing.
     reverse : bool, optional
         Reverse the sequence for tokenization, C-terminus to N-terminus.
     start_token : str, optional
@@ -39,6 +43,9 @@ class PeptideTokenizer(Tokenizer):
     residues : SortedDict[str, float]
         The residues and modifications and their associated masses.
         terminal modifcations are indicated by `-`.
+    deamidated_to_acid : dict[str, str]
+        The deamidated residues and the residues that replace them when
+        `replace_n_and_q_deamidated_with_d_and_e` is used.
     index : SortedDict{str, int}
         The mapping of residues and modifications to integer representations.
     reverse_index : list[None | str]
@@ -80,6 +87,10 @@ class PeptideTokenizer(Tokenizer):
         "W": 186.079312980,
     }
 
+    # The canonical tokens that depthcharge parses deamidation into,
+    # regardless of how it was originally written, and their replacements:
+    deamidated_to_acid = {"N[Deamidated]": "D", "Q[Deamidated]": "E"}
+
     # The peptide parsing function:
     _parse_peptide = Peptide.from_proforma
 
@@ -87,12 +98,16 @@ class PeptideTokenizer(Tokenizer):
         self,
         residues: Iterable[str] | None = None,
         replace_isoleucine_with_leucine: bool = False,
+        replace_n_and_q_deamidated_with_d_and_e: bool = False,
         reverse: bool = False,
         start_token: str | None = None,
         stop_token: str | None = "$",
     ) -> None:
         """Initialize a PeptideTokenizer."""
         self.replace_isoleucine_with_leucine = replace_isoleucine_with_leucine
+        self.replace_n_and_q_deamidated_with_d_and_e = (
+            replace_n_and_q_deamidated_with_d_and_e
+        )
         self.reverse = reverse
 
         # Note that these also secretly work on dicts too ;)
@@ -103,6 +118,11 @@ class PeptideTokenizer(Tokenizer):
         if self.replace_isoleucine_with_leucine:
             if "I" in self.residues:
                 del self.residues["I"]
+
+        if self.replace_n_and_q_deamidated_with_d_and_e:
+            for token in self.deamidated_to_acid:
+                if token in self.residues:
+                    del self.residues[token]
 
         super().__init__(self.residues, start_token, stop_token)
         self.masses = torch.tensor(
@@ -159,6 +179,9 @@ class PeptideTokenizer(Tokenizer):
             pep.sequence = pep.sequence.replace("I", "L")
 
         pep = pep.split()
+        if self.replace_n_and_q_deamidated_with_d_and_e:
+            pep = [self.deamidated_to_acid.get(t, t) for t in pep]
+
         if self.reverse:
             pep.reverse()
 
@@ -210,6 +233,7 @@ class PeptideTokenizer(Tokenizer):
         cls,
         sequences: Iterable[str],
         replace_isoleucine_with_leucine: bool = False,
+        replace_n_and_q_deamidated_with_d_and_e: bool = False,
         reverse: bool = False,
         start_token: str | None = None,
         stop_token: str | None = "$",
@@ -226,6 +250,10 @@ class PeptideTokenizer(Tokenizer):
         replace_isoleucine_with_leucine : bool, optional
             Replace I with L residues, because they are isobaric and often
             indistinguishable by mass spectrometry.
+        replace_n_and_q_deamidated_with_d_and_e : bool, optional
+            Replace deamidated N and Q residues with D and E residues,
+            respectively, because they are indistinguishable by de novo
+            sequencing.
         reverse : bool, optional
             Reverse the sequence for tokenization, C-terminus to N-terminus.
         start_token : str, optional
@@ -271,6 +299,7 @@ class PeptideTokenizer(Tokenizer):
         return cls(
             new_res,
             replace_isoleucine_with_leucine,
+            replace_n_and_q_deamidated_with_d_and_e,
             reverse,
             start_token,
             stop_token,
@@ -279,6 +308,7 @@ class PeptideTokenizer(Tokenizer):
     @staticmethod
     def from_massivekb(
         replace_isoleucine_with_leucine: bool = False,
+        replace_n_and_q_deamidated_with_d_and_e: bool = False,
         reverse: bool = False,
         start_token: str | None = None,
         stop_token: str | None = "$",
@@ -293,6 +323,10 @@ class PeptideTokenizer(Tokenizer):
         replace_isoleucine_with_leucine : bool, optional
             Replace I with L residues, because they are isobaric and often
             indistinguishable by mass spectrometry.
+        replace_n_and_q_deamidated_with_d_and_e : bool, optional
+            Replace deamidated N and Q residues with D and E residues,
+            respectively, because they are indistinguishable by de novo
+            sequencing.
         reverse : bool, optional
             Reverse the sequence for tokenization, C-terminus to N-terminus.
         start_token : str, optional
@@ -309,6 +343,7 @@ class PeptideTokenizer(Tokenizer):
         return MskbPeptideTokenizer.from_proforma(
             [f"{mod}A" for mod in MSKB_TO_UNIMOD.values()],
             replace_isoleucine_with_leucine,
+            replace_n_and_q_deamidated_with_d_and_e,
             reverse,
             start_token,
             stop_token,
@@ -327,6 +362,10 @@ class MskbPeptideTokenizer(PeptideTokenizer):
     replace_isoleucine_with_leucine : bool
         Replace I with L residues, because they are isobaric and often
         indistinguishable by mass spectrometry.
+    replace_n_and_q_deamidated_with_d_and_e : bool
+        Replace deamidated N and Q residues with D and E residues,
+        respectively, because they are indistinguishable by de novo
+        sequencing.
     reverse : bool
         Reverse the sequence for tokenization, C-terminus to N-terminus.
     start_token : str, optional
