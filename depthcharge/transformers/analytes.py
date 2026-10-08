@@ -111,10 +111,10 @@ class _AnalyteTransformer(torch.nn.Module, ModelMixin, TransformerMixin):
 
         Parameters
         ----------
-        tokens : list of str, torch.Tensor, or None
-            The partial molecular sequences for which to predict the next
-            token. Optionally, these may be the token indices instead
-            of a string.
+        tokens : torch.Tensor of size (batch_size, len_sequence)
+            The integer tokens describing each analyte sequence, padded
+            with 0s. When a decoder is called with ``tokens=None``, this
+            is an empty tensor of size (batch_size, 0).
         *args : torch.Tensor
             Additional data passed with the batch.
         **kwargs : dict
@@ -337,10 +337,10 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
 
         Parameters
         ----------
-        tokens : list of str, torch.Tensor, or None
-            The partial molecular sequences for which to predict the next
-            token. Optionally, these may be the token indices instead
-            of a string.
+        tokens : torch.Tensor of size (batch_size, len_sequence) or None
+            The integer tokens of the partial molecular sequences for which
+            to predict the next token, padded with 0s. If ``None``, only
+            the global token is used, such as to predict the first token.
         *args : torch.Tensor, optional
             Additional data. These may be used by overwriting the
             `global_token_hook()` method in a subclass.
@@ -372,7 +372,11 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
         """
         # Prepare sequences
         if tokens is None:
-            tokens = torch.zeros((1, 0), dtype=torch.int64, device=self.device)
+            tokens = torch.zeros(
+                (memory.shape[0], 0),
+                dtype=torch.int64,
+                device=self.device,
+            )
 
         # Encode everything:
         encoded = self.token_encoder(tokens)
@@ -434,10 +438,10 @@ class AnalyteTransformerDecoder(_AnalyteTransformer):
 
         Parameters
         ----------
-        tokens : list of str, torch.Tensor, or None
-            The partial molecular sequences for which to predict the next
-            token. Optionally, these may be the token indices instead
-            of a string.
+        tokens : torch.Tensor of size (batch_size, len_sequence) or None
+            The integer tokens of the partial molecular sequences for which
+            to predict the next token, padded with 0s. If ``None``, only
+            the global token is used, such as to predict the first token.
         *args : torch.Tensor, optional
             Additional data. These may be used by overwriting the
             `global_token_hook()` method in a subclass.

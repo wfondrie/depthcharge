@@ -71,10 +71,21 @@ def test_analyte_decoder_none_tokens():
     tokenizer = PeptideTokenizer()
     n_tokens = len(tokenizer)
 
-    spectra = torch.tensor([[[100.1, 0.1], [200.2, 0.2], [300.3, 0.3]]])
+    spectra = torch.tensor(
+        [
+            [[100.1, 0.1], [200.2, 0.2], [300.3, 0.3]],
+            [[400.4, 0.4], [500.5, 0.5], [0.0, 0.0]],
+        ]
+    )
     encoder = SpectrumTransformerEncoder(8, 2, 12)
     memory, mem_mask = encoder(spectra[:, :, 0], spectra[:, :, 1])
 
     decoder = AnalyteTransformerDecoder(n_tokens, 8, 2, 12, padding_int=0)
     scores = decoder(None, memory=memory, memory_key_padding_mask=mem_mask)
+    assert scores.shape == (2, 1, n_tokens)
+
+    # A single spectrum:
+    scores = decoder(
+        None, memory=memory[[0]], memory_key_padding_mask=mem_mask[[0]]
+    )
     assert scores.shape == (1, 1, n_tokens)
