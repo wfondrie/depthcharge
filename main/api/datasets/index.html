@@ -692,6 +692,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#depthcharge.data.SpectrumDataset.set_epoch" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_epoch
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -786,6 +795,15 @@
   <a href="#depthcharge.data.AnnotatedSpectrumDataset.from_lance" class="md-nav__link">
     <span class="md-ellipsis">
       from_lance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#depthcharge.data.AnnotatedSpectrumDataset.set_epoch" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_epoch
     </span>
   </a>
   
@@ -1249,6 +1267,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#depthcharge.data.SpectrumDataset.set_epoch" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_epoch
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1343,6 +1370,15 @@
   <a href="#depthcharge.data.AnnotatedSpectrumDataset.from_lance" class="md-nav__link">
     <span class="md-ellipsis">
       from_lance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#depthcharge.data.AnnotatedSpectrumDataset.set_epoch" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_epoch
     </span>
   </a>
   
@@ -1518,7 +1554,7 @@ default, the schema is:
     precursor_mz: float64
     precursor_charge: int8
     mz_array: list[float64]
-    intensity_array: list[float64]</p>
+    intensity_array: list[float32]</p>
 <p>An optional metadata DataFrame can be provided to add additional
 metadata to each mass spectrum. This DataFrame must contain
 a <code>scan_id</code> column containing the integer scan identifier for
@@ -1740,7 +1776,7 @@ default, the schema is:
     precursor_mz: float64
     precursor_charge: int8
     mz_array: list[float64]
-    intensity_array: list[float64]</p>
+    intensity_array: list[float32]</p>
 <p>An optional metadata DataFrame can be provided to add additional
 metadata to each mass spectrum. This DataFrame must contain
 a <code>scan_id</code> column containing the integer scan identifier for
@@ -2002,8 +2038,8 @@ default, the schema is:
     ms_level: int
     precursor_mz: float
     precursor_charge: int
-    mz_array: list[float]
-    intensity_array: list[float]</p>
+    mz_array: list[float64]
+    intensity_array: list[float32]</p>
 <p>An optional metadata DataFrame can be provided to add additional
 metadata to each mass spectrum. This DataFrame must contain
 a <code>scan_id</code> column containing the integer scan identifier for
@@ -2441,7 +2477,7 @@ making this unlikely for peak files.</p>
 
 
 <h2 id="depthcharge.data.SpectrumDataset" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">SpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">SpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
@@ -2462,10 +2498,11 @@ This is accomplished using the
 <a href="https://lance.org/integrations/pytorch">Lance PyTorch integration</a>.</p>
 <p>The <code>batch_size</code> parameter for this class independent of the <code>batch_size</code>
 of the PyTorch DataLoader. Generally, we only want the former parameter to
-greater than 1. Additionally, this dataset should not be
-used with a DataLoader set to <code>max_workers</code> &gt; 1, unless specific care is
-used to handle the
-<a href="https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset">caveats of a PyTorch IterableDataset</a></p>
+greater than 1. Batches are divided among DataLoader workers and
+distributed training processes, so that each spectrum is loaded once per
+epoch. When using DataLoader workers, start them with
+<code>multiprocessing_context="spawn"</code> or <code>"forkserver"</code>, because Lance is not
+safe to use in forked processes.</p>
 <p>Peak files are identified using a fingerprint of their contents
 (see <code>depthcharge.data.hash_peak_file()</code>), which is stored in the
 <code>peak_file_hash</code> column. Peak files that have already been added
@@ -2604,6 +2641,52 @@ columns are ignored.</p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
                       <code>str or iterable of str</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>shuffle</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>Shuffle the spectra in a new order each epoch. Blocks of <code>batch_size</code>
+consecutive spectra are read in a random order, then the spectra are
+shuffled within a buffer of 16 blocks. Shuffling cannot be combined
+with the <code>filter</code>, <code>sampler</code>, <code>samples</code>, <code>shard_granularity</code>, or
+<code>with_row_id</code> options of the <code>LanceDataset</code>.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="bool">bool</span></code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>False</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>seed</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>The random seed for shuffling. If <code>None</code>, PyTorch's initial seed
+(<code>torch.initial_seed()</code>) is used. In distributed training, every
+process must use the same seed.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="int">int</span></code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -2900,7 +2983,7 @@ mzXML, MGF, or Bruker TDF format.</p>
 
 
 <h4 id="depthcharge.data.SpectrumDataset.from_lance" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">from_lance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">from_lance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
@@ -3001,6 +3084,53 @@ columns are ignored.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>shuffle</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>Shuffle the spectra in a new order each epoch. Blocks of
+<code>batch_size</code> consecutive spectra are read in a random order, then
+the spectra are shuffled within a buffer of 16 blocks. Shuffling
+cannot be combined with the <code>filter</code>, <code>sampler</code>, <code>samples</code>,
+<code>shard_granularity</code>, or <code>with_row_id</code> options of the
+<code>LanceDataset</code>.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="bool">bool</span></code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>False</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>seed</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>The random seed for shuffling. If <code>None</code>, PyTorch's initial seed
+(<code>torch.initial_seed()</code>) is used. In distributed training, every
+process must use the same seed.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="int">int</span></code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>**kwargs</code>
             </td>
             <td class="doc-param-details">
@@ -3035,13 +3165,65 @@ columns are ignored.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, pad_fields=None, overwrite=False, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code>
+                    <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, pad_fields=None, overwrite=False, shuffle=False, seed=None, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code>
                 </span>
             </td>
             <td class="doc-returns-details">
               <div class="doc-md-description">
                 <p>The dataset of mass spectra.</p>
               </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="depthcharge.data.SpectrumDataset.set_epoch" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_epoch</span><span class="p">(</span><span class="n">epoch</span><span class="p">)</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Set the epoch, which determines the order of shuffled spectra.</p>
+<p>The epoch is incremented each time the dataset is iterated over.
+However, DataLoader workers start from the epoch of the dataset in
+the main process, unless they are persistent. Without persistent
+workers, a new order is still used each epoch, except during
+distributed training. In that case, call this method before each
+epoch, or use <code>persistent_workers=True</code> with the DataLoader.</p>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">PARAMETER</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>epoch</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>The epoch number.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="int">int</span></code>
+                  </span>
+              </p>
             </td>
           </tr>
       </tbody>
@@ -3065,14 +3247,14 @@ columns are ignored.</p>
 
 
 <h2 id="depthcharge.data.AnnotatedSpectrumDataset" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">AnnotatedSpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">AnnotatedSpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, pad_fields=None, overwrite=False, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, pad_fields=None, overwrite=False, shuffle=False, seed=None, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code></p>
 
 
 
@@ -3086,10 +3268,11 @@ This is accomplished using the
 <a href="https://lance.org/integrations/pytorch">Lance PyTorch integration</a>.</p>
 <p>The <code>batch_size</code> parameter for this class independent of the <code>batch_size</code>
 of the PyTorch DataLoader. Generally, we only want the former parameter to
-greater than 1. Additionally, this dataset should not be
-used with a DataLoader set to <code>max_workers</code> &gt; 1, unless specific care is
-used to handle the
-<a href="https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset">caveats of a PyTorch IterableDataset</a></p>
+greater than 1. Batches are divided among DataLoader workers and
+distributed training processes, so that each spectrum is loaded once per
+epoch. When using DataLoader workers, start them with
+<code>multiprocessing_context="spawn"</code> or <code>"forkserver"</code>, because Lance is not
+safe to use in forked processes.</p>
 <p>Peak files are identified using a fingerprint of their contents
 (see <code>depthcharge.data.hash_peak_file()</code>), which is stored in the
 <code>peak_file_hash</code> column. Peak files that have already been added
@@ -3261,6 +3444,52 @@ columns are ignored.</p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
                       <code>str or iterable of str</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>shuffle</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>Shuffle the spectra in a new order each epoch. Blocks of <code>batch_size</code>
+consecutive spectra are read in a random order, then the spectra are
+shuffled within a buffer of 16 blocks. Shuffling cannot be combined
+with the <code>filter</code>, <code>sampler</code>, <code>samples</code>, <code>shard_granularity</code>, or
+<code>with_row_id</code> options of the <code>LanceDataset</code>.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="bool">bool</span></code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>False</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>seed</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>The random seed for shuffling. If <code>None</code>, PyTorch's initial seed
+(<code>torch.initial_seed()</code>) is used. In distributed training, every
+process must use the same seed.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="int">int</span></code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -3585,7 +3814,7 @@ mzXML, MGF, or Bruker TDF format.</p>
 
 
 <h4 id="depthcharge.data.AnnotatedSpectrumDataset.from_lance" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">from_lance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">from_lance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
@@ -3719,6 +3948,53 @@ columns are ignored.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>shuffle</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>Shuffle the spectra in a new order each epoch. Blocks of
+<code>batch_size</code> consecutive spectra are read in a random order, then
+the spectra are shuffled within a buffer of 16 blocks. Shuffling
+cannot be combined with the <code>filter</code>, <code>sampler</code>, <code>samples</code>,
+<code>shard_granularity</code>, or <code>with_row_id</code> options of the
+<code>LanceDataset</code>.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="bool">bool</span></code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>False</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>seed</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>The random seed for shuffling. If <code>None</code>, PyTorch's initial seed
+(<code>torch.initial_seed()</code>) is used. In distributed training, every
+process must use the same seed.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="int">int</span></code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>**kwargs</code>
             </td>
             <td class="doc-param-details">
@@ -3753,13 +4029,65 @@ columns are ignored.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><a class="autorefs autorefs-internal" title="AnnotatedSpectrumDataset(spectra, annotations, tokenizer, batch_size, path=None, parse_kwargs=None, pad_fields=None, overwrite=False, **kwargs) (depthcharge.data.spectrum_datasets.AnnotatedSpectrumDataset)" href="#depthcharge.data.AnnotatedSpectrumDataset">AnnotatedSpectrumDataset</a></code>
+                    <code><a class="autorefs autorefs-internal" title="AnnotatedSpectrumDataset(spectra, annotations, tokenizer, batch_size, path=None, parse_kwargs=None, pad_fields=None, overwrite=False, shuffle=False, seed=None, **kwargs) (depthcharge.data.spectrum_datasets.AnnotatedSpectrumDataset)" href="#depthcharge.data.AnnotatedSpectrumDataset">AnnotatedSpectrumDataset</a></code>
                 </span>
             </td>
             <td class="doc-returns-details">
               <div class="doc-md-description">
                 <p>The dataset of annotated mass spectra.</p>
               </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="depthcharge.data.AnnotatedSpectrumDataset.set_epoch" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_epoch</span><span class="p">(</span><span class="n">epoch</span><span class="p">)</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Set the epoch, which determines the order of shuffled spectra.</p>
+<p>The epoch is incremented each time the dataset is iterated over.
+However, DataLoader workers start from the epoch of the dataset in
+the main process, unless they are persistent. Without persistent
+workers, a new order is still used each epoch, except during
+distributed training. In that case, call this method before each
+epoch, or use <code>persistent_workers=True</code> with the DataLoader.</p>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">PARAMETER</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>epoch</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>The epoch number.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="int">int</span></code>
+                  </span>
+              </p>
             </td>
           </tr>
       </tbody>
@@ -3803,7 +4131,7 @@ cannot be shuffled.</p>
 <p>The <code>batch_size</code> parameter for this class independent of the <code>batch_size</code>
 of the PyTorch DataLoader. Generally, we only want the former parameter to
 greater than 1. Additionally, this dataset should not be
-used with a DataLoader set to <code>max_workers</code> &gt; 1, unless specific care is
+used with a DataLoader set to <code>num_workers</code> &gt; 1, unless specific care is
 used to handle the
 <a href="https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset">caveats of a PyTorch IterableDataset</a></p>
 

@@ -2039,6 +2039,8 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <h2 id="unreleased">[Unreleased]</h2>
 <h3 id="added">Added</h3>
 <ul>
+<li>Added the <code>shuffle</code> and <code>seed</code> parameters to <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code> (and their <code>from_lance()</code> methods), which load the mass spectra in a new random order each epoch. Blocks of <code>batch_size</code> consecutive spectra are read in a random order, then the spectra are shuffled within a buffer of 16 blocks.</li>
+<li>Added the <code>set_epoch()</code> method to <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code>, which sets the epoch that determines the shuffled order.</li>
 <li>Added the <code>peak_file_hash</code> column to parsed mass spectra, which contains a fingerprint of the contents of the originating peak file. This distinguishes peak files that share the same name.</li>
 <li>Added <code>depthcharge.data.hash_peak_file()</code>, which quickly computes the fingerprint of a peak file from its size and first and last 1 MiB.</li>
 <li>Added the <code>peak_file_hashes</code> property to <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code>.</li>
@@ -2050,9 +2052,18 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li>Because of the new <code>peak_file_hash</code> column, <code>add_spectra()</code> cannot add peak files to Lance datasets that were created with previous versions of depthcharge.</li>
 <li>When a Lance dataset already exists at <code>path</code>, <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code> now add only the peak files that it does not already contain, instead of overwriting it. This makes re-creating a dataset with the same peak files fast. Use <code>overwrite=True</code> for the previous behavior. DataFrame and parquet inputs, custom fields that are missing from the existing dataset, and datasets created with previous versions of depthcharge raise a <code>ValueError</code> unless <code>overwrite=True</code>.</li>
 <li><code>preprocessing.scale_to_unit_norm()</code>, which is part of the default <code>preprocessing_fn</code>, now scales intensities to an L2 norm of 1. Previously, it divided intensities by their sum, so they summed to 1 instead. Models trained with the previous behavior may need to be retrained or use the previous function as a custom <code>preprocessing_fn</code>.</li>
+<li><code>SpectrumDataset</code>, <code>AnnotatedSpectrumDataset</code>, and <code>StreamingSpectrumDataset</code> now convert batches to tensors directly from Arrow, instead of through Python objects. In our benchmarks, this makes iterating over a <code>SpectrumDataset</code> about 15 times faster. The resulting tensors and their data types are unchanged.</li>
+<li><code>PeptideTokenizer</code> and <code>MskbPeptideTokenizer</code> now cache how peptide sequences are split into tokens, and all tokenizers pad tokens in a single step. This makes tokenizing previously seen peptides, such as in <code>AnnotatedSpectrumDataset</code> after the first epoch, about 9 times faster.</li>
+<li><code>spectra_to_stream()</code>, and the functions and datasets that use it, now collect the <code>metadata_df</code> once, instead of once per batch. This is faster when <code>metadata_df</code> is a <code>polars.LazyFrame</code>.</li>
+<li><code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code> now divide batches among <code>DataLoader</code> workers and distributed training processes, instead of Lance fragments. Previously, datasets with a single fragment, such as those created from a single DataFrame, were loaded entirely by one worker. Use <code>shard_granularity="fragment"</code> for the previous behavior. DataLoader workers must be started with the <code>"spawn"</code> or <code>"forkserver"</code> method, because Lance is not safe to use in forked processes.</li>
+<li>depthcharge now requires <code>pylance&gt;=0.17.0</code>.</li>
+<li>Parsed intensities are now stored as float32 instead of float64 in the <code>intensity_array</code> column, halving their size. Intensities were already float32 precision during parsing, so no information is lost. Existing Lance datasets keep their data types, and spectra added to them are converted.</li>
+<li>The default <code>preprocessing_fn</code> is now implemented with NumPy. It produces the same mass spectra as before, but avoids compiling the spectrum_utils methods, which took several seconds in each new process. When several peaks have the same intensity at the cutoff for the 200 most intense peaks, a different one of them may be kept.</li>
+<li>mzML and mzXML files are now parsed without building an index of their spectra, which is faster.</li>
 </ul>
 <h3 id="fixed">Fixed</h3>
 <ul>
+<li><code>spectra_to_stream()</code> no longer drops spectra when joining the <code>metadata_df</code> adds rows to a batch beyond <code>batch_size</code>, such as when a <code>scan_id</code> appears more than once.</li>
 <li><code>StreamingSpectrumDataset</code> now respects <code>batch_size</code> for polars DataFrame and parquet file inputs. Previously, these inputs were yielded in batches that matched how the data was stored, regardless of <code>batch_size</code>.</li>
 <li><code>add_spectra()</code> can now add peak files to datasets created from polars DataFrames, which previously failed because of mismatched Arrow types.</li>
 </ul>
