@@ -5,7 +5,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- Changed C-terminal and N-terminal modification check to include empty modifications 
+### Changed
+- `preprocessing.scale_to_unit_norm()`, which is part of the default `preprocessing_fn`, now scales intensities to an L2 norm of 1. Previously, it divided intensities by their sum, so they summed to 1 instead. Models trained with the previous behavior may need to be retrained or use the previous function as a custom `preprocessing_fn`.
+
+## [v0.5.0]
+### Added
+- Added the `replace_n_and_q_deamidated_with_d_and_e` option to the `PeptideTokenizer`, which replaces deamidated N and Q residues with D and E residues, because they are indistinguishable by de novo sequencing.
+- Added the `pad_fields` option to `SpectrumDataset`, `AnnotatedSpectrumDataset`, and `StreamingSpectrumDataset` (and their `from_lance()` methods), which pads additional list columns into a single tensor for each batch.
+- Added float16 and bfloat16 support to `FloatEncoder` and `PositionalEncoder`. The wavelength terms are kept at float32 precision and the encodings are cast to the model's dtype. A warning is raised for inputs with less precision than float32.
+
+### Changed
+- Spectra with invalid custom fields are now skipped and counted in the skipped spectra warning, instead of raising an error.
+
+### Fixed
+- Fixed formatting of the warning for skipped spectra (missing space and stray line break), and included the exception type in it.
+- The skipped spectra warning is now raised even when iteration over a peak file stops early.
+- Columns that are padded now raise an informative error when they cannot be padded, and a list column containing missing values no longer causes an error when converting a batch to tensors.
+- Fixed `AnalyteTransformerDecoder.embed()` (and therefore `forward()`) failing when called with `tokens=None`, due to the empty token tensor having a float dtype and a batch size of 1.
+
+## [v0.4.10]
+### Fixed
+- Changed C-terminal and N-terminal modification check to include empty modifications
 
 ## [v0.4.9]
 ### Added
@@ -36,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.4.5]
 ### Changed
-- The `scan_id` column for parsed spectra is not a sting instead of an integer. This is less space efficient, but we ran into issues with Sciex indexing when trying to use only an integer.
+- The `scan_id` column for parsed spectra is now a string instead of an integer. This is less space efficient, but we ran into issues with Sciex indexing when trying to use only an integer.
 
 ## [v0.4.4]
 

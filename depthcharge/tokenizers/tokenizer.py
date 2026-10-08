@@ -122,7 +122,7 @@ class Tokenizer(ABC):
         trim_start_token: bool = True,
         trim_stop_token: bool = True,
     ) -> list[str] | list[list[str]]:
-        """Retreive sequences from tokens.
+        """Retrieve sequences from tokens.
 
         Parameters
         ----------

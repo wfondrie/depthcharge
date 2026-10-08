@@ -298,7 +298,7 @@ class Molecule:
         return Draw.MolToImage(self._mol, **kwargs)
 
     def to_selfies(self) -> str:
-        """Convert SMILES to a SELFIES representaion."""
+        """Convert SMILES to a SELFIES representation."""
         return sf.encoder(self.smiles)
 
     @classmethod

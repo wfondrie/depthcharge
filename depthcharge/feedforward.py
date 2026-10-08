@@ -19,7 +19,7 @@ class FeedForward(torch.nn.Module):
         If an int, layer sizes are linearly interpolated between the input and
         output dimensions using this number of layers. Otherwise, each element
         specifies the size of a layer.
-    dropout : float, optionalf
+    dropout : float, optional
         If greater than zero, add dropout layers with the specified
         probability.
     activation: torch.nn.Module, optional
@@ -38,7 +38,7 @@ class FeedForward(torch.nn.Module):
         activation: torch.nn.Module = torch.nn.LeakyReLU(),
         append: torch.nn.Module | None = None,
     ) -> None:
-        """Initiazlize a FeedForward network."""
+        """Initialize a FeedForward network."""
         super().__init__()
         try:
             sizes = np.array(

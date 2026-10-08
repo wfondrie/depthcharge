@@ -41,8 +41,8 @@ class BaseParser(ABC):
         any precursor charge is accepted.
     custom_fields : dict of str to list of str, optional
         Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
-        containing the necessary keys to retreive the value from the
+        be the resulting column name and value must be an iterable of
+        containing the necessary keys to retrieve the value from the
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
@@ -186,50 +186,53 @@ class BaseParser(ABC):
 
         n_skipped = 0
         last_exc = None
-        with self.open() as spectra:
-            self._batch = None
-            for spectrum in tqdm(spectra, **pbar_args):
-                try:
-                    parsed = self.parse_spectrum(spectrum)
-                    if parsed is None:
+        try:
+            with self.open() as spectra:
+                self._batch = None
+                for spectrum in tqdm(spectra, **pbar_args):
+                    try:
+                        parsed = self.parse_spectrum(spectrum)
+                        if parsed is None:
+                            continue
+
+                        if self.preprocessing_fn is not None:
+                            for processor in self.preprocessing_fn:
+                                parsed = processor(parsed)
+
+                        entry = {
+                            "peak_file": self.peak_file.name,
+                            "scan_id": str(parsed.scan_id),
+                            "ms_level": parsed.ms_level,
+                            "precursor_mz": parsed.precursor_mz,
+                            "precursor_charge": parsed.precursor_charge,
+                            "mz_array": parsed.mz,
+                            "intensity_array": parsed.intensity,
+                        }
+
+                        # Parse custom fields:
+                        entry.update(self.parse_custom_fields(spectrum))
+
+                    except (IndexError, KeyError, ValueError) as exc:
+                        last_exc = exc
+                        n_skipped += 1
                         continue
 
-                    if self.preprocessing_fn is not None:
-                        for processor in self.preprocessing_fn:
-                            parsed = processor(parsed)
+                    self._update_batch(entry)
 
-                    entry = {
-                        "peak_file": str(self.peak_file),
-                        "scan_id": str(parsed.scan_id),
-                        "ms_level": parsed.ms_level,
-                        "precursor_mz": parsed.precursor_mz,
-                        "precursor_charge": parsed.precursor_charge,
-                        "mz_array": parsed.mz,
-                        "intensity_array": parsed.intensity,
-                    }
+                    # Update the batch:
+                    if len(self._batch["scan_id"]) == batch_size:
+                        yield self._yield_batch()
 
-                except (IndexError, KeyError, ValueError) as exc:
-                    last_exc = exc
-                    n_skipped += 1
-                    continue
-
-                # Parse custom fields:
-                entry.update(self.parse_custom_fields(spectrum))
-                self._update_batch(entry)
-
-                # Update the batch:
-                if len(self._batch["scan_id"]) == batch_size:
+                # Get the remainder:
+                if self._batch is not None:
                     yield self._yield_batch()
 
-            # Get the remainder:
-            if self._batch is not None:
-                yield self._yield_batch()
-
-        if n_skipped:
-            warnings.warn(
-                f"Skipped {n_skipped} spectra with invalid information."
-                f"Last error was: \n {str(last_exc)}"
-            )
+        finally:
+            if n_skipped:
+                warnings.warn(
+                    f"Skipped {n_skipped} spectra with invalid information. "
+                    f"Last error was: {last_exc!r}"
+                )
 
     def _update_batch(self, entry: dict) -> None:
         """Update the batch.
@@ -237,7 +240,7 @@ class BaseParser(ABC):
         Parameters
         ----------
         entry : dict
-            The elemtn to add.
+            The element to add.
 
         """
         if self._batch is None:
@@ -269,8 +272,8 @@ class MzmlParser(BaseParser):
         any precursor charge is accepted.
     custom_fields : dict of str to list of str, optional
         Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
-        containing the necessary keys to retreive the value from the
+        be the resulting column name and value must be an iterable of
+        containing the necessary keys to retrieve the value from the
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
@@ -374,8 +377,8 @@ class MzxmlParser(BaseParser):
         any precursor charge is accepted.
     custom_fields : dict of str to list of str, optional
         Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
-        containing the necessary keys to retreive the value from the
+        be the resulting column name and value must be an iterable of
+        containing the necessary keys to retrieve the value from the
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
@@ -456,8 +459,8 @@ class MgfParser(BaseParser):
         any precursor charge is accepted.
     custom_fields : dict of str to list of str, optional
         Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
-        containing the necessary keys to retreive the value from the
+        be the resulting column name and value must be an iterable of
+        containing the necessary keys to retrieve the value from the
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional
         Enable or disable the progress bar.
@@ -552,7 +555,7 @@ class TdfParser(BaseParser):
         any precursor charge is accepted.
     custom_fields : dict of str to list of str, optional
         Additional field to extract during peak file parsing. The key must
-        be the resulting column name and value must be an interable of
+        be the resulting column name and value must be an iterable of
         containing the necessary keys to retrieve the value from the
         spectrum from the corresponding Pyteomics parser.
     progress : bool, optional

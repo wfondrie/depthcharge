@@ -1,6 +1,7 @@
 """Simple encoders for input into Transformers and the like."""
 
 import math
+import warnings
 
 import einops
 import numpy as np
@@ -43,16 +44,16 @@ class FloatEncoder(torch.nn.Module):
 
         self.learnable_wavelengths = learnable_wavelengths
 
-        # Get dimensions for equations:
-        d_sin = math.ceil(d_model / 2)
-        d_cos = d_model - d_sin
+        self._min_wavelength = min_wavelength
+        self._max_wavelength = max_wavelength
+        self._d_model = d_model
 
-        base = min_wavelength / (2 * np.pi)
-        scale = max_wavelength / min_wavelength
-        sin_exp = torch.arange(0, d_sin).float() / (d_sin - 1)
-        cos_exp = (torch.arange(d_sin, d_model).float() - d_sin) / (d_cos - 1)
-        sin_term = base * (scale**sin_exp)
-        cos_term = base * (scale**cos_exp)
+        # Dummy buffer to track the model's dtype for output conversion
+        self.register_buffer(
+            "_dtype_tracker", torch.zeros(1).float(), persistent=False
+        )
+
+        sin_term, cos_term = self._compute_wavelength_terms()
 
         if not self.learnable_wavelengths:
             self.register_buffer("sin_term", sin_term)
@@ -75,9 +76,46 @@ class FloatEncoder(torch.nn.Module):
             The encoded features for the floating point numbers.
 
         """
+        if X.dtype.itemsize < torch.float32.itemsize:
+            warnings.warn(
+                f"Input tensor has dtype {X.dtype} which is lower precision "
+                f"than float32. This may lead to numerical precision issues "
+                f"with large input values (e.g. mz arrays). "
+                f"It is highly recommended to use float32 inputs.",
+            )
+
         sin_mz = torch.sin(X[:, :, None] / self.sin_term)
         cos_mz = torch.cos(X[:, :, None] / self.cos_term)
-        return torch.cat([sin_mz, cos_mz], axis=-1)
+        encoded = torch.cat([sin_mz, cos_mz], axis=-1)
+
+        return encoded.to(self._dtype_tracker.dtype)
+
+    def _compute_wavelength_terms(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """Compute sin and cos wavelength terms for encoding."""
+        d_sin = math.ceil(self._d_model / 2)
+        d_cos = self._d_model - d_sin
+        base = self._min_wavelength / (2 * np.pi)
+        scale = self._max_wavelength / self._min_wavelength
+        sin_exp = torch.arange(0, d_sin).float() / (d_sin - 1)
+        cos_exp = (torch.arange(d_sin, self._d_model).float() - d_sin) / (
+            d_cos - 1
+        )
+        sin_term = base * (scale**sin_exp)
+        cos_term = base * (scale**cos_exp)
+        return sin_term, cos_term
+
+    def _apply(self, fn):
+        """Override _apply to keep encoding buffers at float32 precision."""
+        super()._apply(fn)
+
+        # if not learnable, reconstruct the buffers at float32 precision
+        if not self.learnable_wavelengths:
+            device = self.sin_term.device
+            sin_term, cos_term = self._compute_wavelength_terms()
+            self.sin_term = sin_term.to(device)
+            self.cos_term = cos_term.to(device)
+
+        return self
 
 
 class PeakEncoder(torch.nn.Module):
@@ -213,5 +251,16 @@ class PositionalEncoder(FloatEncoder):
 
         sin_pos = torch.sin(sin_in / self.sin_term)
         cos_pos = torch.cos(cos_in / self.cos_term)
-        encoded = torch.cat([sin_pos, cos_pos], axis=2)
+        encoded = torch.cat([sin_pos, cos_pos], axis=2).to(
+            self._dtype_tracker.dtype
+        )
+
+        # Warn if input dtype doesn't match model dtype
+        if X.dtype != encoded.dtype:
+            warnings.warn(
+                f"Input tensor dtype ({X.dtype}) does not match model dtype "
+                f"({encoded.dtype}). The addition will implicitly cast to a "
+                f"common dtype, which may cause unexpected behavior.",
+            )
+
         return encoded + X

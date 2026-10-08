@@ -1,4 +1,4 @@
-"""Tranformer models to handle mass spectra."""
+"""Transformer models to handle mass spectra."""
 
 from collections.abc import Callable
 
@@ -170,7 +170,7 @@ class SpectrumTransformerEncoder(
         combination of the mass, charge, retention time, or
         ion mobility of a precursor ion.
 
-        The representation returned by this method is preprended to the
+        The representation returned by this method is prepended to the
         peak representations that are fed into the Transformer encoder and
         ultimately contribute to the spectrum representation that is the
         first element of the sequence in the model output.
