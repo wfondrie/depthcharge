@@ -2788,14 +2788,14 @@ first element of the sequence in the model output.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The partial molecular sequences for which to predict the next
-token. Optionally, these may be the token indices instead
-of a string.</p>
+                <p>The integer tokens describing each analyte sequence, padded
+with 0s. When a decoder is called with <code>tokens=None</code>, this
+is an empty tensor of size (batch_size, 0).</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>list of str, torch.Tensor, or None</code>
+                      <code>torch.Tensor of size (batch_size, len_sequence)</code>
                   </span>
               </p>
             </td>
@@ -3252,14 +3252,14 @@ only if <code>n_tokens</code> was provided as an <code>int</code>.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The partial molecular sequences for which to predict the next
-token. Optionally, these may be the token indices instead
-of a string.</p>
+                <p>The integer tokens of the partial molecular sequences for which
+to predict the next token, padded with 0s. If <code>None</code>, only
+the global token is used, such as to predict the first token.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>list of str, torch.Tensor, or None</code>
+                      <code>torch.Tensor of size (batch_size, len_sequence) or None</code>
                   </span>
               </p>
             </td>
@@ -3454,14 +3454,14 @@ method.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The partial molecular sequences for which to predict the next
-token. Optionally, these may be the token indices instead
-of a string.</p>
+                <p>The integer tokens of the partial molecular sequences for which
+to predict the next token, padded with 0s. If <code>None</code>, only
+the global token is used, such as to predict the first token.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>list of str, torch.Tensor, or None</code>
+                      <code>torch.Tensor of size (batch_size, len_sequence) or None</code>
                   </span>
               </p>
             </td>
@@ -3664,14 +3664,14 @@ first element of the sequence in the model output.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The partial molecular sequences for which to predict the next
-token. Optionally, these may be the token indices instead
-of a string.</p>
+                <p>The integer tokens describing each analyte sequence, padded
+with 0s. When a decoder is called with <code>tokens=None</code>, this
+is an empty tensor of size (batch_size, 0).</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>list of str, torch.Tensor, or None</code>
+                      <code>torch.Tensor of size (batch_size, len_sequence)</code>
                   </span>
               </p>
             </td>

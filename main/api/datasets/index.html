@@ -1997,7 +1997,7 @@ any precursor charge is accepted.</p>
 
 
 <h2 id="depthcharge.data.SpectrumDataset" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">SpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">SpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
@@ -2107,29 +2107,6 @@ DataFrame or parquet file inputs.</p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
                       <code><span title="dict">dict</span></code>
-                  </span>
-                  <span class="doc-param-default">
-                    <b>DEFAULT:</b>
-                      <code>None</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>pad_fields</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Additional list columns to pad into a single tensor for each batch,
-in the same manner as the <code>mz_array</code> and <code>intensity_array</code> columns.
-Each value in these columns must be a list of numbers. Missing
-columns are ignored.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>str or iterable of str</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -2384,7 +2361,7 @@ mzXML, MGF, or Bruker TDF format.</p>
 
 
 <h4 id="depthcharge.data.SpectrumDataset.from_lance" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">from_lance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">from_lance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
@@ -2462,29 +2439,6 @@ peak files that are provided.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>pad_fields</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Additional list columns to pad into a single tensor for each batch,
-in the same manner as the <code>mz_array</code> and <code>intensity_array</code> columns.
-Each value in these columns must be a list of numbers. Missing
-columns are ignored.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>str or iterable of str</code>
-                  </span>
-                  <span class="doc-param-default">
-                    <b>DEFAULT:</b>
-                      <code>None</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
                 <code>**kwargs</code>
             </td>
             <td class="doc-param-details">
@@ -2519,7 +2473,7 @@ columns are ignored.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, pad_fields=None, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code>
+                    <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -2549,14 +2503,14 @@ columns are ignored.</p>
 
 
 <h2 id="depthcharge.data.AnnotatedSpectrumDataset" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">AnnotatedSpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">AnnotatedSpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, pad_fields=None, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="SpectrumDataset(spectra, batch_size, path=None, parse_kwargs=None, **kwargs) (depthcharge.data.spectrum_datasets.SpectrumDataset)" href="#depthcharge.data.SpectrumDataset">SpectrumDataset</a></code></p>
 
 
 
@@ -2692,29 +2646,6 @@ DataFrame or parquet file inputs.</p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
                       <code><span title="dict">dict</span></code>
-                  </span>
-                  <span class="doc-param-default">
-                    <b>DEFAULT:</b>
-                      <code>None</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>pad_fields</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Additional list columns to pad into a single tensor for each batch,
-in the same manner as the <code>mz_array</code> and <code>intensity_array</code> columns.
-Each value in these columns must be a list of numbers. Missing
-columns are ignored.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>str or iterable of str</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -2997,7 +2928,7 @@ mzXML, MGF, or Bruker TDF format.</p>
 
 
 <h4 id="depthcharge.data.AnnotatedSpectrumDataset.from_lance" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">from_lance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">from_lance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">annotations</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">parse_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
@@ -3108,29 +3039,6 @@ peak files that are provided.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>pad_fields</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Additional list columns to pad into a single tensor for each batch,
-in the same manner as the <code>mz_array</code> and <code>intensity_array</code> columns.
-Each value in these columns must be a list of numbers. Missing
-columns are ignored.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>str or iterable of str</code>
-                  </span>
-                  <span class="doc-param-default">
-                    <b>DEFAULT:</b>
-                      <code>None</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
                 <code>**kwargs</code>
             </td>
             <td class="doc-param-details">
@@ -3165,7 +3073,7 @@ columns are ignored.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><a class="autorefs autorefs-internal" title="AnnotatedSpectrumDataset(spectra, annotations, tokenizer, batch_size, path=None, parse_kwargs=None, pad_fields=None, **kwargs) (depthcharge.data.spectrum_datasets.AnnotatedSpectrumDataset)" href="#depthcharge.data.AnnotatedSpectrumDataset">AnnotatedSpectrumDataset</a></code>
+                    <code><a class="autorefs autorefs-internal" title="AnnotatedSpectrumDataset(spectra, annotations, tokenizer, batch_size, path=None, parse_kwargs=None, **kwargs) (depthcharge.data.spectrum_datasets.AnnotatedSpectrumDataset)" href="#depthcharge.data.AnnotatedSpectrumDataset">AnnotatedSpectrumDataset</a></code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -3195,7 +3103,7 @@ columns are ignored.</p>
 
 
 <h2 id="depthcharge.data.StreamingSpectrumDataset" class="doc doc-heading">
-              <code class="highlight language-python"><span class="n">StreamingSpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">pad_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">parse_kwargs</span><span class="p">)</span></code>
+              <code class="highlight language-python"><span class="n">StreamingSpectrumDataset</span><span class="p">(</span><span class="n">spectra</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="o">**</span><span class="n">parse_kwargs</span><span class="p">)</span></code>
 
 </h2>
 
@@ -3260,29 +3168,6 @@ independent from the batch size for the PyTorch DataLoader.</p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
                       <code><span title="int">int</span></code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>pad_fields</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Additional list columns to pad into a single tensor for each batch,
-in the same manner as the <code>mz_array</code> and <code>intensity_array</code> columns.
-Each value in these columns must be a list of numbers. Missing
-columns are ignored.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>str or iterable of str</code>
-                  </span>
-                  <span class="doc-param-default">
-                    <b>DEFAULT:</b>
-                      <code>None</code>
                   </span>
               </p>
             </td>

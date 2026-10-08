@@ -1897,6 +1897,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li>Fixed formatting of the warning for skipped spectra (missing space and stray line break), and included the exception type in it.</li>
 <li>The skipped spectra warning is now raised even when iteration over a peak file stops early.</li>
 <li>Columns that are padded now raise an informative error when they cannot be padded, and a list column containing missing values no longer causes an error when converting a batch to tensors.</li>
+<li>Fixed <code>AnalyteTransformerDecoder.embed()</code> (and therefore <code>forward()</code>) failing when called with <code>tokens=None</code>, due to the empty token tensor having a float dtype and a batch size of 1.</li>
 </ul>
 <h2 id="v049">[v0.4.9]</h2>
 <h3 id="added_1">Added</h3>
