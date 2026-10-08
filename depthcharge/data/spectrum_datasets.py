@@ -858,15 +858,31 @@ def _get_records(
     data : list of polars.DataFrame or PathLike
         The data to add.
     **kwargs : dict
-        Keyword arguments for the parser.
+        Keyword arguments for the parser. If present, `batch_size` is also
+        used for DataFrame and parquet inputs.
+
+    Yields
+    ------
+    pyarrow.RecordBatch
+        The batches of spectra.
 
     """
+    batch_size = kwargs.get("batch_size")
+    parquet_kwargs = {} if batch_size is None else {"batch_size": batch_size}
     for spectra in data:
         try:
-            spectra = spectra.lazy().collect().to_arrow().to_batches()
+            spectra = (
+                spectra.lazy()
+                .collect()
+                .rechunk()
+                .to_arrow()
+                .to_batches(max_chunksize=batch_size)
+            )
         except AttributeError:
             try:
-                spectra = pq.ParquetFile(spectra).iter_batches()
+                spectra = pq.ParquetFile(spectra).iter_batches(
+                    **parquet_kwargs
+                )
             except (pa.ArrowInvalid, TypeError, OSError):
                 spectra = arrow.spectra_to_stream(spectra, **kwargs)
 

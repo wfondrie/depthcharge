@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `spectra_to_stream()` no longer drops spectra when joining the `metadata_df` adds rows to a batch beyond `batch_size`, such as when a `scan_id` appears more than once.
+- `StreamingSpectrumDataset` now respects `batch_size` for polars DataFrame and parquet file inputs. Previously, these inputs were yielded in batches that matched how the data was stored, regardless of `batch_size`.
 - `add_spectra()` can now add peak files to datasets created from polars DataFrames, which previously failed because of mismatched Arrow types.
 
 ## [v0.5.0]
