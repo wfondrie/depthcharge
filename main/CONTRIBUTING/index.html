@@ -889,25 +889,34 @@ ones that address discussed <a href="https://github.com/wfondrie/depthcharge/iss
 <p>Clone your forked Depthcharge repository to work on locally.</p>
 </li>
 <li>
-<p>Install the pre-commit hooks.
-   These will automatically lint and verify that new code matches our standard formatting with each new commit.
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># If you need to install pre-commit:</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span>pre-commit
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Install the pre-commit hooks:</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>pre-commit<span class="w"> </span>install
-</span></code></pre></div></p>
-</li>
-<li>
-<p>Create a new branch with a descriptive name for your changes:</p>
+<p>Install Depthcharge and its development dependencies with <a href="https://docs.astral.sh/uv/">uv</a>:</p>
 </li>
 </ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>fix_x
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>sync<span class="w"> </span>--dev
+</span></code></pre></div>
+<ol>
+<li>Install the pre-commit hooks.
+   These will automatically lint and verify that new code matches our standard formatting with each new commit.</li>
+</ol>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>run<span class="w"> </span>pre-commit<span class="w"> </span>install
+</span></code></pre></div>
+<ol>
+<li>Create a new branch with a descriptive name for your changes:</li>
+</ol>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>fix_x
 </span></code></pre></div>
 <ol>
 <li>
-<p>Make your changes (make sure to read below first).</p>
+<p>Make your changes (make sure to read below first).
+   Bug fixes should include a test that fails without the fix, and user-facing changes should include an entry under <code>## [Unreleased]</code> in <code>CHANGELOG.md</code>.</p>
 </li>
+<li>
+<p>Verify that the tests pass:</p>
+</li>
+</ol>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/
+</span></code></pre></div>
+<ol>
 <li>
 <p>Add, commit, and push your changes to your forked repository.</p>
 </li>
@@ -921,30 +930,19 @@ ones that address discussed <a href="https://github.com/wfondrie/depthcharge/iss
    in the next release!</p>
 </li>
 </ol>
+<p>If you are using an AI coding agent, point it to <a href="https://github.com/wfondrie/depthcharge/blob/main/AGENTS.md">AGENTS.md</a>, which describes our conventions in more detail.</p>
 <h3 id="python-code-style">Python code style</h3>
 <p>The Depthcharge project follows the <a href="https://www.python.org/dev/peps/pep-0008/">PEP 8 guidelines</a> for Python code style.
-More specifically, we use <a href="https://black.readthedocs.io/en/stable/">Black</a> to automatically format code and <a href="https://github.com/charliermarsh/ruff">Ruff</a> to automatically lint Python code in Depthcharge.</p>
-<p>We highly recommend setting up our pre-commit hooks.
-These will run Black, Ruff, and some other checks during each commit, fixing problems that can be fixed automatically.
-Because we run black for code linting as part of our tests, setting up this hook can save you from having to revise code formatting. Take the following steps to setup the pre-commit hooks:</p>
-<ol>
-<li>Verify that pre-commit is installed on your machine.
-   If not, you can install them with pip or conda:</li>
-</ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Using pip</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>pip<span class="w"> </span>install<span class="w"> </span>pre-commit
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Using conda</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>conda<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>pre-commit
+More specifically, we use <a href="https://docs.astral.sh/ruff/">Ruff</a> to automatically format and lint Python code in Depthcharge.
+All functions, classes, and methods should have NumPy-style docstrings.</p>
+<p>We highly recommend setting up our pre-commit hooks (step 4 above).
+These will run Ruff and some other checks during each commit, fixing problems that can be fixed automatically.
+Because we check formatting and linting as part of our tests, setting up these hooks can save you from having to revise your code.
+If a hook changes a file, you need to <code>git add</code> the file again before finishing the commit.</p>
+<p>You can also run Ruff yourself:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>check<span class="w"> </span>--fix<span class="w"> </span>.
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>format<span class="w"> </span>.
 </span></code></pre></div>
-<ol>
-<li>Navigate to your local copy of the Depthcharge repository and activate the hook:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pre-commit<span class="w"> </span>install
-</span></code></pre></div></li>
-</ol>
-<p>One the hook is installed, black will be run before any commit is made. If a
-file is changed by black, then you need to <code>git add</code> the file again before
-finished the commit.</p>
 <p>When you're ready, open a pull request with your changes and we'll start the review process.
 Thank you for your contribution! :tada:</p>
 
