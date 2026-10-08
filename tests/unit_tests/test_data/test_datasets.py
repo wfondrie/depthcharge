@@ -3,6 +3,7 @@
 import pickle
 import shutil
 import warnings
+from collections.abc import Iterable
 
 import polars as pl
 import pyarrow as pa
@@ -400,3 +401,196 @@ def test_pickle(tokenizer, tmp_path, mgf_small):
         loaded = pickle.load(pkl)
 
     assert dataset.n_spectra == loaded.n_spectra
+
+
+def test_to_tensor_types(tmp_path):
+    """Test that columns are converted to the expected types."""
+    spectra = pl.DataFrame(
+        {
+            "mz_array": [[1.0, 2.0], [3.0, 4.0, 5.0], [6.0]],
+            "intensity_array": [[1.0, 2.0], [3.0, 4.0, 5.0], [6.0]],
+            "ints": pl.Series([1, 2, 3], dtype=pl.UInt8),
+            "floats": [1.5, 2.5, 3.5],
+            "bools": [True, False, True],
+            "strings": ["a", "b", "c"],
+            "nulls": [1.0, None, 3.0],
+            "even": [[1, 2], [3, 4], [5, 6]],
+            "ragged": [[1.0], [2.0, 3.0], []],
+        }
+    )
+    expected = {
+        "mz_array": torch.tensor(
+            [[1.0, 2.0, 0.0], [3.0, 4.0, 5.0], [6.0, 0.0, 0.0]]
+        ),
+        "ints": torch.tensor([1, 2, 3]),
+        "floats": torch.tensor([1.5, 2.5, 3.5]),
+        "bools": torch.tensor([True, False, True]),
+        "strings": ["a", "b", "c"],
+        "nulls": [1.0, None, 3.0],
+        "even": torch.tensor([[1, 2], [3, 4], [5, 6]]),
+        "ragged": [[1.0], [2.0, 3.0], []],
+    }
+
+    def check(batch: dict, rows: list[int]) -> None:
+        """Check a batch against the expected values."""
+        torch.testing.assert_close(batch["intensity_array"], batch["mz_array"])
+        for key, val in expected.items():
+            if key == "ragged":
+                assert len(batch[key]) == len(rows)
+                for row, out in zip(rows, batch[key]):
+                    torch.testing.assert_close(
+                        out, torch.tensor(val[row], dtype=torch.float32)
+                    )
+            elif key == "mz_array":
+                length = max(len(spectra["mz_array"][r]) for r in rows)
+                torch.testing.assert_close(batch[key], val[rows][:, :length])
+            elif isinstance(val, torch.Tensor):
+                torch.testing.assert_close(batch[key], val[rows])
+            else:
+                assert batch[key] == [val[r] for r in rows]
+
+    dataset = SpectrumDataset(spectra, path=tmp_path / "test", batch_size=3)
+    check(next(iter(dataset)), [0, 1, 2])
+    check(dataset[[1, 2]], [1, 2])
+    check(dataset[[0, 1]], [0, 1])
+
+    dataset = SpectrumDataset.from_lance(tmp_path / "test.lance", 3)
+    check(next(iter(dataset)), [0, 1, 2])
+
+    dataset = StreamingSpectrumDataset(spectra, 3)
+    check(next(iter(dataset)), [0, 1, 2])
+
+    # Later batches may start at an offset in the Arrow arrays:
+    dataset = SpectrumDataset.from_lance(tmp_path / "test.lance", 2)
+    batches = list(dataset)
+    check(batches[0], [0, 1])
+    torch.testing.assert_close(batches[1]["mz_array"], torch.tensor([[6.0]]))
+    torch.testing.assert_close(batches[1]["even"], torch.tensor([[5, 6]]))
+    torch.testing.assert_close(batches[1]["ragged"], torch.empty(1, 0))
+
+
+@pytest.fixture
+def ordered_spectra():
+    """Spectra with an increasing scan_id."""
+    return pl.DataFrame(
+        {
+            "scan_id": [f"scan={i}" for i in range(50)],
+            "mz_array": [[float(i)] for i in range(50)],
+            "intensity_array": [[1.0]] * 50,
+            "seq": ["LESLIEK"] * 50,
+        }
+    )
+
+
+def _scan_ids(dataset: Iterable) -> list[str]:
+    """Get the scan IDs from each batch.
+
+    Parameters
+    ----------
+    dataset : Iterable
+        The dataset or DataLoader to iterate over.
+
+    Returns
+    -------
+    list of str
+        The scan IDs in the order they were loaded.
+
+    """
+    return [scan for batch in dataset for scan in batch["scan_id"]]
+
+
+def test_shuffle(tmp_path, ordered_spectra, tokenizer):
+    """Test shuffling spectra."""
+    expected = ordered_spectra["scan_id"].to_list()
+    path = tmp_path / "test.lance"
+
+    # Not shuffled by default:
+    dataset = SpectrumDataset(ordered_spectra, 8, path=path)
+    assert _scan_ids(dataset) == expected
+    assert _scan_ids(dataset) == expected
+
+    for dataset in [
+        SpectrumDataset.from_lance(path, 8, shuffle=True, seed=1),
+        AnnotatedSpectrumDataset.from_lance(
+            path, "seq", tokenizer, 8, shuffle=True, seed=1
+        ),
+    ]:
+        epochs = [_scan_ids(dataset) for _ in range(3)]
+        for epoch in epochs:
+            assert epoch != expected
+            assert sorted(epoch) == sorted(expected)
+
+        assert epochs[0] != epochs[1] != epochs[2]
+
+        # Batches are the requested size:
+        sizes = [len(b["scan_id"]) for b in dataset]
+        assert sizes == [8] * 6 + [2]
+
+        # Setting the epoch reproduces the order:
+        dataset.set_epoch(1)
+        assert _scan_ids(dataset) == epochs[1]
+
+    # The same seed gives the same order:
+    dataset = SpectrumDataset.from_lance(path, 8, shuffle=True, seed=1)
+    assert _scan_ids(dataset) == epochs[0]
+
+    # The default seed comes from PyTorch:
+    torch.manual_seed(42)
+    first = _scan_ids(SpectrumDataset.from_lance(path, 8, shuffle=True))
+    torch.manual_seed(42)
+    second = _scan_ids(SpectrumDataset.from_lance(path, 8, shuffle=True))
+    assert first == second
+
+    # When creating a dataset:
+    dataset = SpectrumDataset(
+        ordered_spectra, 8, path=path, overwrite=True, shuffle=True, seed=1
+    )
+    assert _scan_ids(dataset) == epochs[0]
+
+    # Incompatible options:
+    with pytest.raises(ValueError, match="cannot be combined.*filter"):
+        SpectrumDataset.from_lance(path, 8, shuffle=True, filter="seq = 'A'")
+
+    # The LanceDataset options still work without shuffling:
+    dataset = SpectrumDataset.from_lance(path, 8, filter="scan_id = 'scan=3'")
+    assert _scan_ids(dataset) == ["scan=3"]
+
+
+@pytest.mark.parametrize("shuffle", [False, True])
+def test_distributed(tmp_path, ordered_spectra, monkeypatch, shuffle):
+    """Test that each process loads different spectra."""
+    dataset = SpectrumDataset(
+        ordered_spectra, 8, path=tmp_path / "test", shuffle=shuffle, seed=1
+    )
+
+    loaded = []
+    for rank in range(3):
+        monkeypatch.setattr(
+            "depthcharge.data.spectrum_datasets.get_global_rank",
+            lambda rank=rank: rank,
+        )
+        monkeypatch.setattr(
+            "depthcharge.data.spectrum_datasets.get_global_world_size",
+            lambda: 3,
+        )
+        dataset.set_epoch(0)
+        loaded.append(_scan_ids(dataset))
+
+    assert all(loaded)
+    assert sorted(sum(loaded, [])) == sorted(ordered_spectra["scan_id"])
+
+
+def test_dataloader_workers(tmp_path, ordered_spectra):
+    """Test that DataLoader workers load each spectrum once."""
+    dataset = SpectrumDataset(
+        ordered_spectra, 8, path=tmp_path / "test", shuffle=True
+    )
+    loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=None,
+        num_workers=2,
+        multiprocessing_context="spawn",
+    )
+    scans = _scan_ids(loader)
+    assert scans != ordered_spectra["scan_id"].to_list()
+    assert sorted(scans) == sorted(ordered_spectra["scan_id"])

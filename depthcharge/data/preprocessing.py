@@ -89,6 +89,60 @@ def scale_to_unit_norm(spectrum: MassSpectrum) -> MassSpectrum:
     return spectrum
 
 
+def _default(spectrum: MassSpectrum) -> MassSpectrum:
+    """Apply the default preprocessing.
+
+    This is equivalent to applying `set_mz_range(min_mz=140)`,
+    `filter_intensity(max_num_peaks=200)`, `scale_intensity("root")`, and
+    `scale_to_unit_norm()`, in that order. It is implemented with NumPy
+    to avoid compiling the spectrum_utils methods, which takes several
+    seconds in each new process. When several peaks have the same intensity
+    at the cutoff for the most intense peaks, a different one of them may be
+    kept than with the spectrum_utils methods.
+
+    Parameters
+    ----------
+    spectrum : MassSpectrum
+        The mass spectrum to preprocess.
+
+    Returns
+    -------
+    MassSpectrum
+        The preprocessed mass spectrum.
+
+    """
+    mz = np.asarray(spectrum.mz, dtype=np.float64)
+    intensity = np.asarray(spectrum.intensity, dtype=np.float32)
+    if not len(mz):
+        return spectrum
+
+    # set_mz_range(min_mz=140): the maximum m/z is the last peak, and
+    # spectrum_utils swaps the bounds if it is less than the minimum.
+    min_mz, max_mz = sorted([140.0, mz[-1]])
+    start = np.searchsorted(mz, min_mz, side="left")
+    stop = np.searchsorted(mz, max_mz, side="right")
+    mz, intensity = mz[start:stop], intensity[start:stop]
+
+    # filter_intensity(max_num_peaks=200): remove peaks without intensity,
+    # then keep the most intense peaks in m/z order.
+    max_num_peaks = 200
+    if len(intensity) <= max_num_peaks:
+        keep = intensity > 0
+    else:
+        order = np.argsort(intensity)
+        n_empty = int((intensity <= 0).sum())
+        keep = np.zeros(len(intensity), dtype=bool)
+        keep[order[max(n_empty, len(intensity) - max_num_peaks) :]] = True
+
+    mz, intensity = mz[keep], intensity[keep]
+
+    # scale_intensity("root"), then scale_to_unit_norm():
+    intensity = np.sqrt(intensity.astype(np.float64)).astype(np.float32)
+    spectrum.mz = mz
+    spectrum.intensity = intensity / np.linalg.norm(intensity)
+    return spectrum
+
+
 def _spectrum_utils_fn(func: str) -> Callable:
     """Wrap spectrum_utils.spectrum.MsmsSpectrum preprocessing methods."""
 

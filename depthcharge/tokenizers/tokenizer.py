@@ -7,7 +7,6 @@ from collections.abc import Iterable, Sequence
 
 import torch
 from sortedcontainers import SortedDict, SortedSet
-from torch import nn
 
 from .. import utils
 
@@ -106,14 +105,14 @@ class Tokenizer(ABC):
                     out.append(tokens)
                     continue
 
-                out.append(torch.tensor([self.index[t] for t in tokens]))
+                out.append([self.index[t] for t in tokens])
 
             if to_strings:
                 return out
-
-            return nn.utils.rnn.pad_sequence(out, batch_first=True)
         except KeyError as err:
             raise ValueError("Unrecognized token") from err
+
+        return _pad_tokens(out)
 
     def detokenize(
         self,
@@ -162,3 +161,27 @@ class Tokenizer(ABC):
             decoded.append(seq)
 
         return decoded
+
+
+def _pad_tokens(tokens: list[list[int]]) -> torch.Tensor:
+    """Pad integerized tokens into a single tensor.
+
+    Parameters
+    ----------
+    tokens : list of list of int
+        The integerized tokens for each sequence.
+
+    Returns
+    -------
+    torch.Tensor of shape (n_sequences, max_length)
+        The tokens, padded with 0's.
+
+    """
+    lengths = torch.tensor([len(t) for t in tokens], dtype=torch.int64)
+    max_length = int(lengths.max()) if len(tokens) else 0
+    padded = torch.zeros((len(tokens), max_length), dtype=torch.int64)
+    mask = torch.arange(max_length) < lengths[:, None]
+    padded[mask] = torch.tensor(
+        [t for seq in tokens for t in seq], dtype=torch.int64
+    )
+    return padded

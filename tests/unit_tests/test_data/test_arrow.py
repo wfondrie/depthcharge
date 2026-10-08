@@ -138,3 +138,28 @@ def test_to_stream(
     )
     parsed = pl.from_arrow(list(out))
     assert parsed.shape == shape
+
+
+def test_to_stream_metadata_adds_rows(real_mzml):
+    """Test that metadata joins that add rows keep every row."""
+    scan_id = spectra_to_df(real_mzml, progress=False)["scan_id"][0]
+    metadata_df = pl.DataFrame(
+        {
+            "scan_id": [scan_id, scan_id],
+            "peak_file": [real_mzml.name] * 2,
+            "label": ["a", "b"],
+        }
+    )
+
+    out = spectra_to_stream(
+        real_mzml,
+        batch_size=1,
+        metadata_df=metadata_df.lazy(),
+        progress=False,
+    )
+    parsed = pl.from_arrow(list(out))
+    assert parsed.shape == (5, 9)
+    assert parsed.filter(pl.col("scan_id") == scan_id)["label"].to_list() == [
+        "a",
+        "b",
+    ]

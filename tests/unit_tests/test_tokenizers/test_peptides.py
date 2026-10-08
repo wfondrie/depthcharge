@@ -188,3 +188,26 @@ def test_trim(start, stop, expected):
     )
 
     assert out[0] == expected
+
+
+def test_split_cache():
+    """Test that cached splits respect each tokenizer's options."""
+    seq = "LEIN[Deamidated]K"
+    default = PeptideTokenizer()
+    replaced = PeptideTokenizer(
+        replace_isoleucine_with_leucine=True,
+        replace_n_and_q_deamidated_with_d_and_e=True,
+        reverse=True,
+    )
+
+    for _ in range(2):
+        assert default.split(seq) == ["L", "E", "I", "N[Deamidated]", "K"]
+        assert replaced.split(seq) == ["K", "D", "L", "E", "L"]
+
+    # Changing the returned tokens does not change the cache:
+    default.split(seq).append("X")
+    assert default.split(seq) == ["L", "E", "I", "N[Deamidated]", "K"]
+
+    # Changing an option after initialization is respected:
+    default.reverse = True
+    assert default.split(seq) == ["K", "N[Deamidated]", "I", "E", "L"]

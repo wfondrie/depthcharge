@@ -37,8 +37,8 @@ def spectra_to_stream(
         ms_level: int
         precursor_mz: float
         precursor_charge: int
-        mz_array: list[float]
-        intensity_array: list[float]
+        mz_array: list[float64]
+        intensity_array: list[float32]
 
     An optional metadata DataFrame can be provided to add additional
     metadata to each mass spectrum. This DataFrame must contain
@@ -98,7 +98,8 @@ def spectra_to_stream(
     on_cols = ["scan_id"]
     validation = "1:1"
     if metadata_df is not None:
-        metadata_df = metadata_df.lazy()
+        # Collect once, so lazy sources aren't re-read for every batch:
+        metadata_df = metadata_df.lazy().collect()
         if "peak_file" in metadata_df.columns:
             # Validation is only supported when on is a single column.
             # Adding a footgun here to remove later...
@@ -107,22 +108,22 @@ def spectra_to_stream(
 
     parser = ParserFactory.get_parser(peak_file, **parser_args)
     for batch in parser.iter_batches(batch_size=batch_size):
-        if metadata_df is not None:
-            batch = (
-                pl.from_arrow(batch)
-                .lazy()
-                .join(
-                    metadata_df,
-                    on=on_cols,
-                    how="left",
-                    validate=validation,
-                )
-                .collect()
-                .to_arrow()
-                .to_batches(max_chunksize=batch_size)[0]
-            )
+        if metadata_df is None:
+            yield batch
+            continue
 
-        yield batch
+        # The join may add rows, so the result may be multiple batches:
+        yield from (
+            pl.from_arrow(batch)
+            .join(
+                metadata_df,
+                on=on_cols,
+                how="left",
+                validate=validation,
+            )
+            .to_arrow()
+            .to_batches(max_chunksize=batch_size)
+        )
 
 
 def spectra_to_parquet(
@@ -151,7 +152,7 @@ def spectra_to_parquet(
         precursor_mz: float64
         precursor_charge: int8
         mz_array: list[float64]
-        intensity_array: list[float64]
+        intensity_array: list[float32]
 
     An optional metadata DataFrame can be provided to add additional
     metadata to each mass spectrum. This DataFrame must contain
@@ -253,7 +254,7 @@ def spectra_to_df(
         precursor_mz: float64
         precursor_charge: int8
         mz_array: list[float64]
-        intensity_array: list[float64]
+        intensity_array: list[float32]
 
     An optional metadata DataFrame can be provided to add additional
     metadata to each mass spectrum. This DataFrame must contain
