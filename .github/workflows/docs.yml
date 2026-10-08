@@ -20,8 +20,8 @@ jobs:
           git config user.email github-actions@github.com
           git fetch origin gh-pages --depth=1
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.11"
 
@@ -29,21 +29,19 @@ jobs:
         uses: quarto-dev/quarto-actions/setup@v2
 
       - name: Install Dependencies
-        run: |
-          pip install uv
-          uv pip install ".[docs]" --system
+        run: uv sync --locked --extra docs
 
       - name: Build Docs
         if: github.event_name != 'pull_request'
-        run: mike deploy ${{ github.ref_name }}
+        run: uv run mike deploy ${{ github.ref_name }}
 
       - name: Test Build Docs
         if: github.event_name == 'pull_request'
-        run: mike deploy pr_test
+        run: uv run mike deploy pr_test
 
       - name: Tag with latest
         if: github.event_name == 'release' && github.event.action == 'created'
-        run: mike alias -u ${{ github.ref_name }} latest
+        run: uv run mike alias -u ${{ github.ref_name }} latest
 
       - name: Push deployment
         if: github.event_name != 'pull_request'
