@@ -5,9 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- Changed C-terminal and N-terminal modification check to include empty modifications
+### Added
 - Added the `replace_n_and_q_deamidated_with_d_and_e` option to the `PeptideTokenizer`, which replaces deamidated N and Q residues with D and E residues, because they are indistinguishable by de novo sequencing.
 - Added the `pad_fields` option to `SpectrumDataset`, `AnnotatedSpectrumDataset`, and `StreamingSpectrumDataset` (and their `from_lance()` methods), which pads additional list columns into a single tensor for each batch.
+
+### Changed
+- Spectra with invalid custom fields are now skipped and counted in the skipped spectra warning, instead of raising an error.
+
+### Fixed
+- Changed C-terminal and N-terminal modification check to include empty modifications
+- Fixed formatting of the warning for skipped spectra (missing space and stray line break), and included the exception type in it.
+- The skipped spectra warning is now raised even when iteration over a peak file stops early.
 - Columns that are padded now raise an informative error when they cannot be padded, and a list column containing missing values no longer causes an error when converting a batch to tensors.
 
 ## [v0.4.9]
