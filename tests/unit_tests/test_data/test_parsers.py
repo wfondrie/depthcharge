@@ -221,15 +221,37 @@ def test_custom_fields(mgf_small):
     expected = pl.Series("seq", ["LESLIEK", "EDITHR"])
     assert_series_equal(parsed["seq"], expected)
 
-    with pytest.raises(KeyError):
-        pl.from_arrow(
-            MgfParser(
-                mgf_small,
-                custom_fields=CustomField(
-                    "seq", lambda x: x["params"]["bar"], pa.string()
-                ),
-            ).iter_batches(None)
-        )
+
+def test_skipped_spectra_warning(mgf_small):
+    """Test that invalid custom fields are skipped with a warning."""
+    parser = MgfParser(
+        mgf_small,
+        custom_fields=CustomField(
+            "seq", lambda x: x["params"]["bar"], pa.string()
+        ),
+    )
+
+    msg = r"^Skipped 2 spectra with invalid information\. Last error was: "
+    with pytest.warns(UserWarning, match=msg + r"KeyError\('bar'\)$"):
+        assert not list(parser.iter_batches(None))
+
+    # The warning is still raised if iteration stops early:
+    def accessor(spectrum: dict) -> str:
+        seq = spectrum["params"]["seq"]
+        if seq == "LESLIEK":
+            raise ValueError("bad seq")
+
+        return seq
+
+    parser = MgfParser(
+        mgf_small,
+        custom_fields=CustomField("seq", accessor, pa.string()),
+    )
+
+    batches = parser.iter_batches(1)
+    assert next(batches)["seq"].to_pylist() == ["EDITHR"]
+    with pytest.warns(UserWarning, match=msg.replace("2", "1")):
+        batches.close()
 
 
 def test_invalid_file(tmp_path):
