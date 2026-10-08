@@ -595,6 +595,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#depthcharge.data.hash_peak_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      hash_peak_file
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#depthcharge.data.SpectrumDataset" class="md-nav__link">
     <span class="md-ellipsis">
       SpectrumDataset
@@ -627,6 +636,15 @@
   <a href="#depthcharge.data.SpectrumDataset.path" class="md-nav__link">
     <span class="md-ellipsis">
       path
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#depthcharge.data.SpectrumDataset.peak_file_hashes" class="md-nav__link">
+    <span class="md-ellipsis">
+      peak_file_hashes
     </span>
   </a>
   
@@ -717,6 +735,15 @@
   <a href="#depthcharge.data.AnnotatedSpectrumDataset.path" class="md-nav__link">
     <span class="md-ellipsis">
       path
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#depthcharge.data.AnnotatedSpectrumDataset.peak_file_hashes" class="md-nav__link">
+    <span class="md-ellipsis">
+      peak_file_hashes
     </span>
   </a>
   
@@ -1125,6 +1152,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#depthcharge.data.hash_peak_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      hash_peak_file
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#depthcharge.data.SpectrumDataset" class="md-nav__link">
     <span class="md-ellipsis">
       SpectrumDataset
@@ -1157,6 +1193,15 @@
   <a href="#depthcharge.data.SpectrumDataset.path" class="md-nav__link">
     <span class="md-ellipsis">
       path
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#depthcharge.data.SpectrumDataset.peak_file_hashes" class="md-nav__link">
+    <span class="md-ellipsis">
+      peak_file_hashes
     </span>
   </a>
   
@@ -1247,6 +1292,15 @@
   <a href="#depthcharge.data.AnnotatedSpectrumDataset.path" class="md-nav__link">
     <span class="md-ellipsis">
       path
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#depthcharge.data.AnnotatedSpectrumDataset.peak_file_hashes" class="md-nav__link">
+    <span class="md-ellipsis">
+      peak_file_hashes
     </span>
   </a>
   
@@ -1458,7 +1512,8 @@ This function reads data from a mass spectrometry data format,
 extracts the mass spectrum and identifying information. By
 default, the schema is:
     peak_file: str
-    scan_id: int
+    peak_file_hash: str
+    scan_id: str
     ms_level: int
     precursor_mz: float64
     precursor_charge: int8
@@ -1679,7 +1734,8 @@ This function reads data from a mass spectrometry data format,
 extracts the mass spectrum and identifying information. By
 default, the schema is:
     peak_file: str
-    scan_id: int
+    peak_file_hash: str
+    scan_id: str
     ms_level: int
     precursor_mz: float64
     precursor_charge: int8
@@ -1941,7 +1997,8 @@ This function reads data from a mass spectrometry data format,
 extracts the mass spectrum and identifying information. By
 default, the schema is:
     peak_file: str
-    scan_id: int
+    peak_file_hash: str
+    scan_id: str
     ms_level: int
     precursor_mz: float
     precursor_charge: int
@@ -2280,6 +2337,105 @@ each spectrum.</p>
 
 </div>
 
+<div class="doc doc-object doc-function">
+
+
+<h2 id="depthcharge.data.hash_peak_file" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">hash_peak_file</span><span class="p">(</span><span class="n">peak_file</span><span class="p">,</span> <span class="n">n_bytes</span><span class="o">=</span><span class="mi">2</span> <span class="o">**</span> <span class="mi">20</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents first">
+
+        <p>Compute a fast fingerprint of a peak file.</p>
+<p>Reading an entire peak file can be slow, so this fingerprint is computed
+from the file size and the first and last <code>n_bytes</code> of the file, using
+the BLAKE2b algorithm. Files no larger than <code>2 * n_bytes</code> are hashed in
+full. For directories, such as Bruker .d directories, the relative path
+and fingerprint of every file within it are combined.</p>
+<p>Because only part of each file is read, two files that differ only in
+their middle bytes will have the same fingerprint. In practice, the end
+of most mass spectrometry data files contains an index or checksum,
+making this unlikely for peak files.</p>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">PARAMETER</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>peak_file</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>The peak file or directory to fingerprint.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="os.PathLike">PathLike</span></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>n_bytes</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>The number of bytes to read from the start and the end of each file.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><span title="int">int</span></code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>2 ** 20</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">RETURNS</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <span class="doc-returns-annotation">
+                    <code><span title="str">str</span></code>
+                </span>
+            </td>
+            <td class="doc-returns-details">
+              <div class="doc-md-description">
+                <p>The fingerprint as a 32 character hexadecimal string.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
 <div class="doc doc-object doc-class">
 
 
@@ -2310,6 +2466,10 @@ greater than 1. Additionally, this dataset should not be
 used with a DataLoader set to <code>max_workers</code> &gt; 1, unless specific care is
 used to handle the
 <a href="https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset">caveats of a PyTorch IterableDataset</a></p>
+<p>Peak files are identified using a fingerprint of their contents
+(see <code>depthcharge.data.hash_peak_file()</code>), which is stored in the
+<code>peak_file_hash</code> column. Peak files that have already been added
+to the dataset are skipped with a warning.</p>
 <p>If you wish to use an existing lance dataset, use the <code>from_lance()</code>
 method.</p>
 
@@ -2478,6 +2638,24 @@ columns are ignored.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code><a class="autorefs autorefs-internal" title="peak_file_hashes
+
+  
+      property
+   (depthcharge.data.SpectrumDataset.peak_file_hashes)" href="#depthcharge.data.SpectrumDataset.peak_file_hashes">peak_file_hashes</a></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code>list of str</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code><a class="autorefs autorefs-internal" title="path
 
   
@@ -2596,6 +2774,28 @@ columns are ignored.</p>
 
 
 
+<h4 id="depthcharge.data.SpectrumDataset.peak_file_hashes" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">peak_file_hashes</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The fingerprints of the peak files in the lance dataset.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
 <h4 id="depthcharge.data.SpectrumDataset.peak_files" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">peak_files</span></code>
 
@@ -2629,8 +2829,10 @@ columns are ignored.</p>
     <div class="doc doc-contents ">
 
         <p>Add mass spectrometry data to the lance dataset.</p>
-<p>Note that depthcharge does not verify whether the provided spectra
-already exist in the lance dataset.</p>
+<p>Peak files that have already been added to the dataset, as
+determined by their <code>peak_file_hash</code>, are skipped with a warning.
+Depthcharge does not verify whether spectra from DataFrame or parquet
+inputs already exist in the lance dataset.</p>
 
 
 <table>
@@ -2862,6 +3064,10 @@ greater than 1. Additionally, this dataset should not be
 used with a DataLoader set to <code>max_workers</code> &gt; 1, unless specific care is
 used to handle the
 <a href="https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset">caveats of a PyTorch IterableDataset</a></p>
+<p>Peak files are identified using a fingerprint of their contents
+(see <code>depthcharge.data.hash_peak_file()</code>), which is stored in the
+<code>peak_file_hash</code> column. Peak files that have already been added
+to the dataset are skipped with a warning.</p>
 <p>If you wish to use an existing lance dataset, use the <code>from_lance()</code>
 method.</p>
 
@@ -3063,6 +3269,24 @@ columns are ignored.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code><a class="autorefs autorefs-internal" title="peak_file_hashes
+
+  
+      property
+   (depthcharge.data.AnnotatedSpectrumDataset.peak_file_hashes)" href="#depthcharge.data.AnnotatedSpectrumDataset.peak_file_hashes">peak_file_hashes</a></code></td>
+            <td class="doc-attribute-details">
+              <div class="doc-md-description">
+                
+              </div>
+              <p>
+                  <span class="doc-attribute-annotation">
+                    <b>TYPE:</b>
+                      <code>list of str</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code><a class="autorefs autorefs-internal" title="path
 
   
@@ -3209,6 +3433,28 @@ columns are ignored.</p>
 
 
 
+<h4 id="depthcharge.data.AnnotatedSpectrumDataset.peak_file_hashes" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">peak_file_hashes</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>The fingerprints of the peak files in the lance dataset.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
 <h4 id="depthcharge.data.AnnotatedSpectrumDataset.peak_files" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">peak_files</span></code>
 
@@ -3242,8 +3488,10 @@ columns are ignored.</p>
     <div class="doc doc-contents ">
 
         <p>Add mass spectrometry data to the lance dataset.</p>
-<p>Note that depthcharge does not verify whether the provided spectra
-already exist in the lance dataset.</p>
+<p>Peak files that have already been added to the dataset, as
+determined by their <code>peak_file_hash</code>, are skipped with a warning.
+Depthcharge does not verify whether spectra from DataFrame or parquet
+inputs already exist in the lance dataset.</p>
 
 
 <table>
@@ -3883,6 +4131,58 @@ intensities and scale to unit norm:
     <div class="doc doc-contents ">
 
         <p>Scale intensities to unit norm.</p>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">PARAMETER</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>spectrum</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>The mass spectrum to preprocess.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code><a class="autorefs autorefs-internal" title="MassSpectrum(filename, scan_id, mz, intensity, ms_level=None, retention_time=None, ion_mobility=None, precursor_mz=None, precursor_charge=None, label=None) (depthcharge.primitives.MassSpectrum)" href="../primitives/#depthcharge.MassSpectrum">MassSpectrum</a></code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<table>
+      <thead>
+        <tr>
+          <th><span class="doc-section-title">RETURNS</span></th>
+          <th><span>DESCRIPTION</span></th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <span class="doc-returns-annotation">
+                    <code><a class="autorefs autorefs-internal" title="MassSpectrum(filename, scan_id, mz, intensity, ms_level=None, retention_time=None, ion_mobility=None, precursor_mz=None, precursor_charge=None, label=None) (depthcharge.primitives.MassSpectrum)" href="../primitives/#depthcharge.MassSpectrum">MassSpectrum</a></code>
+                </span>
+            </td>
+            <td class="doc-returns-details">
+              <div class="doc-md-description">
+                <p>The mass spectrum with intensities scaled to have an L2 norm of 1.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>
