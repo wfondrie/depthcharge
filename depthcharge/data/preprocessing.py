@@ -70,9 +70,21 @@ from ..primitives import MassSpectrum
 
 
 def scale_to_unit_norm(spectrum: MassSpectrum) -> MassSpectrum:
-    """Scale intensities to unit norm."""
-    spectrum.intensity = (
-        spectrum.intensity / np.sqrt(spectrum.intensity**2).sum()
+    """Scale intensities to unit norm.
+
+    Parameters
+    ----------
+    spectrum : MassSpectrum
+        The mass spectrum to preprocess.
+
+    Returns
+    -------
+    MassSpectrum
+        The mass spectrum with intensities scaled to have an L2 norm of 1.
+
+    """
+    spectrum.intensity = spectrum.intensity / np.linalg.norm(
+        spectrum.intensity
     )
     return spectrum
 
