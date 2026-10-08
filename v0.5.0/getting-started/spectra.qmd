@@ -1,0 +1,252 @@
+---
+jupyter: python3
+---
+# Modeling Mass Spectra
+
+We think that the biggest barriers to building deep learning models for mass spectra are (1) parsing the data into a reasonable format, (2) representing the mass spectra in an efficient manner for learning, (3) constructing models that leverage the structure of the data in a mass spectrum.
+
+## Parsing Mass Spectra
+
+Depthcharge supports reading mass spectra from a variety of open formats: mzML, mzXML, and MGF.[^1]
+Under the hood, Depthcharge uses the Apache Arrow data format to store mass spectrometry data in a tabular manner, and likewise Apache Parquet to store individual mass spectrometry data files on disk.
+This means that standard data science tools like Pandas or Polars can be used to interact with our mass spectra after it is parsed by Depthcharge.
+
+[^1]: We plan to support the Bruker .d format will be supported through timsrust.
+
+For example, we can read an mzML file into a `polars.DataFrame` using `spectra_to_df()`:
+
+```{python}
+#| echo: false
+#| output: false
+import polars as pl
+pl.Config.set_tbl_formatting("ASCII_FULL_CONDENSED")
+```
+
+```{python}
+import polars as pl
+import depthcharge as dc
+
+mzml_file = "../../data/TMT10-Trial-8.mzML"
+
+# Read an mzML into a DataFramoe:
+df = dc.data.spectra_to_df(mzml_file, progress=False)
+print(df.head())
+```
+We can write the mass spectra directly to a Parquet file:
+
+```{python}
+pq_file = dc.data.spectra_to_parquet(mzml_file, progress=False)
+print(pl.read_parquet(pq_file).head())
+```
+
+Or we can stream them from the original file in batches:
+```{python}
+
+batch = next(dc.data.spectra_to_stream(mzml_file, progress=False))
+print(pl.from_arrow(batch))
+```
+
+### Spectrum Preprocessing
+
+Preprocessing steps, such as filtering peaks and transforming intensities is performed during parsing using and controlled using the `preprocessing_fn` parameter in all of the above functions.
+Depthcharge is closely tied into the [spectrum\_utils package](https://spectrum-utils.readthedocs.io/en/latest/) and any of the processing methods within spectrum\_utils may be applied to spectra in Depthcharge as well.
+Additionally, custom functions can be specified that accept a `depthcharge.MassSpectrum` as input and return a `depthcharge.MassSpectrum` as output.
+
+The `preprocessing_fn` parameter defines collection of functions to apply to each mass spectrum in sequence.
+The default `preprocessing_fn` is:
+
+```{python}
+#| output: false
+[
+    dc.data.preprocessing.set_mz_range(min_mz=140),
+    dc.data.preprocessing.filter_intensity(max_num_peaks=200),
+    dc.data.preprocessing.scale_intensity(scaling="root"),
+    dc.data.preprocessing.scale_to_unit_norm,
+]
+```
+
+However, we can change this process to meet our needs.
+As an example, let's create rather useless preprocessing function that sets the intensity of all the peaks to a value of one:
+
+```{python}
+import numpy as np
+
+def scale_to_one(spec):
+    """Set intensities to one.
+
+    Parameters
+    ----------
+    spec : depthcharge.MassSpectrum
+        The mass spectrum to transform.
+
+    Returns
+    -------
+    depthcharge.MassSpectrum
+        The transformed mass spectrum.
+    """
+    spec.intensity = np.ones_like(spec.intensity)
+    return spec
+```
+
+We can then use our preprocessing function, either by itself or in combination with other functions:
+
+```{python}
+df = dc.data.spectra_to_df(
+    mzml_file,
+    progress=False,
+    preprocessing_fn=[scale_to_one]
+)
+print(df.head())
+```
+
+### Extracting Additional Data
+
+By default, Depthcharge only extracts a minimal amount of information from a mass spectrometry data file.
+Additional fields can be retrieved using the `custom_fields` parameter in the above parsing functions.
+However, we have to tell Depthcharge exactly what data we want to extract and how to extract it.
+
+Currently, all mass spectrometry data file parsing is handled using the corresponding parser from [Pyteomics](https://pyteomics.readthedocs.io/en/latest/), which yield a Python dictionary for each spectrum.
+The function we define to extract data must operate on this spectrum dictionary.
+Below, we define a custom field to extract the retention time for each spectrum:
+
+```{python}
+import pyarrow as pa
+
+ce_field = dc.data.CustomField(
+    # The new column name:
+    name="ret_time",
+    # The function to extract the retention time:
+    accessor=lambda x: x["scanList"]["scan"][0]["scan start time"],
+    # The expected data type:
+    dtype=pa.float64(),
+)
+
+df = dc.data.spectra_to_df(
+    mzml_file,
+    progress=False,
+    custom_fields=ce_field,
+)
+print(df.head())
+```
+
+### Adding Additional Outside Data
+
+As a DataFrame or Parquet file, the parsed mass spectra are relatively easy to manipulate uses standard data science tools like Polars and Pandas.
+However, we can also efficiently add new data to our mass spectra during parsing by providing a separate metadata dataframe as the `metadata_df` parameter.
+We require that this dataframe have a `scan_id` field and it may optionally have a `peak_file` field that will be used to join the metadata table with the parsed spectra.
+
+For example, we could use a metadata_df to pair peptide detections with the spectrum that they were detected from:
+
+```{python}
+metadata_df = pl.DataFrame({
+    "scan_id": [
+        f"controllerType=0 controllerNumber=1 scan={x}"
+        for x in (501, 507)
+    ],
+    "peptide": ["LESLIEK", "EDITHR"]
+})
+
+df = dc.data.spectra_to_df(
+    mzml_file,
+    progress=False,
+    metadata_df=metadata_df,
+)
+print(df.head())
+```
+
+## Building PyTorch Datasets from Mass Spectra
+
+Although the individual mass spectrometry data file parsing features are nice, often we will want to train models on more than one file and at a scale that is unlikely to fit in memory.
+For this task, Depthcharge provides three dataset classes for mass spectra:
+
+- `SpectrumDataset` - Use this class for training on mass spectra.
+- `AnnotatedSpectrumDataset` - Use this class for training on annotated mass spectra, such as peptide-spectrum matches.
+- `StreamingSpectrumDataset` - Use this class for running inference on mass spectra.
+
+The `SpectrumDataset` and `AnnotatedSpectrumDataset` classes parse spectra into a [Lance dataset](https://lance.org) which allows for efficient on-disk storage and fast random access of the stored spectra.
+
+All of these classes can be created from the same mass spectrometry data formats as above, or can be created from previously parsed mass spectra as dataframes or Parquet files.
+Furthermore, when doing the former, all of the same features for preprocessing and adding additional data are available using the `parse_kwargs` parameter.
+
+For example, we can create a dataset for our example file:
+```{python}
+from depthcharge.data import SpectrumDataset
+
+parse_kwargs = {"progress": False}
+
+dataset = SpectrumDataset(mzml_file, batch_size=2, parse_kwargs=parse_kwargs)
+```
+
+The `SpectrumDataset` and `AnnoatatedSpectrumDataset` use the native [PyTorch integration in Lance](https://lance.org/integrations/pytorch) and all of the corresponding parameters are available as keyword arguments.
+Furthermore, all three of these classes are [PyTorch `IterableDataset` classes](https://pytorch.org/docs/stable/data.html#iterable-style-datasets), so they are ready to be used directly to train and evaulate deep learning models with PyTorch.
+
+**A word of caution:** the batch size and any parallelism a best handled by the dataset class itself rather than the PyTorch `DataLoader`; hence, we recommend initializing `DataLoaders` with `num_workers` <= 1 and `batch_size` = 1, or simply:
+
+```{python}
+from torch.utils.data import DataLoader
+
+loader = DataLoader(dataset, batch_size=None)
+
+for batch in loader:
+    print(batch["scan_id"], batch["precursor_mz"])
+```
+
+
+## Transfomer Models for Mass Spectra
+
+Now that we know how to parse mass spectra, we can now build a model that uses them.
+In Depthcharge, we've designed Transformer models specifically for this task: the `SpectrumTransformerEncoder`.
+However, the dataset classes and other modules in Depthcharge are fully interoperable with any PyTorch module.
+
+```{python}
+from depthcharge.transformers import SpectrumTransformerEncoder
+
+model = SpectrumTransformerEncoder()
+
+for batch in loader:
+    out = model(batch["mz_array"], batch["intensity_array"])
+    print(out[0].shape)
+
+```
+
+Note that by default, our Transformer model only considers the spectrum itself and not any of the precursor information.
+However, we can add it!
+
+The first element output by each Transformer module in Depthcharge is a global representation of the sequence, which is a mass spectrum in this case.
+By default, it is set to `0`s and ignored.
+We can change this behavior by creating a child class of our Transformer module and overriding the `global_token_hook` method.
+Let's create a hook that will add information about the precursor mass and charge to the global representation:
+
+```{python}
+from depthcharge.encoders import FloatEncoder
+
+class MyModel(SpectrumTransformerEncoder):
+    """Our custom model class."""
+    def __init__(self, *args, **kwargs):
+        """Add parameters for the global token hook."""
+        super().__init__(*args, **kwargs)
+        self.precursor_mz_encoder = FloatEncoder(self.d_model)
+        self.precursor_z_encoder = FloatEncoder(self.d_model, 1, 10)
+
+    def global_token_hook(self, mz_array, intensity_array, *args, **kwargs):
+        """Return a simple representation of the precursor."""
+        mz_rep = self.precursor_mz_encoder(
+            kwargs["precursor_mz"].type_as(mz_array)[None, :],
+        )
+        charge_rep = self.precursor_z_encoder(
+            kwargs["precursor_charge"].type_as(mz_array)[None, :],
+        )
+        return (mz_rep + charge_rep)[0, :]
+```
+
+Now we can use our new `MyModel` class with our mass spectra:
+
+```{python}
+model = MyModel()
+
+for batch in loader:
+    out = model(**batch)
+    print(out[0].shape)
+```
+
+These Depthcharge modules are merely an accessible starting point for us to build a model fully customized to our task at hand.
