@@ -178,7 +178,9 @@ dataset = SpectrumDataset(mzml_file, batch_size=2, parse_kwargs=parse_kwargs)
 ```
 
 Each mass spectrum records the peak file it came from in the `peak_file` column, along with a fingerprint of that file's contents in the `peak_file_hash` column.
-This fingerprint distinguishes peak files that share the same name, and it lets the dataset skip peak files that have already been added:
+This fingerprint distinguishes peak files that share the same name, and it lets the dataset skip peak files that have already been added.
+Likewise, if we create a dataset with a `path` where a Lance dataset already exists, only the peak files that it does not already contain are parsed and added, unless we specify `overwrite=True`.
+With `add_spectra()`, we're warned when a peak file is skipped:
 
 ```{python}
 import warnings

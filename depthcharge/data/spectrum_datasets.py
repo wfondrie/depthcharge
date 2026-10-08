@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import logging
 import uuid
 import warnings
@@ -51,9 +52,14 @@ class SpectrumDataset(LanceDataset):
     Peak files are identified using a fingerprint of their contents
     (see `depthcharge.data.hash_peak_file()`), which is stored in the
     `peak_file_hash` column. Peak files that have already been added
-    to the dataset are skipped with a warning.
+    to the dataset are skipped.
 
-    If you wish to use an existing lance dataset, use the `from_lance()`
+    If a lance dataset already exists at `path`, only the peak files that it
+    does not already contain are parsed and added to it, unless `overwrite`
+    is `True`. This makes it fast to re-create a dataset with the same peak
+    files. Note that depthcharge does not verify that the existing dataset was
+    created with the same `parse_kwargs`, such as preprocessing. To use an
+    existing lance dataset without adding spectra, use the `from_lance()`
     method.
 
     Parameters
@@ -71,6 +77,9 @@ class SpectrumDataset(LanceDataset):
         The name and path of the lance dataset. If the path does
         not contain the `.lance` then it will be added.
         If `None`, a file will be created in a temporary directory.
+    overwrite : bool, optional
+        Replace the lance dataset at `path` if it exists, rather than
+        adding new peak files to it.
     parse_kwargs : dict, optional
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
         peak files that are provided. This argument has no effect for
@@ -101,6 +110,7 @@ class SpectrumDataset(LanceDataset):
         path: PathLike | None = None,
         parse_kwargs: dict | None = None,
         pad_fields: str | Iterable[str] | None = None,
+        overwrite: bool = False,
         **kwargs: dict,
     ) -> None:
         """Initialize a SpectrumDataset."""
@@ -122,14 +132,26 @@ class SpectrumDataset(LanceDataset):
 
         # Now parse spectra.
         if spectra is not None:
-            spectra = _filter_duplicates(utils.listify(spectra))
-            batch = next(_get_records(spectra, **self._init_kwargs))
-            lance.write_dataset(
-                _get_records(spectra, **self._parse_kwargs),
-                str(self._path),
-                mode="overwrite" if self._path.exists() else "create",
-                schema=batch.schema,
-            )
+            spectra = utils.listify(spectra)
+            if self._path.exists() and not overwrite:
+                existing = lance.dataset(str(self._path))
+                _check_appendable(existing, spectra, self._parse_kwargs)
+                spectra = _filter_duplicates(
+                    spectra,
+                    existing=_get_peak_file_hashes(existing),
+                    warn=False,
+                )
+                if spectra:
+                    _append(existing, spectra, self._parse_kwargs)
+            else:
+                spectra = _filter_duplicates(spectra)
+                batch = next(_get_records(spectra, **self._init_kwargs))
+                lance.write_dataset(
+                    _get_records(spectra, **self._parse_kwargs),
+                    str(self._path),
+                    mode="overwrite" if self._path.exists() else "create",
+                    schema=batch.schema,
+                )
 
         elif not self._path.exists():
             raise ValueError("No spectra were provided")
@@ -168,14 +190,7 @@ class SpectrumDataset(LanceDataset):
             warnings.warn("No new spectra were added to the dataset.")
             return self
 
-        batch = next(_get_records(spectra, **self._init_kwargs))
-        self.dataset = lance.write_dataset(
-            _get_records(spectra, **self._parse_kwargs),
-            self._path,
-            mode="append",
-            schema=batch.schema,
-        )
-
+        self.dataset = _append(self.dataset, spectra, self._parse_kwargs)
         return self
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
@@ -220,16 +235,7 @@ class SpectrumDataset(LanceDataset):
     @property
     def peak_file_hashes(self) -> list[str]:
         """The fingerprints of the peak files in the lance dataset."""
-        if "peak_file_hash" not in self.dataset.schema.names:
-            return []
-
-        return (
-            self.dataset.to_table(columns=["peak_file_hash"])
-            .column(0)
-            .unique()
-            .drop_null()
-            .to_pylist()
-        )
+        return _get_peak_file_hashes(self.dataset)
 
     @property
     def path(self) -> Path:
@@ -326,9 +332,14 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
     Peak files are identified using a fingerprint of their contents
     (see `depthcharge.data.hash_peak_file()`), which is stored in the
     `peak_file_hash` column. Peak files that have already been added
-    to the dataset are skipped with a warning.
+    to the dataset are skipped.
 
-    If you wish to use an existing lance dataset, use the `from_lance()`
+    If a lance dataset already exists at `path`, only the peak files that it
+    does not already contain are parsed and added to it, unless `overwrite`
+    is `True`. This makes it fast to re-create a dataset with the same peak
+    files. Note that depthcharge does not verify that the existing dataset was
+    created with the same `parse_kwargs`, such as preprocessing. To use an
+    existing lance dataset without adding spectra, use the `from_lance()`
     method.
 
     Parameters
@@ -351,6 +362,9 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         The name and path of the lance dataset. If the path does
         not contain the `.lance` then it will be added.
         If ``None``, a file will be created in a temporary directory.
+    overwrite : bool, optional
+        Replace the lance dataset at `path` if it exists, rather than
+        adding new peak files to it.
     parse_kwargs : dict, optional
         Keyword arguments passed `depthcharge.spectra_to_stream()` for
         peak files that are provided. This argument has no effect for
@@ -387,6 +401,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
         path: PathLike = None,
         parse_kwargs: dict | None = None,
         pad_fields: str | Iterable[str] | None = None,
+        overwrite: bool = False,
         **kwargs: dict,
     ) -> None:
         """Initialize an AnnotatedSpectrumDataset."""
@@ -398,6 +413,7 @@ class AnnotatedSpectrumDataset(SpectrumDataset):
             path=path,
             parse_kwargs=parse_kwargs,
             pad_fields=pad_fields,
+            overwrite=overwrite,
             **kwargs,
         )
 
@@ -582,6 +598,7 @@ def _get_records(
 def _filter_duplicates(
     data: list[pl.DataFrame | PathLike],
     existing: Iterable[str] = (),
+    warn: bool = True,
 ) -> list[pl.DataFrame | PathLike]:
     """Remove peak files that have already been added.
 
@@ -591,6 +608,8 @@ def _filter_duplicates(
         The data to add.
     existing : iterable of str, optional
         The fingerprints of peak files that have already been added.
+    warn : bool, optional
+        Warn about skipped peak files. Otherwise, they are logged.
 
     Returns
     -------
@@ -614,12 +633,175 @@ def _filter_duplicates(
         keep.append(spectra)
 
     if skipped:
-        warnings.warn(
+        msg = (
             f"Skipped {len(skipped)} peak file(s) that were already added to "
             f"the dataset: {', '.join(skipped)}"
         )
+        if warn:
+            warnings.warn(msg)
+        else:
+            LOGGER.info(msg)
 
     return keep
+
+
+def _append(
+    dataset: lance.LanceDataset,
+    data: list[pl.DataFrame | PathLike],
+    parse_kwargs: dict,
+) -> lance.LanceDataset:
+    """Append spectra to an existing lance dataset.
+
+    The new spectra are cast to the schema of the existing dataset. For
+    example, datasets created from a polars DataFrame use large string
+    and list types, whereas parsed peak files do not.
+
+    Parameters
+    ----------
+    dataset : lance.LanceDataset
+        The existing lance dataset.
+    data : list of polars.DataFrame or PathLike
+        The data to add.
+    parse_kwargs : dict
+        The keyword arguments for parsing peak files.
+
+    Returns
+    -------
+    lance.LanceDataset
+        The updated lance dataset.
+
+    """
+    schema = dataset.schema
+    records = _cast_records(_get_records(data, **parse_kwargs), schema)
+
+    # Check the first batch here, so errors aren't wrapped by lance:
+    first = next(records, None)
+    if first is None:
+        return dataset
+
+    return lance.write_dataset(
+        pa.RecordBatchReader.from_batches(
+            schema,
+            itertools.chain([first], records),
+        ),
+        dataset.uri,
+        mode="append",
+    )
+
+
+def _cast_records(
+    records: Iterable[pa.RecordBatch],
+    schema: pa.Schema,
+) -> Generator[pa.RecordBatch]:
+    """Cast record batches to a schema.
+
+    Parameters
+    ----------
+    records : iterable of pyarrow.RecordBatch
+        The record batches to cast.
+    schema : pyarrow.Schema
+        The schema to cast to. The record batches must have the same columns,
+        although they may be in a different order.
+
+    Yields
+    ------
+    pyarrow.RecordBatch
+        The record batches with the new schema.
+
+    Raises
+    ------
+    ValueError
+        Raised if the columns of a record batch do not match the schema.
+
+    """
+    for record in records:
+        missing = set(schema.names) - set(record.schema.names)
+        unexpected = set(record.schema.names) - set(schema.names)
+        if missing or unexpected:
+            raise ValueError(
+                "The new spectra do not have the same columns as the "
+                f"existing lance dataset. Missing: {sorted(missing)}. "
+                f"Unexpected: {sorted(unexpected)}."
+            )
+
+        table = pa.Table.from_batches([record]).select(schema.names)
+        yield from table.cast(schema).to_batches()
+
+
+def _get_peak_file_hashes(dataset: lance.LanceDataset) -> list[str]:
+    """Get the peak file fingerprints in a lance dataset.
+
+    Parameters
+    ----------
+    dataset : lance.LanceDataset
+        The lance dataset.
+
+    Returns
+    -------
+    list of str
+        The unique peak file fingerprints, or an empty list if the
+        dataset does not have a `peak_file_hash` column.
+
+    """
+    if "peak_file_hash" not in dataset.schema.names:
+        return []
+
+    return (
+        dataset.to_table(columns=["peak_file_hash"])
+        .column(0)
+        .unique()
+        .drop_null()
+        .to_pylist()
+    )
+
+
+def _check_appendable(
+    dataset: lance.LanceDataset,
+    data: list[pl.DataFrame | PathLike],
+    parse_kwargs: dict,
+) -> None:
+    """Verify that new peak files can be added to an existing dataset.
+
+    Parameters
+    ----------
+    dataset : lance.LanceDataset
+        The existing lance dataset.
+    data : list of polars.DataFrame or PathLike
+        The data to add.
+    parse_kwargs : dict
+        The keyword arguments for parsing peak files.
+
+    Raises
+    ------
+    ValueError
+        Raised if the data cannot be added to the existing dataset.
+
+    """
+    hint = "Use `overwrite=True` to replace it."
+    columns = set(dataset.schema.names)
+    if "peak_file_hash" not in columns:
+        raise ValueError(
+            f"The lance dataset at '{dataset.uri}' was created with a "
+            f"previous version of depthcharge. {hint}"
+        )
+
+    if not all(_is_peak_file(x) for x in data):
+        raise ValueError(
+            "DataFrame and parquet inputs cannot be checked against the "
+            f"existing lance dataset at '{dataset.uri}'. {hint} Use "
+            "`add_spectra()` to add them to the existing dataset."
+        )
+
+    custom_fields = parse_kwargs.get("custom_fields")
+    custom_fields = [] if custom_fields is None else custom_fields
+    missing = [
+        f.name for f in utils.listify(custom_fields) if f.name not in columns
+    ]
+    if missing:
+        raise ValueError(
+            f"The lance dataset at '{dataset.uri}' is missing the custom "
+            f"fields: {', '.join(missing)}. {hint}"
+        )
 
 
 def _is_peak_file(data: pl.DataFrame | PathLike) -> bool:
