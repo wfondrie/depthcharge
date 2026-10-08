@@ -58,62 +58,63 @@ Contributions to Depthcharge follow a standard GitHub contribution workflow:
 
 2. Clone your forked Depthcharge repository to work on locally.
 
-2. Install the pre-commit hooks.
-   These will automatically lint and verify that new code matches our standard formatting with each new commit.
-```bash
-# If you need to install pre-commit:
-pip install pre-commit
+3. Install Depthcharge and its development dependencies with [uv](https://docs.astral.sh/uv/):
 
-# Install the pre-commit hooks:
-pre-commit install
+```bash
+uv sync --dev
 ```
 
-3. Create a new branch with a descriptive name for your changes:
+4. Install the pre-commit hooks.
+   These will automatically lint and verify that new code matches our standard formatting with each new commit.
+
+```bash
+uv run pre-commit install
+```
+
+5. Create a new branch with a descriptive name for your changes:
 
 ```bash
 git checkout -b fix_x
 ```
 
-4. Make your changes (make sure to read below first).
+6. Make your changes (make sure to read below first).
+   Bug fixes should include a test that fails without the fix, and user-facing changes should include an entry under `## [Unreleased]` in `CHANGELOG.md`.
 
-5. Add, commit, and push your changes to your forked repository.
+7. Verify that the tests pass:
 
-6. On the GitHub page for your forked repository, click "Pull request" to propose
+```bash
+uv run pytest tests/
+```
+
+8. Add, commit, and push your changes to your forked repository.
+
+9. On the GitHub page for your forked repository, click "Pull request" to propose
    adding your changes to Depthcharge.
 
-7. We'll review, discuss, and help you make any revisions that are required. If
+10. We'll review, discuss, and help you make any revisions that are required. If
    all goes well, your changes will be added to Depthcharge
    in the next release!
+
+If you are using an AI coding agent, point it to [AGENTS.md](https://github.com/wfondrie/depthcharge/blob/main/AGENTS.md), which describes our conventions in more detail.
 
 
 ### Python code style
 
 The Depthcharge project follows the [PEP 8 guidelines](https://www.python.org/dev/peps/pep-0008/) for Python code style.
-More specifically, we use [Black](https://black.readthedocs.io/en/stable/) to automatically format code and [Ruff](https://github.com/charliermarsh/ruff) to automatically lint Python code in Depthcharge.
+More specifically, we use [Ruff](https://docs.astral.sh/ruff/) to automatically format and lint Python code in Depthcharge.
+All functions, classes, and methods should have NumPy-style docstrings.
 
-We highly recommend setting up our pre-commit hooks.
-These will run Black, Ruff, and some other checks during each commit, fixing problems that can be fixed automatically.
-Because we run black for code linting as part of our tests, setting up this hook can save you from having to revise code formatting. Take the following steps to setup the pre-commit hooks:
+We highly recommend setting up our pre-commit hooks (step 4 above).
+These will run Ruff and some other checks during each commit, fixing problems that can be fixed automatically.
+Because we check formatting and linting as part of our tests, setting up these hooks can save you from having to revise your code.
+If a hook changes a file, you need to `git add` the file again before finishing the commit.
 
-1. Verify that pre-commit is installed on your machine.
-   If not, you can install them with pip or conda:
+You can also run Ruff yourself:
 
 ```bash
-# Using pip
-pip install pre-commit
-
-# Using conda
-conda -c conda-forge pre-commit
+uv run ruff check --fix .
+uv run ruff format .
 ```
-
-2. Navigate to your local copy of the Depthcharge repository and activate the hook:
-```bash
-pre-commit install
-```
-
-One the hook is installed, black will be run before any commit is made. If a
-file is changed by black, then you need to `git add` the file again before
-finished the commit.
 
 When you're ready, open a pull request with your changes and we'll start the review process.
 Thank you for your contribution! :tada:
