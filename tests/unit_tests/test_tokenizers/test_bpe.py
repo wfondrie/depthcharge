@@ -12,8 +12,34 @@ from depthcharge.data import (
     AnnotatedSpectrumDataset,
     CustomField,
 )
-from depthcharge.tokenizers import MoleculeTokenizer, PeptideTokenizer
+from depthcharge.tokenizers import (
+    MoleculeTokenizer,
+    PeptideTokenizer,
+    Tokenizer,
+)
+from depthcharge.tokenizers import tokenizer as tokenizer_module
 from depthcharge.transformers import AnalyteTransformerEncoder
+
+
+class CharTokenizer(Tokenizer):
+    """A tokenizer that splits sequences into characters."""
+
+    def split(self, sequence: str) -> list[str]:
+        """Split a sequence into characters.
+
+        Parameters
+        ----------
+        sequence : str
+            The sequence.
+
+        Returns
+        -------
+        list[str]
+            The characters.
+
+        """
+        return list(sequence)
+
 
 PEPTIDES = [
     "LESLIEK",
@@ -238,9 +264,34 @@ def test_invalid_merges():
 
 def test_conflicting_merge_is_skipped():
     """Test that training skips merges that conflict with a token."""
-    tokenizer = MoleculeTokenizer(["x", "y", "xy"])
-    bpe = tokenizer.train_bpe(["xyz", "xy"] * 2, 100, min_frequency=1)
+    tokenizer = CharTokenizer(["x", "y", "z", "xy"])
+    bpe = tokenizer.train_bpe(["xyz", "xyz", "zz"], 100, min_frequency=1)
+
+    # x + y would conflict with the existing "xy" token:
     assert ("x", "y") not in bpe.merges
+    assert bpe.merges == [("y", "z"), ("x", "yz"), ("z", "z")]
+    assert bpe.tokenize(["xyz", "xy"], to_strings=True) == [
+        ["xyz"],
+        ["x", "y"],
+    ]
+
+
+def test_duplicate_merges():
+    """Test that a repeated merge is only applied once."""
+    tokenizer = PeptideTokenizer(merges=[("L", "L"), ("L", "L")])
+    assert tokenizer.merges == [("L", "L")]
+    assert len(tokenizer) == len(PeptideTokenizer()) + 1
+
+
+def test_merge_cache_size(monkeypatch):
+    """Test that the cache of merged tokens is cleared when it is full."""
+    monkeypatch.setattr(tokenizer_module, "MERGE_CACHE_SIZE", 2)
+    tokenizer = PeptideTokenizer(merges=[("L", "L")])
+    tokenizer.tokenize(["LLK", "LLE"])
+    assert len(tokenizer._merge_cache) == 2
+
+    assert tokenizer.tokenize("LLA", to_strings=True) == [["LL", "A"]]
+    assert list(tokenizer._merge_cache) == [("L", "L", "A")]
 
 
 def test_datasets(mgf_small, tmp_path):

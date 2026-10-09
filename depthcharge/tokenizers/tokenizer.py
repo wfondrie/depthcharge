@@ -17,6 +17,9 @@ from sortedcontainers import SortedDict, SortedSet
 
 from .. import utils
 
+# The maximum number of sequences whose merged tokens are cached:
+MERGE_CACHE_SIZE = 2**18
+
 
 class Tokenizer(ABC):
     """An abstract base class for Depthcharge tokenizers.
@@ -185,7 +188,7 @@ class Tokenizer(ABC):
 
         out = _merge_tokens(tokens, self._merge_ranks, dropout)
         if not dropout:
-            if len(self._merge_cache) >= 2**18:
+            if len(self._merge_cache) >= MERGE_CACHE_SIZE:
                 self._merge_cache.clear()
 
             self._merge_cache[key] = tuple(out)
