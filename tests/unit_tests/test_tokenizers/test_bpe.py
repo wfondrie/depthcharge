@@ -162,6 +162,7 @@ def test_molecules():
     tokens = bpe.tokenize(smiles)
     assert tokens.shape[1] < tokenizer.tokenize(smiles).shape[1]
     assert bpe.detokenize(tokens) == selfies
+    assert bpe.detokenize(bpe.tokenize(selfies)) == selfies
 
     # A merged token contains whole SELFIES symbols:
     for expansion in bpe.expansions[len(tokenizer) + 1 :]:

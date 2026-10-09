@@ -66,6 +66,9 @@ class MoleculeTokenizer(Tokenizer):
     def split(self, sequence: str) -> list[str]:
         """Split a SMILES or SELFIES string into SELFIES tokens.
 
+        A string is treated as SELFIES if it consists only of valid
+        SELFIES symbols. Otherwise, it is treated as SMILES.
+
         Parameters
         ----------
         sequence : str
@@ -77,6 +80,9 @@ class MoleculeTokenizer(Tokenizer):
             The SELFIES tokens representing the molecule.
 
         """
+        if _is_selfies(sequence):
+            return list(sf.split_selfies(sequence))
+
         try:
             return list(sf.split_selfies(sf.encoder(sequence)))
         except sf.EncoderError:
@@ -149,3 +155,27 @@ class MoleculeTokenizer(Tokenizer):
         """
         vocab = sf.get_alphabet_from_selfies(utils.listify(selfies))
         return cls(vocab, start_token, stop_token, merges)
+
+
+def _is_selfies(sequence: str) -> bool:
+    """Check whether a string is a valid SELFIES string.
+
+    Some SMILES strings, such as "[C][C][O]", look like SELFIES. These
+    are treated as SELFIES only if they can be decoded as SELFIES.
+
+    Parameters
+    ----------
+    sequence : str
+        The SMILES or SELFIES string.
+
+    Returns
+    -------
+    bool
+        Whether the string is a valid SELFIES string.
+
+    """
+    try:
+        tokens = list(sf.split_selfies(sequence))
+        return "".join(tokens) == sequence and bool(sf.decoder(sequence))
+    except (ValueError, sf.DecoderError):
+        return False

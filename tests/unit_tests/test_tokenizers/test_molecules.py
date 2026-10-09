@@ -67,3 +67,30 @@ def test_split(molecule):
 
     tokenizer = MoleculeTokenizer()
     assert expected == tokenizer.split(molecule)
+
+
+@pytest.mark.parametrize(
+    ["molecule", "expected"],
+    [
+        # SELFIES that are also valid SMILES:
+        ("[C][C][O]", ["[C]", "[C]", "[O]"]),
+        ("[C][C][O].[Na+1]", ["[C]", "[C]", "[O]", ".", "[Na+1]"]),
+        # SMILES that look like SELFIES:
+        ("[CH3][CH2][OH]", ["[CH3]", "[CH2]", "[OH1]"]),
+        ("[Na+].[Cl-]", ["[Na+1]", ".", "[Cl-1]"]),
+        ("[NH4+]", ["[NH4+1]"]),
+    ],
+)
+def test_split_ambiguous(molecule, expected):
+    """Test that strings that look like SELFIES are split correctly."""
+    tokenizer = MoleculeTokenizer()
+    assert tokenizer.split(molecule) == expected
+
+
+def test_selfies_round_trip():
+    """Test that SELFIES strings are tokenized and detokenized."""
+    selfies = ["[C][C][O]", "[C][=C][C][=C][C][=C][Ring1][=Branch1]"]
+    tokenizer = MoleculeTokenizer.from_selfies(selfies)
+    tokens = tokenizer.tokenize(selfies)
+    assert tokens.shape == (2, 8)
+    assert tokenizer.detokenize(tokens) == selfies
