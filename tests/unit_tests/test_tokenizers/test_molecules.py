@@ -94,3 +94,9 @@ def test_selfies_round_trip():
     tokens = tokenizer.tokenize(selfies)
     assert tokens.shape == (2, 8)
     assert tokenizer.detokenize(tokens) == selfies
+
+
+def test_split_invalid():
+    """Test splitting a string that is neither SMILES nor SELFIES."""
+    tokenizer = MoleculeTokenizer()
+    assert tokenizer.split("C1CC") == []
