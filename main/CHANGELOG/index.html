@@ -2045,6 +2045,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li>Added <code>depthcharge.data.hash_peak_file()</code>, which quickly computes the fingerprint of a peak file from its size and first and last 1 MiB.</li>
 <li>Added the <code>peak_file_hashes</code> property to <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code>.</li>
 <li>Added the <code>overwrite</code> parameter to <code>SpectrumDataset</code> and <code>AnnotatedSpectrumDataset</code>.</li>
+<li>Added byte-pair encoding (BPE), similar to SentencePiece, to <code>PeptideTokenizer</code>, <code>MoleculeTokenizer</code>, and other <code>Tokenizer</code> subclasses. <code>train_bpe()</code> learns merges of frequent adjacent tokens, such as residues or SELFIES symbols, without dividing modified residues. Merges can be passed with the new <code>merges</code> parameter, and saved and loaded with <code>save_merges()</code> and <code>load_merges()</code>. The <code>bpe_dropout</code> attribute and <code>tokenize()</code> parameter enable BPE-dropout. <code>detokenize()</code> has a new <code>expand</code> parameter, and the masses of merged tokens in <code>PeptideTokenizer.masses</code> are the sums of their residues.</li>
 </ul>
 <h3 id="changed">Changed</h3>
 <ul>
