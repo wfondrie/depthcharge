@@ -25,6 +25,9 @@ class MoleculeTokenizer(Tokenizer):
         The start token to use.
     stop_token : str, optional
         The stop token to use.
+    merges : Iterable[tuple[str, str]], optional
+        Byte-pair encoding (BPE) merges, in the order that they are
+        applied. Merges are usually learned with `train_bpe()`.
 
     Attributes
     ----------
@@ -51,13 +54,14 @@ class MoleculeTokenizer(Tokenizer):
         selfies_vocab: Iterable[str] | None = None,
         start_token: str | None = None,
         stop_token: str | None = "$",
+        merges: Iterable[tuple[str, str]] | None = None,
     ) -> None:
         """Initialize a MoleculeTokenizer."""
         if selfies_vocab is None:
             selfies_vocab = sf.get_semantic_robust_alphabet()
 
         self.selfies_vocab = selfies_vocab
-        super().__init__(selfies_vocab, start_token, stop_token)
+        super().__init__(selfies_vocab, start_token, stop_token, merges)
 
     def split(self, sequence: str) -> list[str]:
         """Split a SMILES or SELFIES string into SELFIES tokens.
@@ -84,6 +88,7 @@ class MoleculeTokenizer(Tokenizer):
         smiles: Iterable[str] | str,
         start_token: str | None = None,
         stop_token: str | None = "$",
+        merges: Iterable[tuple[str, str]] | None = None,
     ) -> MoleculeTokenizer:
         """Learn the vocabulary from SMILES strings.
 
@@ -95,6 +100,9 @@ class MoleculeTokenizer(Tokenizer):
             The start token to use.
         stop_token : str, optional
             The stop token to use.
+        merges : Iterable[tuple[str, str]], optional
+            Byte-pair encoding (BPE) merges, in the order that they are
+            applied.
 
         Returns
         -------
@@ -107,7 +115,7 @@ class MoleculeTokenizer(Tokenizer):
             Molecule(s).to_selfies() for s in utils.listify(smiles)
         )
 
-        return cls(vocab, start_token, stop_token)
+        return cls(vocab, start_token, stop_token, merges)
 
     @classmethod
     def from_selfies(
@@ -115,6 +123,7 @@ class MoleculeTokenizer(Tokenizer):
         selfies: Iterable[str] | str,
         start_token: str | None = None,
         stop_token: str | None = "$",
+        merges: Iterable[tuple[str, str]] | None = None,
     ) -> MoleculeTokenizer:
         """Learn the vocabulary from SELFIES strings.
 
@@ -127,6 +136,9 @@ class MoleculeTokenizer(Tokenizer):
             The start token to use.
         stop_token : str, optional
             The stop token to use.
+        merges : Iterable[tuple[str, str]], optional
+            Byte-pair encoding (BPE) merges, in the order that they are
+            applied.
 
         Returns
         -------
@@ -136,4 +148,4 @@ class MoleculeTokenizer(Tokenizer):
 
         """
         vocab = sf.get_alphabet_from_selfies(utils.listify(selfies))
-        return cls(vocab, start_token, stop_token)
+        return cls(vocab, start_token, stop_token, merges)
