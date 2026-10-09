@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `depthcharge.data.hash_peak_file()`, which quickly computes the fingerprint of a peak file from its size and first and last 1 MiB.
 - Added the `peak_file_hashes` property to `SpectrumDataset` and `AnnotatedSpectrumDataset`.
 - Added the `overwrite` parameter to `SpectrumDataset` and `AnnotatedSpectrumDataset`.
+- Added byte-pair encoding (BPE), similar to SentencePiece, to `PeptideTokenizer`, `MoleculeTokenizer`, and other `Tokenizer` subclasses. `train_bpe()` learns merges of frequent adjacent tokens, such as residues or SELFIES symbols, without dividing modified residues. Merges can be passed with the new `merges` parameter, and saved and loaded with `save_merges()` and `load_merges()`. The `bpe_dropout` attribute and `tokenize()` parameter enable BPE-dropout. `detokenize()` has a new `expand` parameter, and the masses of merged tokens in `PeptideTokenizer.masses` are the sums of their residues.
 
 ### Changed
 - `SpectrumDataset` and `AnnotatedSpectrumDataset` now skip peak files that have already been added, as determined by their `peak_file_hash`, with a warning.

@@ -38,6 +38,9 @@ class PeptideTokenizer(Tokenizer):
         The start token to use.
     stop_token : str, optional
         The stop token to use.
+    merges : Iterable[tuple[str, str]], optional
+        Byte-pair encoding (BPE) merges, in the order that they are
+        applied. Merges are usually learned with `train_bpe()`.
 
     Attributes
     ----------
@@ -52,6 +55,10 @@ class PeptideTokenizer(Tokenizer):
     reverse_index : list[None | str]
         The ordered residues and modifications where the list index is the
         integer representation for a token.
+    masses : torch.Tensor
+        The mass of each token, where the index is the integer
+        representation for a token. The mass of a token created by a BPE
+        merge is the sum of the masses of its residues.
     start_token : str
         The start token
     stop_token : str
@@ -103,6 +110,7 @@ class PeptideTokenizer(Tokenizer):
         reverse: bool = False,
         start_token: str | None = None,
         stop_token: str | None = "$",
+        merges: Iterable[tuple[str, str]] | None = None,
     ) -> None:
         """Initialize a PeptideTokenizer."""
         self.replace_isoleucine_with_leucine = replace_isoleucine_with_leucine
@@ -125,9 +133,23 @@ class PeptideTokenizer(Tokenizer):
                 if token in self.residues:
                     del self.residues[token]
 
-        super().__init__(self.residues, start_token, stop_token)
+        super().__init__(self.residues, start_token, stop_token, merges)
+
+    def _set_merges(self, merges: Iterable[tuple[str, str]] | None) -> None:
+        """Build the vocabulary and token masses.
+
+        Parameters
+        ----------
+        merges : Iterable[tuple[str, str]], optional
+            The BPE merges, in the order that they are applied.
+
+        """
+        super()._set_merges(merges)
         self.masses = torch.tensor(
-            [self.residues.get(a, 0.0) for a in self.reverse_index]
+            [
+                sum(self.residues.get(a, 0.0) for a in expansion)
+                for expansion in self.expansions
+            ]
         )
 
     def calculate_precursor_ions(
@@ -197,6 +219,7 @@ class PeptideTokenizer(Tokenizer):
         join: bool = True,
         trim_start_token: bool = True,
         trim_stop_token: bool = True,
+        expand: bool = True,
     ) -> list[str] | list[list[str]]:
         """Retrieve sequences from tokens.
 
@@ -210,6 +233,8 @@ class PeptideTokenizer(Tokenizer):
             Remove the start token from the beginning of a sequence.
         trim_stop_token : bool, optional
             Remove the stop token from the end of a sequence.
+        expand : bool, optional
+            Expand tokens created by BPE merges into individual residues.
 
         Returns
         -------
@@ -222,10 +247,18 @@ class PeptideTokenizer(Tokenizer):
             join=False,
             trim_start_token=trim_start_token,
             trim_stop_token=trim_stop_token,
+            expand=expand,
         )
 
         if self.reverse:
-            decoded = [d[::-1] for d in decoded]
+            # Merged tokens are reversed too, so they read N- to C-term:
+            decoded = [
+                [
+                    "".join(self.expansions[self.index[t]][::-1])
+                    for t in reversed(d)
+                ]
+                for d in decoded
+            ]
 
         if join:
             decoded = ["".join(pep) for pep in decoded]
@@ -241,6 +274,7 @@ class PeptideTokenizer(Tokenizer):
         reverse: bool = False,
         start_token: str | None = None,
         stop_token: str | None = "$",
+        merges: Iterable[tuple[str, str]] | None = None,
     ) -> PeptideTokenizer:
         """Create a tokenizer with the observed peptide modifications.
 
@@ -264,6 +298,9 @@ class PeptideTokenizer(Tokenizer):
             The start token to use.
         stop_token : str, optional
             The stop token to use.
+        merges : Iterable[tuple[str, str]], optional
+            Byte-pair encoding (BPE) merges, in the order that they are
+            applied.
 
         Returns
         -------
@@ -307,6 +344,7 @@ class PeptideTokenizer(Tokenizer):
             reverse,
             start_token,
             stop_token,
+            merges,
         )
 
     @staticmethod
@@ -316,6 +354,7 @@ class PeptideTokenizer(Tokenizer):
         reverse: bool = False,
         start_token: str | None = None,
         stop_token: str | None = "$",
+        merges: Iterable[tuple[str, str]] | None = None,
     ) -> MskbPeptideTokenizer:
         """Create a tokenizer with the observed peptide modifications.
 
@@ -337,6 +376,9 @@ class PeptideTokenizer(Tokenizer):
             The start token to use.
         stop_token : str, optional
             The stop token to use.
+        merges : Iterable[tuple[str, str]], optional
+            Byte-pair encoding (BPE) merges, in the order that they are
+            applied.
 
         Returns
         -------
@@ -351,6 +393,7 @@ class PeptideTokenizer(Tokenizer):
             reverse,
             start_token,
             stop_token,
+            merges,
         )
 
 
@@ -376,6 +419,9 @@ class MskbPeptideTokenizer(PeptideTokenizer):
         The start token to use.
     stop_token : str, optional
         The stop token to use.
+    merges : Iterable[tuple[str, str]], optional
+        Byte-pair encoding (BPE) merges, in the order that they are
+        applied. Merges are usually learned with `train_bpe()`.
 
     Attributes
     ----------
