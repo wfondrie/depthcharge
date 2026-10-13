@@ -6,6 +6,7 @@ import torch
 
 from ..encoders import PeakEncoder
 from ..mixins import ModelMixin, TransformerMixin
+from .layers import TransformerEncoder, TransformerEncoderLayer
 
 
 class SpectrumTransformerEncoder(
@@ -37,6 +38,12 @@ class SpectrumTransformerEncoder(
         The function to encode the (m/z, intensity) tuples of each mass
         spectrum. `True` uses the default sinusoidal encoding and `False`
         instead performs a 1 to `d_model` learned linear projection.
+    attention_backend : str, optional
+        Attention implementation: "sdpa" (default) or "native".
+    rotary_embedding : RotaryEmbedding, optional
+        Rotary position embedding module to apply to Q and K in attention.
+        Only compatible with `attention_backend="sdpa"`.
+        If None, no rotary embeddings are used. Default: None
 
     Attributes
     ----------
@@ -48,7 +55,7 @@ class SpectrumTransformerEncoder(
     peak_encoder : torch.nn.Module or Callable
         The function to encode the (m/z, intensity) tuples of each mass
         spectrum.
-    transformer_encoder : torch.nn.TransformerEncoder
+    transformer_encoder : depthcharge.transformers.TransformerEncoder
         The Transformer encoder layers.
 
     """
@@ -61,6 +68,8 @@ class SpectrumTransformerEncoder(
         n_layers: int = 1,
         dropout: float = 0.0,
         peak_encoder: PeakEncoder | Callable | bool = True,
+        attention_backend: str = "sdpa",
+        rotary_embedding: torch.nn.Module | None = None,
     ) -> None:
         """Initialize a SpectrumEncoder."""
         super().__init__()
@@ -78,15 +87,20 @@ class SpectrumTransformerEncoder(
             self.peak_encoder = torch.nn.Linear(2, d_model)
 
         # The Transformer layers:
-        layer = torch.nn.TransformerEncoderLayer(
+        layer = TransformerEncoderLayer(
             d_model=self.d_model,
             nhead=self.nhead,
             dim_feedforward=self.dim_feedforward,
             batch_first=True,
             dropout=self.dropout,
+            attention_backend=attention_backend,
+            rotary_embedding=rotary_embedding,
+            enable_sdpa_math=True,
+            enable_sdpa_mem_efficient=True,
+            enable_sdpa_flash_attention=True,
         )
 
-        self.transformer_encoder = torch.nn.TransformerEncoder(
+        self.transformer_encoder = TransformerEncoder(
             layer,
             num_layers=self.n_layers,
         )
@@ -97,6 +111,7 @@ class SpectrumTransformerEncoder(
         intensity_array: torch.Tensor,
         *args: torch.Tensor,
         mask: torch.Tensor | None = None,
+        global_token_rotary_mz: torch.Tensor | None = None,
         **kwargs: dict,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Embed a batch of mass spectra.
@@ -111,8 +126,11 @@ class SpectrumTransformerEncoder(
             Additional data. These may be used by overwriting the
             `global_token_hook()` method in a subclass.
         mask : torch.Tensor
-            Passed to `torch.nn.TransformerEncoder.forward()`. The mask
-            for the sequence.
+            Passed to `depthcharge.transformers.TransformerEncoder.forward()`.
+            The mask for the sequence.
+        global_token_rotary_mz : torch.Tensor of shape (n_spectra,)
+            The m/z values for the global tokens to be prepended to
+            each spectrum. Only used for rotary embeddings.
         **kwargs : dict
             Additional data fields. These may be used by overwriting
             the `global_token_hook()` method in a subclass.
@@ -149,11 +167,24 @@ class SpectrumTransformerEncoder(
         )
 
         peaks = torch.cat([latent_spectra[:, None, :], peaks], dim=1)
+
+        if global_token_rotary_mz is not None:
+            global_pos = global_token_rotary_mz[:, None]  # (batch, 1)
+        else:
+            global_pos = torch.zeros(
+                (mz_array.shape[0], 1),
+                device=mz_array.device,
+                dtype=mz_array.dtype,
+            )
+        positions = torch.cat([global_pos, mz_array], dim=1)
+
         out = self.transformer_encoder(
             peaks,
             mask=mask,
             src_key_padding_mask=src_key_padding_mask,
+            positions=positions,
         )
+
         return out, src_key_padding_mask
 
     def global_token_hook(
