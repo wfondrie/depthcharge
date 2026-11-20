@@ -6,6 +6,7 @@ import hashlib
 import logging
 import warnings
 from abc import ABC, abstractmethod
+from collections import Counter
 from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from os import PathLike, fspath
@@ -24,6 +25,10 @@ from ..primitives import MassSpectrum
 from . import preprocessing
 
 LOGGER = logging.getLogger(__name__)
+
+# The maximum number of distinct reasons to name when warning about
+# skipped spectra.
+MAX_SKIP_REASONS = 5
 
 
 class BaseParser(ABC):
@@ -182,8 +187,7 @@ class BaseParser(ABC):
             "disable": not self.progress,
         }
 
-        n_skipped = 0
-        last_exc = None
+        skipped = Counter()
         try:
             with self.open() as spectra:
                 self._batch = None
@@ -212,8 +216,7 @@ class BaseParser(ABC):
                         entry.update(self.parse_custom_fields(spectrum))
 
                     except (IndexError, KeyError, ValueError) as exc:
-                        last_exc = exc
-                        n_skipped += 1
+                        skipped[repr(exc)] += 1
                         continue
 
                     self._update_batch(entry)
@@ -227,10 +230,10 @@ class BaseParser(ABC):
                     yield self._yield_batch()
 
         finally:
-            if n_skipped:
+            if skipped:
                 warnings.warn(
-                    f"Skipped {n_skipped} spectra with invalid information. "
-                    f"Last error was: {last_exc!r}"
+                    f"Skipped {sum(skipped.values())} spectra with invalid "
+                    f"information. {_format_skip_reasons(skipped)}"
                 )
 
     def _update_batch(self, entry: dict) -> None:
@@ -439,7 +442,7 @@ class MzxmlParser(BaseParser):
                 precursor_charge=precursor_charge,
             )
 
-        raise ValueError("Invalid precursor charge")
+        raise ValueError("Invalid precursor charge.")
 
 
 class MgfParser(BaseParser):
@@ -801,3 +804,27 @@ def _update_file_hash(
         hasher.update(handle.read(n_bytes))
         handle.seek(-n_bytes, 2)
         hasher.update(handle.read(n_bytes))
+
+
+def _format_skip_reasons(skipped: Counter) -> str:
+    """Describe why spectra were skipped, most common reason first.
+
+    Parameters
+    ----------
+    skipped : Counter
+        The number of spectra skipped, keyed by the representation of the
+        exception that caused them to be skipped.
+
+    Returns
+    -------
+    str
+        A description of the reasons, naming at most `MAX_SKIP_REASONS` of
+        them.
+
+    """
+    reasons = skipped.most_common(MAX_SKIP_REASONS)
+    text = "Reasons: " + "; ".join(f"{n} x {exc}" for exc, n in reasons)
+    if (n_other := len(skipped) - len(reasons)) > 0:
+        text += f"; and {n_other} other reason(s)"
+
+    return text

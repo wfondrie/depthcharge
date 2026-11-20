@@ -7,7 +7,7 @@ import pyarrow as pa
 import pytest
 from polars.testing import assert_frame_equal, assert_series_equal
 
-from depthcharge.data import CustomField, hash_peak_file
+from depthcharge.data import CustomField, hash_peak_file, parsers
 from depthcharge.data.parsers import (
     MgfParser,
     MzmlParser,
@@ -234,8 +234,8 @@ def test_skipped_spectra_warning(mgf_small):
         ),
     )
 
-    msg = r"^Skipped 2 spectra with invalid information\. Last error was: "
-    with pytest.warns(UserWarning, match=msg + r"KeyError\('bar'\)$"):
+    msg = r"^Skipped 2 spectra with invalid information\. Reasons: "
+    with pytest.warns(UserWarning, match=msg + r"2 x KeyError\('bar'\)$"):
         assert not list(parser.iter_batches(None))
 
     # The warning is still raised if iteration stops early:
@@ -253,8 +253,52 @@ def test_skipped_spectra_warning(mgf_small):
 
     batches = parser.iter_batches(1)
     assert next(batches)["seq"].to_pylist() == ["EDITHR"]
-    with pytest.warns(UserWarning, match=msg.replace("2", "1")):
+    msg = r"^Skipped 1 spectra with invalid information\. Reasons: "
+    msg += r"1 x ValueError\('bad seq'\)$"
+    with pytest.warns(UserWarning, match=msg):
         batches.close()
+
+
+def test_skipped_spectra_reasons(mgf_medium):
+    """Test that every reason a spectrum was skipped is counted."""
+    # mgf_medium holds two spectra with a charge outside valid_charge and
+    # one spectrum without a precursor m/z.
+    parser = MgfParser(mgf_medium, valid_charge=[2, 3])
+    with pytest.warns(UserWarning) as record:
+        assert sum(b.num_rows for b in parser.iter_batches(None)) == 98
+
+    msg = str(record[0].message)
+    assert msg.startswith("Skipped 3 spectra with invalid information. ")
+    assert "2 x ValueError('Invalid precursor charge.')" in msg
+    assert "1 x KeyError('pepmass')" in msg
+
+    # The most common reason comes first:
+    assert msg.index("ValueError") < msg.index("KeyError")
+
+
+def test_skipped_spectra_many_reasons(mgf_small, monkeypatch):
+    """Test that the number of reasons named in the warning is capped."""
+
+    def accessor(spectrum: dict) -> str:
+        raise ValueError(spectrum["params"]["seq"])
+
+    def parse(n_reasons: int) -> str:
+        monkeypatch.setattr(parsers, "MAX_SKIP_REASONS", n_reasons)
+        parser = MgfParser(
+            mgf_small,
+            custom_fields=CustomField("seq", accessor, pa.string()),
+        )
+        with pytest.warns(UserWarning) as record:
+            assert not list(parser.iter_batches(None))
+
+        return str(record[0].message)
+
+    # mgf_small holds two spectra, which fail here for two distinct reasons.
+    capped = parse(1)
+    assert "and 1 other reason(s)" in capped
+    assert len([r for r in capped.split("; ") if " x " in r]) == 1
+    assert "other reason(s)" not in parse(2)
+    assert "other reason(s)" not in parse(5)
 
 
 def test_invalid_file(tmp_path):
